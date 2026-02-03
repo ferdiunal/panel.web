@@ -50,6 +50,13 @@ export default function LoginPage() {
         version: "1.0.0"
     }
 
+    // Double check structure in case of partial object from malformed JSON/HTML
+    const safeInitData = {
+        features: initData?.features || { register: false, forgot_password: false },
+        oauth: initData?.oauth || { google: false },
+        version: initData?.version || "1.0.0"
+    }
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -87,13 +94,15 @@ export default function LoginPage() {
                 <Card>
                     <CardHeader className="text-center">
                         <CardTitle className="text-xl">Hoş geldiniz</CardTitle>
-                        <CardDescription>
-                            Google hesabınızla giriş yapın
-                        </CardDescription>
+                        {safeInitData.oauth.google && (
+                            <CardDescription>
+                                Google hesabınızla giriş yapın
+                            </CardDescription>
+                        )}
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-6">
-                            {initData.oauth.google && (
+                            {safeInitData.oauth.google && (
                                 <div className="flex flex-col gap-4">
                                     <Button variant="outline" className="w-full">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 mr-2">
@@ -106,7 +115,7 @@ export default function LoginPage() {
                                     </Button>
                                 </div>
                             )}
-                            {initData.oauth.google && (
+                            {safeInitData.oauth.google && (
                                 <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                                     <span className="relative z-10 bg-background px-2 text-muted-foreground">
                                         veya e-posta ile
@@ -128,7 +137,7 @@ export default function LoginPage() {
                                             label="Şifre"
                                             type="password"
                                         />
-                                        {initData.features.forgot_password && (
+                                        {safeInitData.features.forgot_password && (
                                             <div className="flex items-center justify-end">
                                                 <Link
                                                     to="/forgot-password"
@@ -144,7 +153,7 @@ export default function LoginPage() {
                                     </Button>
                                 </form>
                             </Form>
-                            {initData.features.register && (
+                            {safeInitData.features.register && (
                                 <div className="text-center text-sm">
                                     Hesabınız yok mu?{" "}
                                     <Link to="/register" className="underline underline-offset-4">

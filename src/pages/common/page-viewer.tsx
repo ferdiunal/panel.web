@@ -1,12 +1,12 @@
 import { useLoaderData, type LoaderFunctionArgs } from "react-router-dom"
 import api from "@/lib/axios"
-import type { Widget } from "@/types"
+import type { Card } from "@/types"
 import { WidgetRenderer } from "@/components/widget-renderer"
 
 interface PageData {
     slug: string
     title: string
-    widgets: Widget[]
+    cards: Card[]
 }
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
@@ -16,11 +16,11 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
     }
 
     try {
-        const res = await api.get<{ title: string; widgets: any[] }>(`/pages/${page}`)
+        const res = await api.get<{ title: string; meta: { cards: any[] } }>(`/pages/${page}`)
         return {
             slug: page,
             title: res.data.title,
-            widgets: res.data.widgets
+            cards: res.data.meta?.cards || []
         }
     } catch (error) {
         throw new Error("Sayfa yüklenirken hata oluştu.")
@@ -35,9 +35,9 @@ export default function PageViewer() {
             <h1 className="text-2xl font-bold tracking-tight">{data.title}</h1>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {data.widgets && data.widgets.map((widget: Widget, index: number) => (
-                    <div key={index} className={widget.width === "1/3" ? "col-span-1" : "col-span-full"}>
-                        <WidgetRenderer widget={widget} />
+                {data.cards && data.cards.map((card: Card, index: number) => (
+                    <div key={index} className={card.width === "1/3" ? "col-span-1" : "col-span-full"}>
+                        <WidgetRenderer card={card} />
                     </div>
                 ))}
             </div>

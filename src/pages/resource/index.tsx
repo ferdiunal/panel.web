@@ -68,6 +68,7 @@ export default function ResourceIndexPage() {
         initialData: (pagination.pageIndex === 0 && sorting.length === 0) ? initialData : undefined,
         placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
         enabled: !!resource,
+        staleTime: 5000, // Data considered fresh for 5 seconds to avoid immediate refetch on mount
     })
 
     // Create Fields Query

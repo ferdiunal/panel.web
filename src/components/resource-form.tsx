@@ -7,6 +7,14 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import AvatarUpload from "@/components/file-upload/avatar-upload"
 import TableUpload from "@/components/file-upload/table-upload"
+import {
+    Combobox,
+    ComboboxContent,
+    ComboboxInput,
+    ComboboxItem,
+    ComboboxList,
+} from "@/components/ui/combobox"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 // If textarea doesn't exist, I'll stick to Input or standard textarea
 // Check Shadcn Input.
@@ -171,6 +179,62 @@ function renderInput(
                         onCheckedChange={(checked) => onChange(checked)}
                     />
                 </div>
+            )
+        case "combobox-field":
+            // eslint-disable-next-line no-case-declarations
+            const options = (field.props?.options as Record<string, string>) || {}
+            // eslint-disable-next-line no-case-declarations
+            const items = Object.entries(options).map(([val, label]) => ({
+                value: val,
+                label: label,
+            }))
+
+            return (
+                <Combobox
+                    value={value}
+                    onValueChange={(val) => onChange(val)}
+                >
+                    <ComboboxInput placeholder={field.placeholder || "Select option..."} />
+                    <ComboboxContent>
+                        <ComboboxList>
+                            {items.map((item) => (
+                                <ComboboxItem key={item.value} value={item.value}>
+                                    {item.label}
+                                </ComboboxItem>
+                            ))}
+                        </ComboboxList>
+                    </ComboboxContent>
+                </Combobox>
+            )
+        case "select-field":
+            // eslint-disable-next-line no-case-declarations
+            const _options = (field.props?.options as Record<string, string>) || {}
+            // eslint-disable-next-line no-case-declarations
+            const _items = Object.entries(_options).map(([val, label]) => ({
+                value: val,
+                label: label,
+            }))
+
+            return (
+                <Select
+                    defaultValue={String(value).toLowerCase()}
+                    value={String(value).toLowerCase()}
+                    onValueChange={(val) => onChange(val)}
+                >
+
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder={field.placeholder || "Select option..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            {_items.map((item) => (
+                                <SelectItem key={item.value} value={item.value}>
+                                    {item.label}
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
             )
         default:
             return <Input type="text" {...commonProps} />

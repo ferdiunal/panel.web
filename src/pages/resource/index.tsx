@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react"
-import { useParams, useLoaderData, type LoaderFunctionArgs } from "react-router-dom"
+import { useParams, useLoaderData, type LoaderFunctionArgs, redirect } from "react-router-dom"
 import { resourceService } from "@/services/resource"
 import type { ResourceItem, FieldData, Card as CardType } from "@/types"
 import { WidgetRenderer } from "@/components/widget-renderer"
@@ -22,11 +22,18 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useDeleteStore } from "@/store/delete-store"
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
+import { BreadcrumbBuilder } from "@/components/breadcrumb-builder"
+import { useAuthStore } from "@/stores"
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
     const resource = params.resource
     if (!resource) throw new Error("Resource not found")
 
+    try {
+        await useAuthStore.getState().checkSession()
+    } catch {
+        return redirect('/login');
+    }
     // Fetch initial data (Page 1)
     return await resourceService.fetchResource(resource, 1, 10, undefined, undefined)
 }
@@ -302,98 +309,105 @@ export default function ResourceIndexPage() {
     })
 
     return (
-        <div className="flex flex-col gap-4 p-4 md:p-8">
-            {/* Cards Functionality */}
-            {cards?.length > 0 && (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
-                    {cards.map((card: CardType, index: number) => (
-                        <div key={index} className={card.width === "1/3" ? "col-span-1" : "col-span-full"}>
-                            <WidgetRenderer card={card} />
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight">{resourceData.meta.title}</h1>
-                {resourceData.meta.policy.create && (
-                    <ResponsiveModal
-                        title={`Create ${resourceData.meta.title}`}
-                        description="Fill in the details below."
-                        open={isCreateOpen}
-                        variant={resourceData.meta.dialog_type}
-                        onOpenChange={setIsCreateOpen}
-                        trigger={
-                            <Button onClick={() => setIsCreateOpen(true)}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Yeni Ekle
-                            </Button>
-                        }
-                    >
-                        <ResourceForm
-                            fields={createFields}
-                            onSubmit={handleCreateSubmit}
-                            onCancel={() => setIsCreateOpen(false)}
-                        />
-                    </ResponsiveModal>
-                )}
+        <div className="flex flex-col gap-4">
+            {/* Breadcrumb with resource title */}
+            <div className="px-4 md:px-8 pt-4">
+                <BreadcrumbBuilder resourceTitle={resourceData.meta.title} />
             </div>
 
-            <DataTable
-                columns={columns}
-                data={resourceData.data}
-                pageCount={Math.ceil(resourceData.meta.total / resourceData.meta.per_page)}
-                pagination={pagination}
-                onPaginationChange={setPagination}
-                sorting={sorting}
-                onSortingChange={setSorting}
-            />
+            <div className="flex flex-col gap-4 p-4 md:p-8 pt-0">
+                {/* Cards Functionality */}
+                {cards?.length > 0 && (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                        {cards.map((card: CardType, index: number) => (
+                            <div key={index} className={card.width === "1/3" ? "col-span-1" : "col-span-full"}>
+                                <WidgetRenderer card={card} />
+                            </div>
+                        ))}
+                    </div>
+                )}
 
-            {/* Edit Modal */}
-            <ResponsiveModal
-                title={`Edit ${resourceData.meta.title}`}
-                description="Update the details below."
-                open={isEditOpen}
-                variant={resourceData.meta.dialog_type}
-                onOpenChange={(open) => {
-                    setIsEditOpen(open)
-                    if (!open) setEditingItem(null)
-                }}
-            >
-                {/* Reusing ResourceForm. Using createFields for now as update fields might be same or similar.
-                    Ideally should fetch update fields if different.
-                 */}
-                <ResourceForm
-                    key={(editingItem?.id as FieldData)?.data || 'edit-form'}
-                    fields={editFields}
-                    initialData={editInitialData}
-                    onSubmit={handleUpdateSubmit}
-                    onCancel={() => {
-                        setIsEditOpen(false)
-                        setEditingItem(null)
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold tracking-tight">{resourceData.meta.title}</h1>
+                    {resourceData.meta.policy.create && (
+                        <ResponsiveModal
+                            title={`Create ${resourceData.meta.title}`}
+                            description="Fill in the details below."
+                            open={isCreateOpen}
+                            variant={resourceData.meta.dialog_type}
+                            onOpenChange={setIsCreateOpen}
+                            trigger={
+                                <Button onClick={() => setIsCreateOpen(true)}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Yeni Ekle
+                                </Button>
+                            }
+                        >
+                            <ResourceForm
+                                fields={createFields}
+                                onSubmit={handleCreateSubmit}
+                                onCancel={() => setIsCreateOpen(false)}
+                            />
+                        </ResponsiveModal>
+                    )}
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={resourceData.data}
+                    pageCount={Math.ceil(resourceData.meta.total / resourceData.meta.per_page)}
+                    pagination={pagination}
+                    onPaginationChange={setPagination}
+                    sorting={sorting}
+                    onSortingChange={setSorting}
+                />
+
+                {/* Edit Modal */}
+                <ResponsiveModal
+                    title={`Edit ${resourceData.meta.title}`}
+                    description="Update the details below."
+                    open={isEditOpen}
+                    variant={resourceData.meta.dialog_type}
+                    onOpenChange={(open) => {
+                        setIsEditOpen(open)
+                        if (!open) setEditingItem(null)
                     }}
-                    submitLabel="Güncelle"
-                />
-            </ResponsiveModal>
+                >
+                    {/* Reusing ResourceForm. Using createFields for now as update fields might be same or similar.
+                        Ideally should fetch update fields if different.
+                     */}
+                    <ResourceForm
+                        key={(editingItem?.id as FieldData)?.data || 'edit-form'}
+                        fields={editFields}
+                        initialData={editInitialData}
+                        onSubmit={handleUpdateSubmit}
+                        onCancel={() => {
+                            setIsEditOpen(false)
+                            setEditingItem(null)
+                        }}
+                        submitLabel="Güncelle"
+                    />
+                </ResponsiveModal>
 
-            {/* Detail Modal */}
-            <ResponsiveModal
-                title={`${resourceData.meta.title} Detayı`}
-                description="Kayıt detayları aşağıdadır."
-                open={isDetailOpen}
-                variant={resourceData.meta.dialog_type}
-                onOpenChange={(open) => {
-                    setIsDetailOpen(open)
-                    if (!open) setViewingItem(null)
-                }}
-            >
-                <ResourceDetail
-                    fields={detailFields}
-                    onClose={() => setIsDetailOpen(false)}
-                />
-            </ResponsiveModal>
+                {/* Detail Modal */}
+                <ResponsiveModal
+                    title={`${resourceData.meta.title} Detayı`}
+                    description="Kayıt detayları aşağıdadır."
+                    open={isDetailOpen}
+                    variant={resourceData.meta.dialog_type}
+                    onOpenChange={(open) => {
+                        setIsDetailOpen(open)
+                        if (!open) setViewingItem(null)
+                    }}
+                >
+                    <ResourceDetail
+                        fields={detailFields}
+                        onClose={() => setIsDetailOpen(false)}
+                    />
+                </ResponsiveModal>
 
-            <DeleteConfirmDialog />
+                <DeleteConfirmDialog />
+            </div>
         </div>
     )
 }

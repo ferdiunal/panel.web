@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner"
 import api from "@/lib/axios"
 import { useNavigate, Link, redirect } from "react-router-dom"
-import { initService } from "@/services/init"
+import { useAppStore } from "@/stores/app"
 import UniversalFormField from "@/components/form-field"
 import { GalleryVerticalEnd } from "lucide-react"
+import { useAuthStore } from "@/stores"
 
 const formSchema = z.object({
     name: z.string().min(2, "İsim en az 2 karakter olmalı"),
@@ -19,13 +20,15 @@ const formSchema = z.object({
 
 export async function loader() {
     try {
-        const data = await initService.fetchInit();
-        if (!data.features || !data.features.register) {
-            return redirect("/login");
-        }
-        return null;
+        await useAuthStore.getState().checkSession()
+    } catch {
+        return redirect('/login');
+    }
+    try {
+        await useAppStore.getState().init()
     } catch (error) {
-        return redirect("/login");
+        console.error('Register loader error:', error);
+        return null;
     }
 }
 

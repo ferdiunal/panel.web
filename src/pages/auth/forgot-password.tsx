@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner"
 import api from "@/lib/axios"
 import { Link, redirect } from "react-router-dom"
-import { initService } from "@/services/init"
+import { useAppStore } from "@/stores/app"
 import UniversalFormField from "@/components/form-field"
 import { Form } from "@/components/ui/form"
 import { GalleryVerticalEnd } from "lucide-react"
+import { useAuthStore } from "@/stores"
 
 const formSchema = z.object({
     email: z.string().email({ message: "Geçerli bir e-posta adresi giriniz." }),
@@ -18,13 +19,15 @@ const formSchema = z.object({
 
 export async function loader() {
     try {
-        const data = await initService.fetchInit();
-        if (!data.features || !data.features.forgot_password) {
-            return redirect("/login");
-        }
-        return null;
+        await useAuthStore.getState().checkSession()
+    } catch {
+        return redirect("/login")
+    }
+    try {
+        await useAppStore.getState().init()
     } catch (error) {
-        return redirect("/login");
+        console.error('Forgot password loader error:', error);
+        return null;
     }
 }
 

@@ -1,9 +1,10 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, redirect } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from "@/components/ui/sonner"
-import LoginPage, { loader as loginLoader } from "@/pages/auth/login"
+import LoginPage, {loader as loginloader} from "@/pages/auth/login"
 import RegisterPage, { loader as registerLoader } from "@/pages/auth/register"
 import ForgotPasswordPage, { loader as forgotPasswordLoader } from "@/pages/auth/forgot-password"
+import UnauthorizedPage, { loader as unauthorizedLoader } from "@/pages/auth/unauthorized"
 import { useAuthStore } from "@/stores/auth"
 import { useAppStore } from "@/stores/app"
 import DashboardLayout from "@/layouts/dashboard-layout"
@@ -19,7 +20,7 @@ const ProtectedRoute = () => {
     const { isAuthenticated, isLoading } = useAuthStore()
 
     if (isLoading) {
-        return <div>Yükleniyor...</div>
+        return <GlobalLoader />
     }
 
     return isAuthenticated ? <Outlet /> : <Navigate to="/login" />
@@ -37,37 +38,38 @@ const RootLayout = () => {
     )
 }
 
-const rootLoader = async () => {
-    return await Promise.all([
-        useAuthStore.getState().checkSession(),
-        useAppStore.getState().init()
-    ])
-}
-
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 const router = createBrowserRouter([
     {
         element: <RootLayout />,
-        loader: rootLoader,
         hydrateFallbackElement: <GlobalLoader />,
         children: [
             {
                 index: true,
-                loader: () => {
-                    const { isAuthenticated } = useAuthStore.getState()
-                    return redirect(isAuthenticated ? "/dashboard" : "/login")
+                loader: async () => {
+                    try {
+                        const { isAuthenticated } = useAuthStore.getState()
+                        return redirect(isAuthenticated ? "/dashboard" : "/login")
+                    } catch (error) {
+                        console.error('Index loader error:', error)
+                        return redirect("/login")
+                    }
                 }
             },
             {
                 path: "/login",
                 element: <LoginPage />,
-                loader: loginLoader,
+                loader: loginloader,
                 handle: {
                     title: () => {
-                        const { settings } = useAppStore.getState()
-                        const siteName = settings.site_name || "Panel"
-                        return `Giriş Yap | ${siteName}`
+                        try {
+                            const { settings } = useAppStore.getState()
+                            const siteName = settings.site_name || "Panel"
+                            return `Giriş Yap | ${siteName}`
+                        } catch {
+                            return "Giriş Yap | Panel"
+                        }
                     }
                 }
             },
@@ -77,9 +79,13 @@ const router = createBrowserRouter([
                 loader: registerLoader,
                 handle: {
                     title: () => {
-                        const { settings } = useAppStore.getState()
-                        const siteName = settings.site_name || "Panel"
-                        return `Kayıt Ol | ${siteName}`
+                        try {
+                            const { settings } = useAppStore.getState()
+                            const siteName = settings.site_name || "Panel"
+                            return `Kayıt Ol | ${siteName}`
+                        } catch {
+                            return "Kayıt Ol | Panel"
+                        }
                     }
                 }
             },
@@ -89,9 +95,29 @@ const router = createBrowserRouter([
                 loader: forgotPasswordLoader,
                 handle: {
                     title: () => {
-                        const { settings } = useAppStore.getState()
-                        const siteName = settings.site_name || "Panel"
-                        return `Şifremi Unuttum | ${siteName}`
+                        try {
+                            const { settings } = useAppStore.getState()
+                            const siteName = settings.site_name || "Panel"
+                            return `Şifremi Unuttum | ${siteName}`
+                        } catch {
+                            return "Şifremi Unuttum | Panel"
+                        }
+                    }
+                }
+            },
+            {
+                path: "/unauthorized",
+                element: <UnauthorizedPage />,
+                loader: unauthorizedLoader,
+                handle: {
+                    title: () => {
+                        try {
+                            const { settings } = useAppStore.getState()
+                            const siteName = settings.site_name || "Panel"
+                            return `Yetkisiz Erişim | ${siteName}`
+                        } catch {
+                            return "Yetkisiz Erişim | Panel"
+                        }
                     }
                 }
             },
@@ -107,9 +133,13 @@ const router = createBrowserRouter([
                                 loader: settingsLoader,
                                 handle: {
                                     title: () => {
-                                        const { settings } = useAppStore.getState()
-                                        const siteName = settings.site_name || "Panel"
-                                        return `Ayarlar | ${siteName}`
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `Ayarlar | ${siteName}`
+                                        } catch {
+                                            return "Ayarlar | Panel"
+                                        }
                                     }
                                 }
                             },
@@ -119,9 +149,13 @@ const router = createBrowserRouter([
                                 loader: resourceLoader,
                                 handle: {
                                     title: (params: any) => {
-                                        const { settings } = useAppStore.getState()
-                                        const siteName = settings.site_name || "Panel"
-                                        return `${capitalize(params.resource || "")} | ${siteName}`
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `${capitalize(params.resource || "")} | ${siteName}`
+                                        } catch {
+                                            return `${capitalize(params.resource || "")} | Panel`
+                                        }
                                     }
                                 }
                             },
@@ -131,9 +165,13 @@ const router = createBrowserRouter([
                                 loader: pageViewerLoader,
                                 handle: {
                                     title: (params: any) => {
-                                        const { settings } = useAppStore.getState()
-                                        const siteName = settings.site_name || "Panel"
-                                        return `${capitalize(params.page || "")} | ${siteName}`
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `${capitalize(params.page || "")} | ${siteName}`
+                                        } catch {
+                                            return `${capitalize(params.page || "")} | Panel`
+                                        }
                                     }
                                 }
                             },

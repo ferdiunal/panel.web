@@ -11,15 +11,39 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
     settings: {},
-    features: {},
+    features: {
+        register: true,
+        forgot_password: false,
+    },
     isLoading: true,
     init: async () => {
         try {
             const { data } = await api.get('/init');
+            
+            // Extract features from backend response
+            const backendFeatures = data.features || {};
+            
+            // Extract settings and convert to flat structure
+            const settingsObj = data.settings || {};
+            const flatSettings: Record<string, any> = {};
+            
+            // Convert settings from { key: { value: ... } } to { key: ... }
+            Object.entries(settingsObj).forEach(([key, val]: [string, any]) => {
+                if (val && typeof val === 'object' && 'value' in val) {
+                    flatSettings[key] = val.value;
+                } else {
+                    flatSettings[key] = val;
+                }
+            });
+            
             const result = {
-                settings: data.settings || {},
-                features: data.features || {},
+                settings: flatSettings,
+                features: {
+                    register: backendFeatures.register !== undefined ? backendFeatures.register : true,
+                    forgot_password: backendFeatures.forgot_password !== undefined ? backendFeatures.forgot_password : false,
+                },
             };
+            
             set({
                 ...result,
                 isLoading: false

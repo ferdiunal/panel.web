@@ -3,9 +3,16 @@ import { pageService } from "@/services/page"
 import { ResourceForm } from "@/components/resource-form"
 import { toast } from "sonner"
 import { useMemo } from "react"
-import { useLoaderData } from "react-router-dom"
+import { redirect, useLoaderData } from "react-router-dom"
+import { BreadcrumbBuilder } from "@/components/breadcrumb-builder"
+import { useAuthStore } from "@/stores"
 
 export const loader = async () => {
+    try {
+        await useAuthStore.getState().checkSession()
+    } catch {
+        return redirect('/login');
+    }
     try {
         return await pageService.fetchPage("settings")
     } catch (error) {
@@ -44,17 +51,29 @@ export default function SettingsPage() {
     })
 
     return (
-        <div className="flex flex-col gap-4 p-4 md:p-8 max-w-2xl">
-            <h1 className="text-2xl font-bold tracking-tight">{pageData.title}</h1>
+        <div className="flex flex-col gap-4">
+            {/* Breadcrumb with page title */}
+            <div className="px-4 md:px-8 pt-4">
+                <BreadcrumbBuilder pageTitle={pageData.title} />
+            </div>
 
-            <div className="border rounded-lg p-6 bg-card text-card-foreground shadow-sm">
-                <ResourceForm
-                    fields={pageData.meta.fields}
-                    initialData={initialData}
-                    onSubmit={async (data) => await saveMutation.mutateAsync(data)}
-                    hideCancel={true}
-                    submitLabel="Kaydet"
-                />
+            <div className="flex flex-col gap-4 p-4 md:p-8 pt-0 max-w-2xl">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">{pageData.title}</h1>
+                    {pageData.description && (
+                        <p className="text-sm text-muted-foreground mt-1">{pageData.description}</p>
+                    )}
+                </div>
+
+                <div className="border rounded-lg p-6 bg-card text-card-foreground shadow-sm">
+                    <ResourceForm
+                        fields={pageData.meta.fields}
+                        initialData={initialData}
+                        onSubmit={async (data) => await saveMutation.mutateAsync(data)}
+                        hideCancel={true}
+                        submitLabel="Kaydet"
+                    />
+                </div>
             </div>
         </div>
     )

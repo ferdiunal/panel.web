@@ -13,12 +13,13 @@ import { DetailView } from '@/components/views/DetailView';
 import { IndexView } from '@/components/views/IndexView';
 import { getCreateFields, getUpdateFields, getDetailFields } from '@/resources/user';
 import type { User, AnyResource } from '@/types';
-import { useAuthStore } from '@/stores';
+import { useAppStore, useAuthStore } from '@/stores';
 import { redirect } from 'react-router-dom';
 
 
 export const loader = async () => {
     try {
+        await useAppStore.getState().init()
         await useAuthStore.getState().checkSession()
     } catch {
         return redirect('/login');

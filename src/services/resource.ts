@@ -1,25 +1,47 @@
 import api from "@/lib/axios";
 import type { ResourceResponse, FieldData } from "@/types";
+import type { ResourceParams } from "@/lib/resource-params";
+import qs from "qs";
 
 export const resourceService = {
     fetchResource: async (
         resource: string,
-        page = 1,
-        perPage = 10,
-        sortColumn?: string,
-        sortDirection?: 'asc' | 'desc'
+        params: ResourceParams
     ): Promise<ResourceResponse> => {
-        const params: any = {
-            page,
-            per_page: perPage,
+        // Build query params in nested format: users[search]=..., users[sort][id]=asc
+        const queryParams: Record<string, any> = {
+            [resource]: {}
         };
 
-        if (sortColumn) {
-            params.sort_column = sortColumn;
-            params.sort_direction = sortDirection;
+        // Add search
+        if (params.search) {
+            queryParams[resource].search = params.search;
         }
 
-        const { data } = await api.get<ResourceResponse>(`/resource/${resource}`, { params });
+        // Add sort
+        if (params.sort) {
+            queryParams[resource].sort = {
+                [params.sort.column]: params.sort.direction
+            };
+        }
+
+        // Add filters
+        if (params.filters && Object.keys(params.filters).length > 0) {
+            queryParams[resource].filters = params.filters;
+        }
+
+        // Add pagination
+        queryParams[resource].page = params.page;
+        queryParams[resource].per_page = params.per_page;
+
+        const queryString = qs.stringify(queryParams, {
+            encode: true,
+            encodeValuesOnly: true,
+            skipNulls: true,
+            allowDots: false,
+        });
+
+        const { data } = await api.get<ResourceResponse>(`/resource/${resource}?${queryString}`);
         return data;
     },
 

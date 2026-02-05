@@ -1,82 +1,114 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useParams, useLoaderData, type LoaderFunctionArgs, redirect } from "react-router-dom"
 import { resourceService } from "@/services/resource"
 import type { ResourceItem, FieldData, Card as CardType } from "@/types"
 import { WidgetRenderer } from "@/components/widget-renderer"
 import { Button } from "@/components/ui/button"
-import { Plus, ArrowUpDown, MoreHorizontal, Pencil, Trash, Eye } from "lucide-react"
-import { DataTable } from "@/components/ui/data-table"
-import { type ColumnDef, type PaginationState, type SortingState, type HeaderContext, type CellContext } from "@tanstack/react-table"
+import { Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { ResourceForm } from "@/components/resource-form"
 import { ResourceDetail } from "@/components/resource-detail"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useDeleteStore } from "@/store/delete-store"
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
-import { BreadcrumbBuilder } from "@/components/breadcrumb-builder"
-import { useAuthStore } from "@/stores"
+import { useAppStore, useAuthStore } from "@/stores"
+import { IndexView, type IndexViewColumn } from "@/components/views/IndexView"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { parseResourceParams, type ResourceParams } from "@/lib/resource-params"
+import { useResourceParams } from "@/hooks/useResourceParams"
 
-export const loader = async ({ params }: LoaderFunctionArgs) => {
+interface LoaderData {
+    data: any
+    params: ResourceParams
+}
+
+export const loader = async ({ params, request }: LoaderFunctionArgs): Promise<LoaderData | Response> => {
     const resource = params.resource
     if (!resource) throw new Error("Resource not found")
 
     try {
+        await useAppStore.getState().init()
+    } catch{}
+
+    try {
         await useAuthStore.getState().checkSession()
     } catch {
-        return redirect('/login');
+        return redirect('/login')
     }
-    // Fetch initial data (Page 1)
-    return await resourceService.fetchResource(resource, 1, 10, undefined, undefined)
+
+    // Parse URL query params
+    const url = new URL(request.url)
+    const resourceParams = parseResourceParams(url.search, resource)
+
+    // Fetch data with parsed params
+    const data = await resourceService.fetchResource(resource, resourceParams)
+
+    return { data, params: resourceParams }
 }
 
 export default function ResourceIndexPage() {
     const { resource } = useParams<{ resource: string }>()
-    const initialData = useLoaderData() as any // Return type of fetchResource
+    const loaderData = useLoaderData() as LoaderData
     const queryClient = useQueryClient()
+
+    // Use the custom hook for URL params management
+    const {
+        params,
+        localSearch,
+        setLocalSearch,
+        updateSort,
+        isSearchPending,
+    } = useResourceParams({
+        resource: resource || '',
+        debounceMs: 300,
+        initialParams: loaderData.params,
+    })
+    
+    // Modal states
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+    const [isDetailOpen, setIsDetailOpen] = useState(false)
+    
+    // Data states
     const [editingItem, setEditingItem] = useState<ResourceItem | null>(null)
     const [viewingItem, setViewingItem] = useState<ResourceItem | null>(null)
-    const [isDetailOpen, setIsDetailOpen] = useState(false)
-    const { openDelete } = useDeleteStore()
+    const [deletingItem, setDeletingItem] = useState<ResourceItem | null>(null)
 
-    // Pagination & Sorting State
-    const [pagination, setPagination] = useState<PaginationState>({
-        pageIndex: 0,
-        pageSize: 10,
-    })
-    const [sorting, setSorting] = useState<SortingState>([])
-
-    // Resource Data Query
+    // Resource Data Query - Only refetch when params actually change from initial
     const { data: resourceData, isLoading, isError } = useQuery({
-        queryKey: ["resource", resource, pagination, sorting],
+        queryKey: ["resource", resource, params.search, params.sort?.column, params.sort?.direction, params.page, params.per_page],
         queryFn: async () => {
-            if (!resource) return null;
-            const sortColumn = sorting.length > 0 ? sorting[0].id : undefined
-            const sortDirection = sorting.length > 0 ? (sorting[0].desc ? "desc" : "asc") : undefined
-
-            return resourceService.fetchResource(
-                resource,
-                pagination.pageIndex + 1,
-                pagination.pageSize,
-                sortColumn,
-                sortDirection
-            )
+            if (!resource) return null
+            return resourceService.fetchResource(resource, params)
         },
-        initialData: (pagination.pageIndex === 0 && sorting.length === 0) ? initialData : undefined,
-        placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
+        initialData: loaderData.data,
         enabled: !!resource,
-        staleTime: 5000, // Data considered fresh for 5 seconds to avoid immediate refetch on mount
+        staleTime: 30000, // 30 seconds - prevent immediate refetch
+        refetchOnMount: false, // Don't refetch on mount since loader already fetched
+        refetchOnWindowFocus: false, // Don't refetch on window focus
     })
+
+    // Handle search change - this updates local state immediately
+    // The debounce happens in useResourceParams which then updates URL
+    const handleSearchChange = useCallback((query: string) => {
+        setLocalSearch(query)
+    }, [setLocalSearch])
+
+    // Handle sort change
+    const handleSort = useCallback((key: string) => {
+        updateSort(key)
+    }, [updateSort])
 
     // Create Fields Query
     const { data: createFields = [] } = useQuery({
@@ -86,20 +118,17 @@ export default function ResourceIndexPage() {
             return resourceService.getCreateFields(resource)
         },
         enabled: !!resource && isCreateOpen,
-        staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+        staleTime: 1000 * 60 * 5,
     })
 
-    // Edit Fields & Data Query
+    // Edit Fields Query
     const { data: editFields = [] } = useQuery({
-        queryKey: ["resource", resource, "edit-fields", (editingItem?.id as FieldData)?.data], // key depends on item ID if we want specific data, but endpoint is per ID
+        queryKey: ["resource", resource, "edit-fields", (editingItem?.id as FieldData)?.data],
         queryFn: async () => {
             if (!resource || !editingItem) return []
-            // We need ID. editingItem has 'id' field?
-            // Assuming editingItem has a field 'id'.
             const idField = editingItem['id'] as FieldData
             const id = idField ? idField.data : null
             if (!id) return []
-
             return resourceService.getEditFields(resource, id)
         },
         enabled: !!resource && isEditOpen && !!editingItem,
@@ -113,15 +142,12 @@ export default function ResourceIndexPage() {
             const idField = viewingItem['id'] as FieldData
             const id = idField ? idField.data : null
             if (!id) return []
-
             return resourceService.getDetailFields(resource, id)
         },
         enabled: !!resource && isDetailOpen && !!viewingItem,
     })
 
-    // Prepare initial data from fetched editFields
-    // The backend Edit endpoint returns fields with 'data' already populated.
-    // So we can extract initialData from editFields.
+    // Prepare initial data for edit form
     const editInitialData = useMemo(() => {
         if (!editFields || editFields.length === 0) return {}
         const initial: Record<string, any> = {}
@@ -131,19 +157,20 @@ export default function ResourceIndexPage() {
         return initial
     }, [editFields])
 
+    // Mutations
     const createMutation = useMutation({
         mutationFn: async (formData: any) => {
             if (!resource) throw new Error("No resource")
             return resourceService.createResource(resource, formData)
         },
         onSuccess: () => {
-            toast.success("Kayıt oluşturuldu")
+            toast.success("Kayit olusturuldu")
             setIsCreateOpen(false)
             queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         },
         onError: (error) => {
             console.error(error)
-            toast.error("Oluşturulurken hata oluştu")
+            toast.error("Olusturulurken hata olustu")
         }
     })
 
@@ -153,36 +180,59 @@ export default function ResourceIndexPage() {
             return resourceService.updateResource(resource, id, data)
         },
         onSuccess: () => {
-            toast.success("Kayıt güncellendi")
+            toast.success("Kayit guncellendi")
             setIsEditOpen(false)
             setEditingItem(null)
             queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         },
         onError: (error) => {
             console.error(error)
-            toast.error("Güncellenirken hata oluştu")
+            toast.error("Guncellenirken hata olustu")
         }
     })
 
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string | number) => {
+            if (!resource) throw new Error("No resource")
+            return resourceService.deleteResource(resource, id)
+        },
+        onSuccess: () => {
+            toast.success("Kayit silindi")
+            setIsDeleteOpen(false)
+            setDeletingItem(null)
+            queryClient.invalidateQueries({ queryKey: ["resource", resource] })
+        },
+        onError: (error) => {
+            console.error(error)
+            toast.error("Silinirken hata olustu")
+        }
+    })
+
+    // Handlers
     const handleCreateSubmit = async (formData: any) => {
         await createMutation.mutateAsync(formData)
     }
 
     const handleUpdateSubmit = async (formData: any) => {
         if (!editingItem) return
-        // Assuming ID field is available in keys or data.
-        // We need to find the ID. 
-        // Strategy: Look for field with key 'id' or logic from backend.
-        // Usually rows have 'id' key if using resourceService.
-        // Let's assume there is a field named 'id'.
         const idField = editingItem['id'] as FieldData
         const id = idField ? idField.data : null
-
         if (!id) {
-            toast.error("ID bulunamadı")
+            toast.error("ID bulunamadi")
             return
         }
         await updateMutation.mutateAsync({ id, data: formData })
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!deletingItem) return
+        const idField = deletingItem['id'] as FieldData
+        const id = idField ? idField.data : null
+        if (!id) {
+            toast.error("ID bulunamadi")
+            return
+        }
+        await deleteMutation.mutateAsync(id)
     }
 
     const openEditModal = (item: ResourceItem) => {
@@ -195,34 +245,23 @@ export default function ResourceIndexPage() {
         setIsDetailOpen(true)
     }
 
-    const columns = useMemo<ColumnDef<ResourceItem>[]>(() => {
+    const openDeleteDialog = (item: ResourceItem) => {
+        setDeletingItem(item)
+        setIsDeleteOpen(true)
+    }
+
+    // Build columns for IndexView
+    const columns: IndexViewColumn<ResourceItem>[] = useMemo(() => {
         if (!resourceData || !resourceData.meta.headers) return []
 
-        const dynamicCols = resourceData.meta.headers.map((header: FieldData) => {
+        return resourceData.meta.headers.map((header: FieldData) => {
             const key = header.key
-
             return {
-                accessorKey: key,
-                header: ({ column }: HeaderContext<ResourceItem, unknown>) => {
-                    const label = header.name || header.label || key
-                    if (!header.sortable) {
-                        return <div className="text-left">{label}</div>
-                    }
-
-                    return (
-                        <Button
-                            variant="ghost"
-                            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-                            className="-ml-4"
-                        >
-                            {label}
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
-                    )
-                },
-                cell: ({ row }: CellContext<ResourceItem, unknown>) => {
-                    const field: FieldData = row.original[key] as FieldData
-
+                key,
+                label: header.name || header.label || key,
+                sortable: header.sortable,
+                render: (_: any, resource: ResourceItem) => {
+                    const field: FieldData = resource[key] as FieldData
                     if (!field) return null
 
                     if (header.key === "image" || header.view === "image-field") {
@@ -234,69 +273,18 @@ export default function ResourceIndexPage() {
                         )
                     }
 
+                    // Handle objects (like relations) to prevent React Error #31
+                    if (typeof field.data === 'object' && field.data !== null) {
+                        const data = field.data as any
+                        // Try to find a displayable string
+                        return data.name || data.email || data.title || data.username || data.id || JSON.stringify(data)
+                    }
+
                     return field.data
                 },
             }
         })
-
-        const actionCol: ColumnDef<ResourceItem> = {
-            id: "actions",
-            enableHiding: false,
-            cell: ({ row }) => {
-                const item = row.original
-
-                return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            {item.policy?.view && (
-                                <DropdownMenuItem onClick={() => openDetailModal(item)}>
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    Görüntüle
-                                </DropdownMenuItem>
-                            )}
-                            {item.policy?.update && (
-                                <DropdownMenuItem onClick={() => openEditModal(item)}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Düzenle
-                                </DropdownMenuItem>
-                            )}
-                            {item.policy?.delete && (
-                                <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        className="text-red-600 focus:text-white hover:text-white"
-                                        onClick={() => resource && openDelete(resource, (item.id as FieldData).data)}
-                                    >
-                                        <Trash className="mr-2 h-4 w-4" />
-                                        Sil
-                                    </DropdownMenuItem>
-                                </>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )
-            },
-        }
-
-        return [...dynamicCols, actionCol]
     }, [resourceData])
-
-
-
-
-    if (isLoading) {
-        return <div className="p-8">Yükleniyor...</div>
-    }
-
-    if (isError || !resourceData) {
-        return <div className="p-8">Bir hata oluştu veya veri bulunamadı.</div>
-    }
 
     // Cards Query
     const { data: cards = [] } = useQuery({
@@ -308,31 +296,52 @@ export default function ResourceIndexPage() {
         enabled: !!resource,
     })
 
-    return (
-        <div className="flex flex-col gap-4">
-            {/* Breadcrumb with resource title */}
-            <div className="px-4 md:px-8 pt-4">
-                <BreadcrumbBuilder resourceTitle={resourceData.meta.title} />
+    // Render loading skeleton
+    if (isLoading && !resourceData) {
+        return (
+            <div className="flex flex-col gap-4">
+                <div className="px-4 md:px-8 pt-4">
+                    <Skeleton className="h-8 w-48" />
+                </div>
+                <div className="flex flex-col gap-4 p-4 md:p-8 pt-0">
+                    <div className="flex items-center justify-between">
+                        <Skeleton className="h-8 w-32" />
+                        <Skeleton className="h-10 w-24" />
+                    </div>
+                    <div className="space-y-2">
+                        {[...Array(5)].map((_, i) => (
+                            <Skeleton key={i} className="h-12 w-full" />
+                        ))}
+                    </div>
+                </div>
             </div>
+        )
+    }
 
+    if (isError || !resourceData) {
+        return <div className="p-8 text-center text-destructive">Bir hata olustu veya veri bulunamadi.</div>
+    }
+
+    return (
             <div className="flex flex-col gap-4 p-4 md:p-8 pt-0">
-                {/* Cards Functionality */}
+                {/* Cards */}
                 {cards?.length > 0 && (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
                         {cards.map((card: CardType, index: number) => (
-                            <div key={index} className={card.width === "1/3" ? "col-span-1" : "col-span-full"}>
+                            <div key={index} className="col-span-1">
                                 <WidgetRenderer card={card} />
                             </div>
                         ))}
                     </div>
                 )}
 
+                {/* Header with title and create button */}
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold tracking-tight">{resourceData.meta.title}</h1>
                     {resourceData.meta.policy.create && (
                         <ResponsiveModal
-                            title={`Create ${resourceData.meta.title}`}
-                            description="Fill in the details below."
+                            title={`Yeni ${resourceData.meta.title}`}
+                            description="Asagidaki bilgileri doldurunuz."
                             open={isCreateOpen}
                             variant={resourceData.meta.dialog_type}
                             onOpenChange={setIsCreateOpen}
@@ -352,20 +361,32 @@ export default function ResourceIndexPage() {
                     )}
                 </div>
 
-                <DataTable
-                    columns={columns}
-                    data={resourceData.data}
-                    pageCount={Math.ceil(resourceData.meta.total / resourceData.meta.per_page)}
-                    pagination={pagination}
-                    onPaginationChange={setPagination}
-                    sorting={sorting}
-                    onSortingChange={setSorting}
+                {/* IndexView with dropdown actions */}
+                <IndexView
+                    resources={resourceData.data as any}
+                    columns={columns as any}
+                    isLoading={isLoading || isSearchPending}
+                    isEmpty={resourceData.data.length === 0}
+                    searchQuery={localSearch}
+                    onSearchChange={handleSearchChange}
+                    sortBy={params.sort?.column}
+                    sortOrder={params.sort?.direction || 'asc'}
+                    onSort={handleSort}
+                    onView={(item: any) => {
+                        if (item.policy?.view) openDetailModal(item)
+                    }}
+                    onEdit={(item: any) => {
+                        if (item.policy?.update) openEditModal(item)
+                    }}
+                    onDelete={(item: any) => {
+                        if (item.policy?.delete) openDeleteDialog(item)
+                    }}
                 />
 
                 {/* Edit Modal */}
                 <ResponsiveModal
-                    title={`Edit ${resourceData.meta.title}`}
-                    description="Update the details below."
+                    title={`${resourceData.meta.title} Duzenle`}
+                    description="Asagidaki bilgileri guncelleyiniz."
                     open={isEditOpen}
                     variant={resourceData.meta.dialog_type}
                     onOpenChange={(open) => {
@@ -373,9 +394,6 @@ export default function ResourceIndexPage() {
                         if (!open) setEditingItem(null)
                     }}
                 >
-                    {/* Reusing ResourceForm. Using createFields for now as update fields might be same or similar.
-                        Ideally should fetch update fields if different.
-                     */}
                     <ResourceForm
                         key={(editingItem?.id as FieldData)?.data || 'edit-form'}
                         fields={editFields}
@@ -385,14 +403,14 @@ export default function ResourceIndexPage() {
                             setIsEditOpen(false)
                             setEditingItem(null)
                         }}
-                        submitLabel="Güncelle"
+                        submitLabel="Guncelle"
                     />
                 </ResponsiveModal>
 
                 {/* Detail Modal */}
                 <ResponsiveModal
-                    title={`${resourceData.meta.title} Detayı`}
-                    description="Kayıt detayları aşağıdadır."
+                    title={`${resourceData.meta.title} Detayi`}
+                    description="Kayit detaylari asagidadir."
                     open={isDetailOpen}
                     variant={resourceData.meta.dialog_type}
                     onOpenChange={(open) => {
@@ -406,8 +424,29 @@ export default function ResourceIndexPage() {
                     />
                 </ResponsiveModal>
 
+                {/* Delete Confirmation Dialog */}
+                <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Silmek istediginizden emin misiniz?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Bu islem geri alinamaz. Kayit kalici olarak silinecektir.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <div className="flex gap-3 justify-end">
+                            <AlertDialogCancel>Iptal</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteConfirm}
+                                disabled={deleteMutation.isPending}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                {deleteMutation.isPending ? "Siliniyor..." : "Sil"}
+                            </AlertDialogAction>
+                        </div>
+                    </AlertDialogContent>
+                </AlertDialog>
+
                 <DeleteConfirmDialog />
             </div>
-        </div>
     )
 }

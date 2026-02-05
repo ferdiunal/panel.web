@@ -19,15 +19,12 @@ const formSchema = z.object({
 
 export async function loader() {
     try {
-        await useAuthStore.getState().checkSession()
-    } catch {
-        return redirect("/login")
-    }
-    try {
         await useAppStore.getState().init()
-    } catch (error) {
-        console.error('Forgot password loader error:', error);
-        return null;
+        await useAuthStore.getState().checkSession()
+        if (useAuthStore.getState().isAuthenticated) {
+          return redirect('/dashboard');
+        }
+    } catch {
     }
 }
 

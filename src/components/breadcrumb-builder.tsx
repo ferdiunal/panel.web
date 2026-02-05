@@ -60,7 +60,7 @@ function parsePathname(pathname: string): BreadcrumbSegment[] {
     // Always add dashboard
     breadcrumbs.push({
         label: 'Dashboard',
-        path: '/',
+        path: '/dashboard',
         isActive: false,
     });
 

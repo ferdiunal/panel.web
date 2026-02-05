@@ -159,6 +159,23 @@ const router = createBrowserRouter([
                                     }
                                 }
                             },
+
+                            // {
+                            //     path: "/resource/:resource",
+                            //     element: <ResourceIndexPage />,
+                            //     loader: resourceLoader,
+                            //     handle: {
+                            //         title: (params: any) => {
+                            //             try {
+                            //                 const { settings } = useAppStore.getState()
+                            //                 const siteName = settings.site_name || "Panel"
+                            //                 return `${capitalize(params.resource || "")} | ${siteName}`
+                            //             } catch {
+                            //                 return `${capitalize(params.resource || "")} | Panel`
+                            //             }
+                            //         }
+                            //     }
+                            // },
                             {
                                 path: "/:page",
                                 element: <PageViewer />,

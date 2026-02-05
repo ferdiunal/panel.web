@@ -77,6 +77,7 @@ export interface Resource {
   relationships?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
+  policy?: ResourcePolicy;
 }
 
 // User Resource

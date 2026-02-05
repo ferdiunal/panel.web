@@ -9,20 +9,27 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronUpIcon, ChevronDownIcon, EditIcon, TrashIcon, EyeIcon } from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-export interface IndexViewColumn {
+export interface IndexViewColumn<T = any> {
   key: string;
   label: string;
   sortable?: boolean;
-  render?: (value: any, resource: Resource) => React.ReactNode;
+  render?: (value: any, resource: T) => React.ReactNode;
 }
 
-export interface IndexViewProps {
-  resources: Resource[];
-  columns: IndexViewColumn[];
+export interface IndexViewProps<T extends Resource = Resource> {
+  resources: T[];
+  columns: IndexViewColumn<T>[];
   isLoading?: boolean;
   isEmpty?: boolean;
   error?: string | null;
@@ -31,9 +38,9 @@ export interface IndexViewProps {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   onSort?: (key: string) => void;
-  onEdit?: (resource: Resource) => void;
-  onDelete?: (resource: Resource) => void;
-  onView?: (resource: Resource) => void;
+  onEdit?: (resource: T) => void;
+  onDelete?: (resource: T) => void;
+  onView?: (resource: T) => void;
   onRetry?: () => void;
   className?: string;
 }
@@ -115,16 +122,6 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       );
     }
 
-    if (isEmpty) {
-      return (
-        <div className={cn('flex flex-col gap-4', className)} ref={ref}>
-          <div className="rounded-lg border border-dashed p-8 text-center">
-            <p className="text-sm text-muted-foreground">No resources found</p>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className={cn('flex flex-col gap-4', className)} ref={ref}>
         {onSearchChange && (
@@ -136,6 +133,11 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
           />
         )}
 
+        {isEmpty ? (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <p className="text-sm text-muted-foreground">No resources found</p>
+          </div>
+        ) : (
         <div className="rounded-lg border overflow-hidden">
           <Table>
             <TableHeader>
@@ -186,41 +188,47 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
                     ))}
                     {showActions && (
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {onView && (
-                            <Button
-                              onClick={() => onView(resource)}
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              title="View"
-                            >
-                              <EyeIcon className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {onEdit && (
-                            <Button
-                              onClick={() => onEdit(resource)}
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              title="Edit"
-                            >
-                              <EditIcon className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {onDelete && (
-                            <Button
-                              onClick={() => onDelete(resource)}
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              title="Delete"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
+                        {(onView && (resource.policy?.view ?? true)) ||
+                        (onEdit && (resource.policy?.update ?? true)) ||
+                        (onDelete && (resource.policy?.delete ?? true)) ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {onView && (resource.policy?.view ?? true) && (
+                                <DropdownMenuItem onClick={() => onView(resource)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Görüntüle
+                                </DropdownMenuItem>
+                              )}
+                              {onEdit && (resource.policy?.update ?? true) && (
+                                <DropdownMenuItem onClick={() => onEdit(resource)}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Düzenle
+                                </DropdownMenuItem>
+                              )}
+                              {onDelete && (resource.policy?.delete ?? true) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => onDelete(resource)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash className="mr-2 h-4 w-4" />
+                                    Sil
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : null}
                       </TableCell>
                     )}
                   </TableRow>
@@ -229,6 +237,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
             </TableBody>
           </Table>
         </div>
+        )}
       </div>
     );
   }

@@ -4,11 +4,11 @@ import { ResourceForm } from "@/components/resource-form"
 import { toast } from "sonner"
 import { useMemo } from "react"
 import { redirect, useLoaderData } from "react-router-dom"
-import { BreadcrumbBuilder } from "@/components/breadcrumb-builder"
-import { useAuthStore } from "@/stores"
+import { useAppStore, useAuthStore } from "@/stores"
 
 export const loader = async () => {
     try {
+        await useAppStore.getState().init()
         await useAuthStore.getState().checkSession()
     } catch {
         return redirect('/login');
@@ -51,11 +51,6 @@ export default function SettingsPage() {
     })
 
     return (
-        <div className="flex flex-col gap-4">
-            {/* Breadcrumb with page title */}
-            <div className="px-4 md:px-8 pt-4">
-                <BreadcrumbBuilder pageTitle={pageData.title} />
-            </div>
 
             <div className="flex flex-col gap-4 p-4 md:p-8 pt-0 max-w-2xl">
                 <div>
@@ -75,6 +70,5 @@ export default function SettingsPage() {
                     />
                 </div>
             </div>
-        </div>
     )
 }

@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import AvatarUpload from "@/components/file-upload/avatar-upload"
 import TableUpload from "@/components/file-upload/table-upload"
 import { ComboboxField } from "@/components/fields/ComboboxField"
+import { MorphToField } from "@/components/fields/MorphToField"
+import { resourceService } from "@/services/resource"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 // If textarea doesn't exist, I'll stick to Input or standard textarea
@@ -77,7 +79,7 @@ export function ResourceForm({
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                         </Label>
                         {/* Simple switch for types */}
-                        {renderInput(field, formData[field.key] || "", (val) => handleChange(field.key, val), container)}
+                        {renderInput(field, formData, handleChange, container)}
                         {field.help_text && (
                             <p className="text-xs text-muted-foreground">{field.help_text}</p>
                         )}
@@ -101,10 +103,12 @@ export function ResourceForm({
 
 function renderInput(
     field: FieldData,
-    value: any,
-    onChange: (val: any) => void,
+    formData: Record<string, any>,
+    onChange: (key: string, val: any) => void,
     container?: HTMLElement | null
 ) {
+    // For MorphTo field, use field.data if formData value is empty
+    const value = formData[field.key] || (field.view === "morph-to-field" ? field.data : "");
     // Normalize object values (relationships) to ID or empty string to prevent React errors
     let normalizedValue = value;
     if (typeof value === 'object' && value !== null) {
@@ -124,14 +128,9 @@ function renderInput(
         placeholder: field.placeholder,
         required: field.required,
         value: normalizedValue,
-        onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(e.target.value),
+        onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(field.key, e.target.value),
     }
 
-    // You can expand this based on field.view or field.type (which is not in interface but view is)
-    // view: "text-field", "password-field", "email-field", etc.
-
-
-    // Use type if available for specific input types
     // Custom Upload Components
     if (field.view === "image-field") {
         return (
@@ -139,7 +138,7 @@ function renderInput(
                 className="w-full"
                 defaultAvatar={typeof value === 'string' ? value : undefined}
                 onFileChange={(file) => {
-                    onChange(file ? file.file : null)
+                    onChange(field.key, file ? file.file : null)
                 }}
             />
         )
@@ -157,9 +156,9 @@ function renderInput(
                 onFilesChange={(files) => {
                     // If multiple, pass array of Files. If single, pass first File.
                     if (field.props?.multiple) {
-                        onChange(files.map(f => f.file))
+                        onChange(field.key, files.map(f => f.file))
                     } else {
-                        onChange(files.length > 0 ? files[0].file : null)
+                        onChange(field.key, files.length > 0 ? files[0].file : null)
                     }
                 }}
             />
@@ -185,7 +184,7 @@ function renderInput(
                         id={field.key}
                         checked={!!value}
                         disabled={field.disabled || field.read_only}
-                        onCheckedChange={(checked) => onChange(checked)}
+                        onCheckedChange={(checked) => onChange(field.key, checked)}
                     />
                 </div>
             )
@@ -208,7 +207,7 @@ function renderInput(
                 <ComboboxField
                     value={stringValue}
                     options={items}
-                    onChange={(val) => onChange(val)}
+                    onChange={(val) => onChange(field.key, val)}
                     placeholder={field.placeholder || "Select option..."}
                     container={container}
                 />
@@ -234,8 +233,8 @@ function renderInput(
                 }).filter(v => v !== '')
             } else if (value) {
                 if (typeof value === 'object' && value !== null) {
-                     const id = (value as any).id || (value as any).ID
-                     if (id) btmValue = [String(id)]
+                    const id = (value as any).id || (value as any).ID
+                    if (id) btmValue = [String(id)]
                 } else {
                     btmValue = [String(value)]
                 }
@@ -245,14 +244,50 @@ function renderInput(
                 <ComboboxField
                     value={btmValue}
                     options={btmItems}
-                    onChange={(val) => onChange(val)}
+                    onChange={(val) => onChange(field.key, val)}
                     placeholder={field.placeholder || "Select items..."}
                     multiple={true}
                     container={container}
                 />
             )
+        case "morph-to-field":
+            return (
+                <MorphToField
+                    name={field.key}
+                    label={field.name || field.label}
+                    value={value}
+                    onChange={(val) => onChange(field.key, val)}
+                    resourceTypes={field.props?.types || field.props?.resource_types || []}
+                    displays={field.props?.displays || {}}
+                    searchFn={async (type, query) => {
+                        try {
+                            const response = await resourceService.fetchResource(type, {
+                                search: query,
+                                page: 1,
+                                per_page: 20
+                            });
+                            return response.data.map(item => {
+                                const id = (item.id as any)?.data ?? (item.ID as any)?.data ?? "";
+                                const name = (item.name as any)?.data ?? (item.label as any)?.data ?? (item.title as any)?.data ?? id;
+                                return {
+                                    id: String(id),
+                                    name: String(name),
+                                    type: type,
+                                    attributes: item as any,
+                                    createdAt: new Date(),
+                                    updatedAt: new Date(),
+                                };
+                            });
+                        } catch (error) {
+                            console.error(`Search failed for ${type}:`, error);
+                            return [];
+                        }
+                    }}
+                    placeholder={field.placeholder}
+                    container={container}
+                />
+            )
         case "select-field":
-
             // eslint-disable-next-line no-case-declarations
             const _options = (field.props?.options as Record<string, string>) || {}
             // eslint-disable-next-line no-case-declarations
@@ -265,9 +300,8 @@ function renderInput(
                 <Select
                     defaultValue={String(value).toLowerCase()}
                     value={String(value).toLowerCase()}
-                    onValueChange={(val) => onChange(val)}
+                    onValueChange={(val) => onChange(field.key, val)}
                 >
-
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder={field.placeholder || "Select option..."} />
                     </SelectTrigger>

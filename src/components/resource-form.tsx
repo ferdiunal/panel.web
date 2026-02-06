@@ -7,13 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import AvatarUpload from "@/components/file-upload/avatar-upload"
 import TableUpload from "@/components/file-upload/table-upload"
-import {
-    Combobox,
-    ComboboxContent,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxList,
-} from "@/components/ui/combobox"
+import { ComboboxField } from "@/components/fields/ComboboxField"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 // If textarea doesn't exist, I'll stick to Input or standard textarea
@@ -26,6 +20,7 @@ interface ResourceFormProps {
     onCancel?: () => void
     submitLabel?: string
     hideCancel?: boolean
+    container?: HTMLElement | null
 }
 
 export function ResourceForm({
@@ -35,6 +30,7 @@ export function ResourceForm({
     onCancel,
     submitLabel = "Save",
     hideCancel = false,
+    container,
 }: ResourceFormProps) {
     const [formData, setFormData] = useState<Record<string, any>>(initialData)
     const [loading, setLoading] = useState(false)
@@ -81,7 +77,7 @@ export function ResourceForm({
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                         </Label>
                         {/* Simple switch for types */}
-                        {renderInput(field, formData[field.key] || "", (val) => handleChange(field.key, val))}
+                        {renderInput(field, formData[field.key] || "", (val) => handleChange(field.key, val), container)}
                         {field.help_text && (
                             <p className="text-xs text-muted-foreground">{field.help_text}</p>
                         )}
@@ -106,15 +102,28 @@ export function ResourceForm({
 function renderInput(
     field: FieldData,
     value: any,
-    onChange: (val: any) => void
+    onChange: (val: any) => void,
+    container?: HTMLElement | null
 ) {
+    // Normalize object values (relationships) to ID or empty string to prevent React errors
+    let normalizedValue = value;
+    if (typeof value === 'object' && value !== null) {
+        // Check for empty/zero object
+        const id = value.id || value.ID;
+        if (id && id !== 0) {
+            normalizedValue = id;
+        } else {
+            normalizedValue = "";
+        }
+    }
+
     const commonProps = {
         id: field.key,
         name: field.key,
         disabled: field.disabled || field.read_only,
         placeholder: field.placeholder,
         required: field.required,
-        value: value,
+        value: normalizedValue,
         onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(e.target.value),
     }
 
@@ -180,6 +189,8 @@ function renderInput(
                     />
                 </div>
             )
+        case "has-one-field":
+        case "belongs-to-field":
         case "combobox-field":
             // eslint-disable-next-line no-case-declarations
             const options = (field.props?.options as Record<string, string>) || {}
@@ -189,24 +200,59 @@ function renderInput(
                 label: label,
             }))
 
+            // Find selected label for display if needed, but Combobox should handle it if value matches
+            // Ensure value is string to match options keys
+            const stringValue = value !== null && value !== undefined ? String(value) : ""
+
             return (
-                <Combobox
-                    value={value}
-                    onValueChange={(val) => onChange(val)}
-                >
-                    <ComboboxInput placeholder={field.placeholder || "Select option..."} />
-                    <ComboboxContent>
-                        <ComboboxList>
-                            {items.map((item) => (
-                                <ComboboxItem key={item.value} value={item.value}>
-                                    {item.label}
-                                </ComboboxItem>
-                            ))}
-                        </ComboboxList>
-                    </ComboboxContent>
-                </Combobox>
+                <ComboboxField
+                    value={stringValue}
+                    options={items}
+                    onChange={(val) => onChange(val)}
+                    placeholder={field.placeholder || "Select option..."}
+                    container={container}
+                />
+            )
+        case "belongs-to-many-field":
+            // eslint-disable-next-line no-case-declarations
+            const btmOptions = (field.props?.options as Record<string, string>) || {}
+            // eslint-disable-next-line no-case-declarations
+            const btmItems = Object.entries(btmOptions).map(([val, label]) => ({
+                value: val,
+                label: label,
+            }))
+
+            // Ensure value is array of strings
+            // eslint-disable-next-line no-case-declarations
+            let btmValue: string[] = []
+            if (Array.isArray(value)) {
+                btmValue = value.map(v => {
+                    if (typeof v === 'object' && v !== null) {
+                        return String(v.id || v.ID || '')
+                    }
+                    return String(v)
+                }).filter(v => v !== '')
+            } else if (value) {
+                if (typeof value === 'object' && value !== null) {
+                     const id = (value as any).id || (value as any).ID
+                     if (id) btmValue = [String(id)]
+                } else {
+                    btmValue = [String(value)]
+                }
+            }
+
+            return (
+                <ComboboxField
+                    value={btmValue}
+                    options={btmItems}
+                    onChange={(val) => onChange(val)}
+                    placeholder={field.placeholder || "Select items..."}
+                    multiple={true}
+                    container={container}
+                />
             )
         case "select-field":
+
             // eslint-disable-next-line no-case-declarations
             const _options = (field.props?.options as Record<string, string>) || {}
             // eslint-disable-next-line no-case-declarations
@@ -225,7 +271,7 @@ function renderInput(
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder={field.placeholder || "Select option..."} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent container={container}>
                         <SelectGroup>
                             {_items.map((item) => (
                                 <SelectItem key={item.value} value={item.value}>

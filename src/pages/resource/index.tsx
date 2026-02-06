@@ -60,6 +60,8 @@ export default function ResourceIndexPage() {
     const { resource } = useParams<{ resource: string }>()
     const loaderData = useLoaderData() as LoaderData
     const queryClient = useQueryClient()
+    const [createContainer, setCreateContainer] = useState<HTMLDivElement | null>(null)
+    const [editContainer, setEditContainer] = useState<HTMLDivElement | null>(null)
 
     // Use the custom hook for URL params management
     const {
@@ -157,39 +159,47 @@ export default function ResourceIndexPage() {
         return initial
     }, [editFields])
 
-    // Mutations
-    const createMutation = useMutation({
-        mutationFn: async (formData: any) => {
-            if (!resource) throw new Error("No resource")
-            return resourceService.createResource(resource, formData)
-        },
-        onSuccess: () => {
+    // Handlers
+    const handleCreateSubmit = async (formData: any) => {
+        if (!resource) return
+
+        try {
+            await resourceService.createResource(resource, formData)
             toast.success("Kayit olusturuldu")
             setIsCreateOpen(false)
-            queryClient.invalidateQueries({ queryKey: ["resource", resource] })
-        },
-        onError: (error) => {
+            // Manual invalidation to ensure list refresh
+            await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
+        } catch (error) {
             console.error(error)
             toast.error("Olusturulurken hata olustu")
+            throw error // Propagate to form for loading state
         }
-    })
+    }
 
-    const updateMutation = useMutation({
-        mutationFn: async ({ id, data }: { id: string | number, data: any }) => {
-            if (!resource) throw new Error("No resource")
-            return resourceService.updateResource(resource, id, data)
-        },
-        onSuccess: () => {
+    const handleUpdateSubmit = async (formData: any) => {
+        if (!editingItem || !resource) return
+        
+        const idField = editingItem['id'] as FieldData
+        const id = idField ? idField.data : null
+        
+        if (!id) {
+            toast.error("ID bulunamadi")
+            return
+        }
+
+        try {
+            await resourceService.updateResource(resource, id, formData)
             toast.success("Kayit guncellendi")
             setIsEditOpen(false)
             setEditingItem(null)
-            queryClient.invalidateQueries({ queryKey: ["resource", resource] })
-        },
-        onError: (error) => {
+            // Manual invalidation to ensure list refresh
+            await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
+        } catch (error) {
             console.error(error)
             toast.error("Guncellenirken hata olustu")
+            throw error // Propagate to form for loading state
         }
-    })
+    }
 
     const deleteMutation = useMutation({
         mutationFn: async (id: string | number) => {
@@ -208,21 +218,7 @@ export default function ResourceIndexPage() {
         }
     })
 
-    // Handlers
-    const handleCreateSubmit = async (formData: any) => {
-        await createMutation.mutateAsync(formData)
-    }
 
-    const handleUpdateSubmit = async (formData: any) => {
-        if (!editingItem) return
-        const idField = editingItem['id'] as FieldData
-        const id = idField ? idField.data : null
-        if (!id) {
-            toast.error("ID bulunamadi")
-            return
-        }
-        await updateMutation.mutateAsync({ id, data: formData })
-    }
 
     const handleDeleteConfirm = async () => {
         if (!deletingItem) return
@@ -276,8 +272,37 @@ export default function ResourceIndexPage() {
                     // Handle objects (like relations) to prevent React Error #31
                     if (typeof field.data === 'object' && field.data !== null) {
                         const data = field.data as any
+                        
+                        // Handle Arrays (BelongsToMany, HasMany)
+                        if (Array.isArray(data)) {
+                            return (
+                                <div className="flex flex-wrap gap-1">
+                                    {data.map((item: any, i: number) => {
+                                        const label = typeof item === 'object' 
+                                            ? (item.name || item.title || item.label || item.username || item.email || item.id)
+                                            : item
+                                        
+                                        return (
+                                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground">
+                                                {String(label)}
+                                            </span>
+                                        )
+                                    })}
+                                </div>
+                            )
+                        }
+
                         // Try to find a displayable string
                         return data.name || data.email || data.title || data.username || data.id || JSON.stringify(data)
+                    }
+
+                    // Handle options (BelongsTo/HasOne with primitive value ID)
+                    if (field.props?.options) {
+                        const options = field.props.options as Record<string, string>
+                        const valStr = String(field.data)
+                        if (options[valStr]) {
+                            return options[valStr]
+                        }
                     }
 
                     return field.data
@@ -345,6 +370,7 @@ export default function ResourceIndexPage() {
                             open={isCreateOpen}
                             variant={resourceData.meta.dialog_type}
                             onOpenChange={setIsCreateOpen}
+                            ref={setCreateContainer}
                             trigger={
                                 <Button onClick={() => setIsCreateOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" />
@@ -356,6 +382,7 @@ export default function ResourceIndexPage() {
                                 fields={createFields}
                                 onSubmit={handleCreateSubmit}
                                 onCancel={() => setIsCreateOpen(false)}
+                                container={createContainer}
                             />
                         </ResponsiveModal>
                     )}
@@ -393,6 +420,7 @@ export default function ResourceIndexPage() {
                         setIsEditOpen(open)
                         if (!open) setEditingItem(null)
                     }}
+                    ref={setEditContainer}
                 >
                     <ResourceForm
                         key={(editingItem?.id as FieldData)?.data || 'edit-form'}
@@ -404,6 +432,7 @@ export default function ResourceIndexPage() {
                             setEditingItem(null)
                         }}
                         submitLabel="Guncelle"
+                        container={editContainer}
                     />
                 </ResponsiveModal>
 

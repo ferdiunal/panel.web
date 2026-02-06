@@ -41,7 +41,51 @@ export function ResourceDetail({ fields, onClose }: ResourceDetailProps) {
 
 function renderValue(field: FieldData) {
     if (!field.data && field.data !== 0) {
-        return <span className="text-muted-foreground italic">Boş</span>
+        return <span className="text-muted-foreground italic">-</span>
+    }
+
+    // Handle objects (like relations)
+    if (typeof field.data === 'object' && field.data !== null) {
+        const data = field.data as any
+        
+        // Handle Arrays (BelongsToMany, HasMany)
+        if (Array.isArray(data)) {
+            if (data.length === 0) return <span className="text-muted-foreground italic">-</span>
+            
+            return (
+                <div className="flex flex-wrap gap-1">
+                    {data.map((item: any, i: number) => {
+                        const label = typeof item === 'object' 
+                            ? (item.name || item.title || item.label || item.username || item.email || item.id)
+                            : item
+                        
+                        return (
+                            <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                                {String(label)}
+                            </span>
+                        )
+                    })}
+                </div>
+            )
+        }
+        
+        // Check for empty/zero object (id 0)
+        if (data.id === 0 || data.ID === 0) {
+            return <span className="text-muted-foreground italic">-</span>
+        }
+
+        // Try to find a displayable string
+        const display = data.name || data.email || data.title || data.username || data.id || JSON.stringify(data)
+        return <span className="break-all">{display}</span>
+    }
+
+    // Handle options (BelongsTo/HasOne with primitive value ID)
+    if (field.props?.options) {
+        const options = field.props.options as Record<string, string>
+        const valStr = String(field.data)
+        if (options[valStr]) {
+            return <span className="break-all">{options[valStr]}</span>
+        }
     }
 
     if (field.view === "image-field") {

@@ -36,7 +36,7 @@ interface ResponsiveModalProps {
     side?: "top" | "bottom" | "left" | "right" // For sheet
 }
 
-export function ResponsiveModal({
+export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalProps>(({
     children,
     trigger,
     title,
@@ -45,7 +45,7 @@ export function ResponsiveModal({
     onOpenChange,
     variant = "dialog",
     side = "right",
-}: ResponsiveModalProps) {
+}, ref) => {
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
     if (isDesktop) {
@@ -58,7 +58,7 @@ export function ResponsiveModal({
                             {title && <SheetTitle>{title}</SheetTitle>}
                             {description && <SheetDescription>{description}</SheetDescription>}
                         </SheetHeader>
-                        <div className="px-4">
+                        <div className="px-4" ref={ref}>
                             {children}
                         </div>
                     </SheetContent>
@@ -74,7 +74,9 @@ export function ResponsiveModal({
                         {title && <DialogTitle>{title}</DialogTitle>}
                         {description && <DialogDescription>{description}</DialogDescription>}
                     </DialogHeader>
-                    {children}
+                    <div ref={ref}>
+                        {children}
+                    </div>
                 </DialogContent>
             </Dialog>
         )
@@ -88,10 +90,11 @@ export function ResponsiveModal({
                     {title && <DrawerTitle>{title}</DrawerTitle>}
                     {description && <DrawerDescription>{description}</DrawerDescription>}
                 </DrawerHeader>
-                <div className="px-4">
+                <div className="px-4" ref={ref}>
                     {children}
                 </div>
             </DrawerContent>
         </Drawer>
     )
-}
+})
+ResponsiveModal.displayName = "ResponsiveModal"

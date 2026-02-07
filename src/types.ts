@@ -24,6 +24,7 @@ export interface FieldData {
     text_align: string;
     type: string;
     view: string;
+    visible?: boolean;
 }
 
 export interface ResourcePolicy {

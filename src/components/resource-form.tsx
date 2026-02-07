@@ -16,6 +16,8 @@ import { BooleanGroupField } from "@/components/fields/BooleanGroupField"
 import { PanelField } from "@/components/fields/PanelField"
 import { resourceService } from "@/services/resource"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { useDependentFields } from "@/hooks/useDependentFields"
+import type { FieldUpdate } from "@/types/dependencies"
 
 // If textarea doesn't exist, I'll stick to Input or standard textarea
 // Check Shadcn Input.
@@ -28,6 +30,9 @@ interface ResourceFormProps {
     submitLabel?: string
     hideCancel?: boolean
     container?: HTMLElement | null
+    resource?: string
+    context?: 'create' | 'update'
+    resourceId?: string | number
 }
 
 export function ResourceForm({
@@ -38,19 +43,55 @@ export function ResourceForm({
     submitLabel = "Save",
     hideCancel = false,
     container,
+    resource,
+    context = 'create',
+    resourceId,
 }: ResourceFormProps) {
     const [formData, setFormData] = useState<Record<string, any>>(initialData)
     const [loading, setLoading] = useState(false)
     const [_, setErrors] = useState<Record<string, string>>({})
+    const [fieldUpdates, setFieldUpdates] = useState<Record<string, FieldUpdate>>({})
 
     React.useEffect(() => {
         setFormData(initialData)
     }, [JSON.stringify(initialData)])
 
-
+    // Use dependent fields hook if resource and context are provided
+    const dependentFieldsHook = resource ? useDependentFields({
+        resource,
+        context,
+        resourceId,
+        fields,
+        formData,
+        onFieldsUpdate: setFieldUpdates,
+    }) : null
 
     const handleChange = (key: string, value: any) => {
         setFormData((prev) => ({ ...prev, [key]: value }))
+        // Trigger dependency resolution if hook is available
+        if (dependentFieldsHook) {
+            dependentFieldsHook.handleFieldChange(key)
+        }
+    }
+
+    // Apply field updates to field metadata
+    const getFieldProps = (field: FieldData): FieldData => {
+        const update = fieldUpdates[field.key]
+        if (!update) return field
+
+        return {
+            ...field,
+            visible: update.visible ?? true,
+            read_only: update.readonly ?? field.read_only,
+            required: update.required ?? field.required,
+            disabled: update.disabled ?? field.disabled,
+            help_text: update.helpText ?? field.help_text,
+            placeholder: update.placeholder ?? field.placeholder,
+            props: {
+                ...field.props,
+                options: update.options ?? field.props?.options,
+            },
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -70,12 +111,15 @@ export function ResourceForm({
     return (
         <form onSubmit={handleSubmit} className="space-y-6 pt-4">
             {fields.map((field) => {
+                // Apply field updates
+                const fieldProps = getFieldProps(field)
+
                 // Handle panel fields separately
-                if (field.view === "panel-field") {
+                if (fieldProps.view === "panel-field") {
                     return (
                         <PanelField
-                            key={field.key}
-                            field={field}
+                            key={fieldProps.key}
+                            field={fieldProps}
                             formData={formData}
                             handleChange={handleChange}
                             renderInput={renderInput}
@@ -84,17 +128,19 @@ export function ResourceForm({
                     )
                 }
 
-                if (field.read_only) return null
+                // Skip hidden fields
+                if (fieldProps.visible === false) return null
+                if (fieldProps.read_only) return null
 
                 return (
-                    <div key={field.key} className="space-y-2">
-                        <Label htmlFor={field.key}>
-                            {field.name || field.label}
-                            {field.required && <span className="text-destructive ml-1">*</span>}
+                    <div key={fieldProps.key} className="space-y-2">
+                        <Label htmlFor={fieldProps.key}>
+                            {fieldProps.name || fieldProps.label}
+                            {fieldProps.required && <span className="text-destructive ml-1">*</span>}
                         </Label>
-                        {renderInput(field, formData, handleChange, container)}
-                        {field.help_text && (
-                            <p className="text-xs text-muted-foreground">{field.help_text}</p>
+                        {renderInput(fieldProps, formData, handleChange, container)}
+                        {fieldProps.help_text && (
+                            <p className="text-xs text-muted-foreground">{fieldProps.help_text}</p>
                         )}
                     </div>
                 )
@@ -106,8 +152,8 @@ export function ResourceForm({
                         Cancel
                     </Button>
                 )}
-                <Button type="submit" disabled={loading} className="w-full md:w-auto h-12 md:h-10 text-base">
-                    {loading ? "Saving..." : submitLabel}
+                <Button type="submit" disabled={loading || dependentFieldsHook?.isResolving} className="w-full md:w-auto h-12 md:h-10 text-base">
+                    {loading ? "Saving..." : dependentFieldsHook?.isResolving ? "Updating..." : submitLabel}
                 </Button>
             </div>
         </form>

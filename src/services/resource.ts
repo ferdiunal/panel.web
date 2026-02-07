@@ -1,6 +1,7 @@
 import api from "@/lib/axios";
 import type { ResourceResponse, FieldData } from "@/types";
 import type { ResourceParams } from "@/lib/resource-params";
+import type { ResolveDependenciesRequest, ResolveDependenciesResponse } from "@/types/dependencies";
 import qs from "qs";
 
 export const resourceService = {
@@ -91,6 +92,17 @@ export const resourceService = {
     getActions: async (resource: string) => {
         const { data } = await api.get<{ actions: any[] }>(`/resource/${resource}/actions`);
         return data.actions;
+    },
+
+    resolveDependencies: async (
+        resource: string,
+        request: ResolveDependenciesRequest
+    ): Promise<ResolveDependenciesResponse> => {
+        const { data } = await api.post<ResolveDependenciesResponse>(
+            `/resource/${resource}/fields/resolve-dependencies`,
+            request
+        );
+        return data;
     },
 };
 

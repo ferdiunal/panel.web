@@ -126,8 +126,11 @@ export const useDependencyLoading = (formId: string) =>
 export const useFormSubmitting = (formId: string) =>
   useFormStateStore((state) => state.submitting[formId] ?? false);
 
+// Empty object constant to prevent re-renders
+const EMPTY_FIELD_UPDATES = {};
+
 export const useAllFieldUpdates = (formId: string) =>
-  useFormStateStore((state) => state.fieldUpdates[formId] ?? {});
+  useFormStateStore((state) => state.fieldUpdates[formId] || EMPTY_FIELD_UPDATES);
 
 export const useFormErrors = (formId: string) =>
   useFormStateStore((state) => state.formErrors[formId] ?? {});

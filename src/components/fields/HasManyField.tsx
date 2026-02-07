@@ -55,6 +55,9 @@ export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
     },
     ref
   ) => {
+    // Ensure value is always an array to prevent runtime errors
+    const safeValue = Array.isArray(value) ? value : [];
+
     const [searchQuery, setSearchQuery] = useState('');
     const [options, setOptions] = useState<Resource[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -82,17 +85,17 @@ export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
     );
 
     const selectedOptions = useMemo(() => {
-      return options.filter((opt) => value.includes(opt.id));
-    }, [options, value]);
+      return options.filter((opt) => safeValue.includes(opt.id));
+    }, [options, safeValue]);
 
     const handleAddValue = useCallback(
       (idOrNull: string | null) => {
-        if (idOrNull && !value.includes(idOrNull)) {
-          onChange([...value, idOrNull]);
+        if (idOrNull && !safeValue.includes(idOrNull)) {
+          onChange([...safeValue, idOrNull]);
           setSearchQuery('');
         }
       },
-      [value, onChange]
+      [safeValue, onChange]
     );
 
     return (
@@ -111,7 +114,7 @@ export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
           >
-            {value.map((id) => {
+            {safeValue.map((id) => {
               const resource = selectedOptions.find((opt) => opt.id === id);
               return (
                 <ComboboxChip
@@ -139,7 +142,7 @@ export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
               <>
                 <ComboboxList>
                   {options
-                    .filter((opt) => !value.includes(opt.id))
+                    .filter((opt) => !safeValue.includes(opt.id))
                     .map((option) => (
                       <ComboboxItem key={option.id} value={option.id}>
                         {option.name || option.id}

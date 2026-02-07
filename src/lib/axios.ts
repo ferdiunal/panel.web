@@ -45,14 +45,42 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Response interceptor: Handle auth errors
+// Response interceptor: Handle HTTP errors
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        // Handle unauthorized - redirect to login
-        if (error.response?.status === 401) {
-            clearAuthToken();
-            window.location.href = '/login';
+        const status = error.response?.status;
+
+        // Handle different HTTP error codes
+        switch (status) {
+            case 401:
+                // Unauthorized - redirect to login
+                clearAuthToken();
+                window.location.href = '/login';
+                break;
+
+            case 403:
+                // Forbidden - redirect to 403 page
+                window.location.href = '/403';
+                break;
+
+            case 404:
+                // Not Found - redirect to 404 page
+                window.location.href = '/404';
+                break;
+
+            case 500:
+            case 502:
+            case 503:
+            case 504:
+                // Server errors - redirect to 500 page
+                window.location.href = '/500';
+                break;
+
+            default:
+                // For other errors, just reject the promise
+                // This allows components to handle specific errors
+                break;
         }
 
         return Promise.reject(error);

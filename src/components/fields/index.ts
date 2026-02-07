@@ -6,6 +6,8 @@ export { DateField, type DateFieldProps } from './DateField';
 export { DateTimeField, type DateTimeFieldProps } from './DateTimeField';
 export { NumberInput, type NumberInputProps } from './NumberInput';
 export { TextareaField, type TextareaFieldProps } from './TextareaField';
+export { RichTextField, type RichTextFieldProps } from './RichTextField';
+export { PanelField, type PanelFieldProps } from './PanelField';
 export { URLInput, type URLInputProps } from './URLInput';
 export { SwitchField, type SwitchFieldProps } from './SwitchField';
 export { BelongsToField, type BelongsToFieldProps } from './BelongsToField';

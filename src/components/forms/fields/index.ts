@@ -28,6 +28,7 @@ import { HasOneField } from '@/components/fields/HasOneField';
 import { HasManyField } from '@/components/fields/HasManyField';
 import { BelongsToManyField } from '@/components/fields/BelongsToManyField';
 import { BadgeField } from '@/components/fields/BadgeField';
+import { DialogField } from '@/components/fields/DialogField';
 
 // Memoize field components with custom comparison
 export const MemoizedComboboxField = React.memo(ComboboxField, (prev, next) => {
@@ -234,6 +235,18 @@ export const MemoizedBadgeField = React.memo(BadgeField, (prev, next) => {
   );
 });
 
+// Dialog field
+export const MemoizedDialogField = React.memo(DialogField, (prev, next) => {
+  return (
+    prev.value === next.value &&
+    prev.defaultOpen === next.defaultOpen &&
+    prev.disabled === next.disabled &&
+    prev.contentType === next.contentType &&
+    prev.fields === next.fields &&
+    prev.steps === next.steps
+  );
+});
+
 // Register all field components with the registry
 export function registerAllFields() {
   // Basic input fields
@@ -289,6 +302,10 @@ export function registerAllFields() {
   fieldRegistry.register('panel-field', MemoizedPanelField as any);
   fieldRegistry.register('badge', MemoizedBadgeField as any);
   fieldRegistry.register('badge-field', MemoizedBadgeField as any);
+
+  // Dialog field
+  fieldRegistry.register('dialog', MemoizedDialogField as any);
+  fieldRegistry.register('dialog-field', MemoizedDialogField as any);
 }
 
 // Auto-register on module load

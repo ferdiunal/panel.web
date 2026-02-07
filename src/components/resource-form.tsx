@@ -73,7 +73,6 @@ export function ResourceForm({
                         <PanelField
                             key={field.key}
                             field={field}
-                            fields={fields}
                             formData={formData}
                             handleChange={handleChange}
                             renderInput={renderInput}

@@ -5,7 +5,6 @@ import type { FieldData } from '@/types';
 
 export interface PanelFieldProps {
   field: FieldData;
-  fields: FieldData[];
   formData: Record<string, any>;
   handleChange: (key: string, value: any) => void;
   renderInput: (field: FieldData, formData: Record<string, any>, handleChange: (key: string, value: any) => void, container?: HTMLElement | null) => React.ReactNode;
@@ -20,7 +19,6 @@ export interface PanelFieldProps {
  */
 export const PanelField: React.FC<PanelFieldProps> = ({
   field,
-  fields,
   formData,
   handleChange,
   renderInput,
@@ -37,12 +35,13 @@ export const PanelField: React.FC<PanelFieldProps> = ({
   // Get panel fields (fields that belong to this panel)
   const panelFields = field.props?.fields as FieldData[] | undefined || [];
 
-  const gridCols = {
+  const gridColsMap: Record<number, string> = {
     1: 'grid-cols-1',
     2: 'grid-cols-1 md:grid-cols-2',
     3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
     4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4',
-  }[columns] || 'grid-cols-1';
+  };
+  const gridCols = gridColsMap[columns] || 'grid-cols-1';
 
   return (
     <Card className="w-full">

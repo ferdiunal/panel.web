@@ -34,6 +34,7 @@ interface ResponsiveModalProps {
     onOpenChange?: (open: boolean) => void
     variant?: "dialog" | "sheet" | "drawer"
     side?: "top" | "bottom" | "left" | "right" // For sheet
+    className?: string // For custom modal styling
 }
 
 export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalProps>(({
@@ -45,6 +46,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
     onOpenChange,
     variant = "dialog",
     side = "right",
+    className,
 }, ref) => {
     const isDesktop = useMediaQuery("(min-width: 768px)")
 
@@ -69,7 +71,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
                 {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-                <DialogContent>
+                <DialogContent className={className}>
                     <DialogHeader>
                         {title && <DialogTitle>{title}</DialogTitle>}
                         {description && <DialogDescription>{description}</DialogDescription>}

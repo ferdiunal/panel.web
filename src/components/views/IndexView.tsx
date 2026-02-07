@@ -51,10 +51,10 @@ export interface IndexViewProps<T extends Resource = Resource> {
 
 /**
  * IndexView Component
- * 
+ *
  * Displays a table of resources with search, sort, and action capabilities.
  * Shows loading, empty, and error states.
- * 
+ *
  * Validates: Requirements 1.1, 1.2, 1.3, 1.8
  */
 export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
@@ -289,8 +289,6 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
                           </DropdownMenu>
                         ) : null}
                       </TableCell>
-                      )}
-                    </TableCell>
                   )}
                 </TableRow>
               );

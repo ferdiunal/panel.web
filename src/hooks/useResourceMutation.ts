@@ -51,7 +51,7 @@ function showNotifications(notifications?: Notification[]) {
 export function useCreateResourceMutation(
   resourceType: string,
   options: MutationOptions = {}
-): UseMutationResult<AnyResource, Error, FormData> {
+): UseMutationResult<ApiResponse<AnyResource>, Error, FormData> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -77,7 +77,7 @@ export function useUpdateResourceMutation(
   resourceType: string,
   resourceId: string,
   options: MutationOptions = {}
-): UseMutationResult<AnyResource, Error, FormData> {
+): UseMutationResult<ApiResponse<AnyResource>, Error, FormData> {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -103,7 +103,7 @@ export function useUpdateResourceMutation(
 export function useDeleteResourceMutation(
   resourceType: string,
   options: MutationOptions = {}
-): UseMutationResult<void, Error, string> {
+): UseMutationResult<ApiResponse<void>, Error, string> {
   const queryClient = useQueryClient();
 
   return useMutation({

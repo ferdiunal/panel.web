@@ -6,6 +6,7 @@ import { WidgetRenderer } from "@/components/widget-renderer"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { BadgeField } from "@/components/fields/BadgeField"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { ResourceForm } from "@/components/resource-form"
 import { ResourceDetail } from "@/components/resource-detail"
@@ -268,6 +269,15 @@ export default function ResourceIndexPage() {
                                 <AvatarImage src={field.data} alt={field.name} />
                                 <AvatarFallback>{field.name ? field.name.substring(0, 2).toUpperCase() : "IMG"}</AvatarFallback>
                             </Avatar>
+                        )
+                    }
+
+                    if (header.view === "badge-field") {
+                        return (
+                            <BadgeField
+                                value={field.data}
+                                variant={field.props?.variant || 'default'}
+                            />
                         )
                     }
 

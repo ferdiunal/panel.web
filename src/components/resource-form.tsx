@@ -10,6 +10,9 @@ import TableUpload from "@/components/file-upload/table-upload"
 import { ComboboxField } from "@/components/fields/ComboboxField"
 import { MorphToField } from "@/components/fields/MorphToField"
 import { RichTextField } from "@/components/fields/RichTextField"
+import { CodeField } from "@/components/fields/CodeField"
+import { ColorField } from "@/components/fields/ColorField"
+import { BooleanGroupField } from "@/components/fields/BooleanGroupField"
 import { PanelField } from "@/components/fields/PanelField"
 import { resourceService } from "@/services/resource"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
@@ -197,6 +200,46 @@ function renderInput(
                     required={field.required}
                     placeholder={field.props?.placeholder as string}
                     helpText={field.props?.helpText as string}
+                />
+            )
+        case "code-field":
+            return (
+                <CodeField
+                    name={field.key}
+                    label={field.name || field.label}
+                    value={normalizedValue}
+                    onChange={(value) => onChange(field.key, value)}
+                    language={field.props?.language as string || 'javascript'}
+                    theme={field.props?.theme as 'vs-dark' | 'light' || 'vs-dark'}
+                    height={field.props?.height as string || '300px'}
+                    readOnly={field.disabled || field.read_only}
+                    required={field.required}
+                    helpText={field.help_text}
+                />
+            )
+        case "color-field":
+            return (
+                <ColorField
+                    name={field.key}
+                    label={field.name || field.label}
+                    value={normalizedValue}
+                    onChange={(value) => onChange(field.key, value)}
+                    disabled={field.disabled || field.read_only}
+                    required={field.required}
+                    helpText={field.help_text}
+                />
+            )
+        case "boolean-group-field":
+            return (
+                <BooleanGroupField
+                    name={field.key}
+                    label={field.name || field.label}
+                    value={normalizedValue}
+                    onChange={(value) => onChange(field.key, value)}
+                    options={field.props?.options as Record<string, string> || {}}
+                    disabled={field.disabled || field.read_only}
+                    required={field.required}
+                    helpText={field.help_text}
                 />
             )
         case "switch-field":

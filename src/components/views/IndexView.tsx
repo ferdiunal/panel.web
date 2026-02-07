@@ -1,4 +1,15 @@
-import React, { useCallback } from 'react';
+import React, { useMemo } from 'react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  flexRender,
+  type ColumnDef,
+  type SortingState,
+  type ColumnFiltersState,
+  type Column,
+} from '@tanstack/react-table';
 import {
   Table,
   TableBody,
@@ -10,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash } from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
 import {
@@ -20,12 +31,119 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
 
 export interface IndexViewColumn<T = any> {
   key: string;
   label: string;
   sortable?: boolean;
+  filterable?: boolean;
   render?: (value: any, resource: T) => React.ReactNode;
+}
+
+// Column Filter Component
+interface ColumnFilterProps<T> {
+  column: Column<T, unknown>;
+  table: ReturnType<typeof useReactTable<T>>;
+}
+
+function ColumnFilter<T>({ column, table }: ColumnFilterProps<T>) {
+  const [open, setOpen] = React.useState(false);
+
+  // Get unique values for this column from pre-filtered data
+  const uniqueValues = React.useMemo(() => {
+    const values = new Set<string>();
+    table.getPreFilteredRowModel().rows.forEach((row) => {
+      const value = row.getValue(column.id);
+      if (value != null && value !== '') {
+        values.add(String(value));
+      }
+    });
+    return Array.from(values).sort();
+  }, [table, column.id]);
+
+  const filterValue = (column.getFilterValue() as string[]) ?? [];
+
+  const handleFilterChange = (value: string, checked: boolean) => {
+    const newFilterValue = checked
+      ? [...filterValue, value]
+      : filterValue.filter((v) => v !== value);
+
+    column.setFilterValue(newFilterValue.length > 0 ? newFilterValue : undefined);
+  };
+
+  const handleClearFilter = () => {
+    column.setFilterValue(undefined);
+    setOpen(false);
+  };
+
+  if (uniqueValues.length === 0) {
+    return null;
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'h-8 w-8 p-0',
+            filterValue.length > 0 && 'text-primary'
+          )}
+        >
+          <Filter className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0" align="start">
+        <div className="p-2">
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-xs font-medium">Filter</Label>
+            {filterValue.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearFilter}
+                className="h-6 px-2 text-xs"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="max-h-[300px] overflow-y-auto space-y-2">
+            {uniqueValues.map((value) => (
+              <div key={value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`${column.id}-${value}`}
+                  checked={filterValue.includes(value)}
+                  onCheckedChange={(checked) =>
+                    handleFilterChange(value, checked as boolean)
+                  }
+                />
+                <label
+                  htmlFor={`${column.id}-${value}`}
+                  className="text-sm cursor-pointer flex-1 truncate"
+                  title={value}
+                >
+                  {value}
+                </label>
+              </div>
+            ))}
+          </div>
+          {filterValue.length > 0 && (
+            <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+              {filterValue.length} selected
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export interface IndexViewProps<T extends Resource = Resource> {
@@ -83,59 +201,198 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
   ) => {
     const showActions = !!(onEdit || onDelete || onView);
 
-    // Selection handlers
-    const handleSelectAll = useCallback(
-      (checked: boolean) => {
-        if (!onSelectionChange) return;
-        if (checked) {
-          const allIds = resources.map((r) => String(r.id));
-          onSelectionChange(allIds);
-        } else {
-          onSelectionChange([]);
-        }
-      },
-      [resources, onSelectionChange]
-    );
-
-    const handleSelectRow = useCallback(
-      (id: string, checked: boolean) => {
-        if (!onSelectionChange) return;
-        if (checked) {
-          onSelectionChange([...selectedIds, id]);
-        } else {
-          onSelectionChange(selectedIds.filter((selectedId) => selectedId !== id));
-        }
-      },
-      [selectedIds, onSelectionChange]
-    );
-
-    const isAllSelected = resources.length > 0 && selectedIds.length === resources.length;
-    const isSomeSelected = selectedIds.length > 0 && selectedIds.length < resources.length;
-
-    const handleSearchChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        onSearchChange?.(e.target.value);
-      },
-      [onSearchChange]
-    );
-
-    const handleSort = useCallback(
-      (key: string) => {
-        onSort?.(key);
-      },
-      [onSort]
-    );
-
-    const renderSortIcon = (key: string) => {
-      if (sortBy !== key) {
-        return <div className="w-4 h-4" />;
+    // Sorting state
+    const [sorting, setSorting] = React.useState<SortingState>(() => {
+      if (sortBy) {
+        return [{ id: sortBy, desc: sortOrder === 'desc' }];
       }
-      return sortOrder === 'asc' ? (
-        <ChevronUpIcon className="w-4 h-4" />
-      ) : (
-        <ChevronDownIcon className="w-4 h-4" />
-      );
-    };
+      return [];
+    });
+
+    // Column filters state
+    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+
+    // Global filter state
+    const [globalFilter, setGlobalFilter] = React.useState(searchQuery);
+
+    // Sync external sorting state
+    React.useEffect(() => {
+      if (sortBy) {
+        setSorting([{ id: sortBy, desc: sortOrder === 'desc' }]);
+      }
+    }, [sortBy, sortOrder]);
+
+    // Sync external search state
+    React.useEffect(() => {
+      setGlobalFilter(searchQuery);
+    }, [searchQuery]);
+
+    // Convert IndexViewColumn to TanStack Table ColumnDef
+    const tanstackColumns = useMemo<ColumnDef<any>[]>(() => {
+      const cols: ColumnDef<any>[] = [];
+
+      // Selection column
+      if (enableSelection) {
+        cols.push({
+          id: 'select',
+          header: ({ table }) => (
+            <Checkbox
+              checked={table.getIsAllRowsSelected()}
+              onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
+              aria-label="Select all"
+            />
+          ),
+          cell: ({ row }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label={`Select row ${row.id}`}
+            />
+          ),
+          enableSorting: false,
+          enableColumnFilter: false,
+        });
+      }
+
+      // Data columns
+      columns.forEach((col) => {
+        cols.push({
+          id: col.key,
+          accessorKey: col.key,
+          header: col.label,
+          cell: (info) => {
+            const value = info.getValue();
+            const resource = info.row.original;
+            return col.render ? col.render(value, resource) : String(value || '');
+          },
+          enableSorting: col.sortable ?? false,
+          enableColumnFilter: col.filterable ?? false,
+          filterFn: 'arrIncludesSome', // Use custom filter function for multi-select
+        });
+      });
+
+      // Actions column
+      if (showActions) {
+        cols.push({
+          id: 'actions',
+          header: 'Actions',
+          cell: ({ row }) => {
+            const resource = row.original;
+            const hasAnyAction =
+              (onView && (resource.policy?.view ?? true)) ||
+              (onEdit && (resource.policy?.update ?? true)) ||
+              (onDelete && (resource.policy?.delete ?? true));
+
+            if (!hasAnyAction) return null;
+
+            return (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {onView && (resource.policy?.view ?? true) && (
+                    <DropdownMenuItem onClick={() => onView(resource)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Görüntüle
+                    </DropdownMenuItem>
+                  )}
+                  {onEdit && (resource.policy?.update ?? true) && (
+                    <DropdownMenuItem onClick={() => onEdit(resource)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Düzenle
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (resource.policy?.delete ?? true) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => onDelete(resource)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        Sil
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          },
+          enableSorting: false,
+          enableColumnFilter: false,
+        });
+      }
+
+      return cols;
+    }, [columns, enableSelection, showActions, onView, onEdit, onDelete]);
+
+    // Create table instance
+    const table = useReactTable({
+      data: resources,
+      columns: tanstackColumns,
+      getCoreRowModel: getCoreRowModel(),
+      getSortedRowModel: getSortedRowModel(),
+      getFilteredRowModel: getFilteredRowModel(),
+      state: {
+        sorting,
+        columnFilters,
+        globalFilter,
+        rowSelection: selectedIds.reduce((acc, id) => {
+          acc[id] = true;
+          return acc;
+        }, {} as Record<string, boolean>),
+      },
+      onSortingChange: (updater) => {
+        const newSorting = typeof updater === 'function' ? updater(sorting) : updater;
+        setSorting(newSorting);
+
+        // Notify parent component
+        if (onSort && newSorting.length > 0) {
+          onSort(newSorting[0].id);
+        }
+      },
+      onColumnFiltersChange: setColumnFilters,
+      onGlobalFilterChange: (updater) => {
+        const newFilter = typeof updater === 'function' ? updater(globalFilter) : updater;
+        setGlobalFilter(newFilter);
+
+        // Notify parent component
+        if (onSearchChange) {
+          onSearchChange(newFilter);
+        }
+      },
+      onRowSelectionChange: (updater) => {
+        if (!onSelectionChange) return;
+
+        const currentSelection = selectedIds.reduce((acc, id) => {
+          acc[id] = true;
+          return acc;
+        }, {} as Record<string, boolean>);
+
+        const newSelection = typeof updater === 'function' ? updater(currentSelection) : updater;
+        const newSelectedIds = Object.keys(newSelection).filter(id => newSelection[id]);
+        onSelectionChange(newSelectedIds);
+      },
+      enableSorting: true,
+      enableColumnFilters: true,
+      enableGlobalFilter: true,
+      enableRowSelection: enableSelection,
+      filterFns: {
+        // Custom filter function for multi-select filtering
+        arrIncludesSome: (row, columnId, filterValue) => {
+          if (!filterValue || !Array.isArray(filterValue) || filterValue.length === 0) {
+            return true;
+          }
+          const rowValue = String(row.getValue(columnId));
+          return filterValue.includes(rowValue);
+        },
+      },
+      // Set default filter function for all columns
+      globalFilterFn: 'includesString',
+    });
 
     if (error) {
       return (
@@ -163,8 +420,8 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
         {onSearchChange && (
           <Input
             placeholder="Search resources..."
-            value={searchQuery}
-            onChange={handleSearchChange}
+            value={globalFilter}
+            onChange={(e) => table.setGlobalFilter(e.target.value)}
             className="max-w-sm"
           />
         )}
@@ -174,129 +431,75 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
             <p className="text-sm text-muted-foreground">No resources found</p>
           </div>
         ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {enableSelection && (
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={isAllSelected}
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all"
-                      className={isSomeSelected ? 'data-[state=checked]:bg-muted' : ''}
-                    />
-                  </TableHead>
-                )}
-                {columns.map((column) => (
-                  <TableHead key={column.key}>
-                    {column.sortable ? (
-                      <button
-                        onClick={() => handleSort(column.key)}
-                        className="flex items-center gap-2 hover:text-foreground transition-colors"
-                      >
-                        {column.label}
-                        {renderSortIcon(column.key)}
-                      </button>
-                    ) : (
-                      column.label
-                    )}
-                  </TableHead>
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder ? null : (
+                          <div className="flex items-center gap-1">
+                            <div
+                              className={cn(
+                                header.column.getCanSort() && 'cursor-pointer select-none flex items-center gap-2',
+                                'hover:text-foreground transition-colors flex-1'
+                              )}
+                              onClick={header.column.getToggleSortingHandler()}
+                            >
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                              {header.column.getCanSort() && (
+                                <div className="w-4 h-4">
+                                  {{
+                                    asc: <ChevronUpIcon className="w-4 h-4" />,
+                                    desc: <ChevronDownIcon className="w-4 h-4" />,
+                                  }[header.column.getIsSorted() as string] ?? null}
+                                </div>
+                              )}
+                            </div>
+                            {header.column.getCanFilter() && header.id !== 'select' && header.id !== 'actions' && (
+                              <ColumnFilter column={header.column} table={table} />
+                            )}
+                          </div>
+                        )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
                 ))}
-                {showActions && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length + (showActions ? 1 : 0) + (enableSelection ? 1 : 0)} className="text-center py-8">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-muted-foreground/30 animate-pulse" />
-                      <span className="text-sm text-muted-foreground">Loading...</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : resources.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length + (showActions ? 1 : 0) + (enableSelection ? 1 : 0)} className="text-center py-8">
-                    <span className="text-sm text-muted-foreground">No data</span>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                resources.map((resource) => {
-                  const resourceId = String(resource.id);
-                  const isSelected = selectedIds.includes(resourceId);
-
-                  return (
-                    <TableRow key={resource.id}>
-                      {enableSelection && (
-                        <TableCell>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectRow(resourceId, checked as boolean)}
-                            aria-label={`Select row ${resourceId}`}
-                          />
-                        </TableCell>
-                      )}
-                      {columns.map((column) => (
-                        <TableCell key={`${resource.id}-${column.key}`}>
-                          {column.render
-                            ? column.render(resource[column.key as keyof Resource], resource)
-                            : String(resource[column.key as keyof Resource] || '')}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={table.getAllColumns().length} className="text-center py-8">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 rounded-full bg-muted-foreground/30 animate-pulse" />
+                        <span className="text-sm text-muted-foreground">Loading...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : table.getRowModel().rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={table.getAllColumns().length} className="text-center py-8">
+                      <span className="text-sm text-muted-foreground">No data</span>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
-                    {showActions && (
-                      <TableCell>
-                        {(onView && (resource.policy?.view ?? true)) ||
-                        (onEdit && (resource.policy?.update ?? true)) ||
-                        (onDelete && (resource.policy?.delete ?? true)) ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                              >
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {onView && (resource.policy?.view ?? true) && (
-                                <DropdownMenuItem onClick={() => onView(resource)}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Görüntüle
-                                </DropdownMenuItem>
-                              )}
-                              {onEdit && (resource.policy?.update ?? true) && (
-                                <DropdownMenuItem onClick={() => onEdit(resource)}>
-                                  <Pencil className="mr-2 h-4 w-4" />
-                                  Düzenle
-                                </DropdownMenuItem>
-                              )}
-                              {onDelete && (resource.policy?.delete ?? true) && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => onDelete(resource)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash className="mr-2 h-4 w-4" />
-                                    Sil
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : null}
-                      </TableCell>
-                  )}
-                </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-          </Table>
-        </div>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     );

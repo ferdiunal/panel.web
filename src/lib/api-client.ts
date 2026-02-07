@@ -1,6 +1,7 @@
 /**
  * API Client for Panel Frontend
- * Handles HTTP requests with proper error handling, CSRF tokens, and auth
+ * Handles HTTP requests with proper error handling and auth
+ * CSRF tokens are handled automatically by axios (withXSRFToken: true)
  */
 
 import axios from 'axios';
@@ -9,27 +10,24 @@ import type { ApiError } from '@/types';
 
 class ApiClient {
   private client: AxiosInstance;
-  private csrfToken: string | null = null;
   private authToken: string | null = null;
 
   constructor(baseURL: string = '/api') {
     this.client = axios.create({
       baseURL,
+      withCredentials: true, // Include HTTPOnly cookies automatically
+      withXSRFToken: true, // Enable axios built-in CSRF token handling
+      xsrfHeaderName: 'X-CSRF-Token', // Header name for CSRF token
+      xsrfCookieName: 'csrf_token', // Cookie name to read token from
       headers: {
-        'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json',
       },
-      withCredentials: true, // Include cookies in requests
     });
 
-    // Add request interceptor for CSRF token and auth
+    // Add request interceptor for auth
     this.client.interceptors.request.use((config) => {
-      // Add CSRF token to non-GET requests
-      if (config.method && ['post', 'put', 'patch', 'delete'].includes(config.method)) {
-        if (this.csrfToken) {
-          config.headers['X-CSRF-Token'] = this.csrfToken;
-        }
-      }
-
       // Add auth token if available
       if (this.authToken) {
         config.headers['Authorization'] = `Bearer ${this.authToken}`;
@@ -38,18 +36,9 @@ class ApiClient {
       return config;
     });
 
-    // Add response interceptor for error handling and CSRF token extraction
+    // Add response interceptor for error handling
     this.client.interceptors.response.use(
-      (response) => {
-        // Extract CSRF token from response headers if present
-        const csrfToken = response.headers['x-csrf-token'];
-        if (csrfToken) {
-          this.csrfToken = csrfToken;
-          // Also store in cookie for future requests
-          this.setCsrfCookie(csrfToken);
-        }
-        return response;
-      },
+      (response) => response,
       (error) => {
         // Handle unauthorized - redirect to login
         if (error.response?.status === 401) {
@@ -57,46 +46,9 @@ class ApiClient {
           window.location.href = '/login';
         }
 
-        // Handle forbidden
-        if (error.response?.status === 403) {
-          window.location.href = '/unauthorized';
-        }
-
         return Promise.reject(error);
       }
     );
-
-    // Load CSRF token from cookie on initialization
-    this.loadCsrfTokenFromCookie();
-  }
-
-  /**
-   * Load CSRF token from cookie
-   */
-  private loadCsrfTokenFromCookie() {
-    const token = this.getCookie('XSRF-TOKEN');
-    if (token) {
-      this.csrfToken = token;
-    }
-  }
-
-  /**
-   * Set CSRF token in cookie
-   */
-  private setCsrfCookie(token: string) {
-    document.cookie = `XSRF-TOKEN=${token}; path=/; SameSite=Strict`;
-  }
-
-  /**
-   * Get cookie value by name
-   */
-  private getCookie(name: string): string | null {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      return parts.pop()?.split(';').shift() || null;
-    }
-    return null;
   }
 
   /**
@@ -197,21 +149,6 @@ class ApiClient {
    */
   getAuthToken(): string | null {
     return this.authToken;
-  }
-
-  /**
-   * Set CSRF token manually
-   */
-  setCsrfToken(token: string) {
-    this.csrfToken = token;
-    this.setCsrfCookie(token);
-  }
-
-  /**
-   * Get current CSRF token
-   */
-  getCsrfToken(): string | null {
-    return this.csrfToken;
   }
 }
 

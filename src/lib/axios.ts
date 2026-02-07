@@ -2,30 +2,16 @@ import axios from 'axios';
 
 const api = axios.create({
     baseURL: '/api',
-    withCredentials: true,
+    withCredentials: true, // Include HTTPOnly cookies automatically
+    withXSRFToken: true, // Enable axios built-in CSRF token handling
+    xsrfHeaderName: 'X-CSRF-Token', // Header name for CSRF token
+    xsrfCookieName: 'csrf_token', // Cookie name to read token from
     headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
         'Content-Type': 'application/json',
     },
 });
-
-/**
- * Get CSRF token from cookie
- */
-function getCsrfToken(): string | null {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; XSRF-TOKEN=`);
-    if (parts.length === 2) {
-        return parts.pop()?.split(';').shift() || null;
-    }
-    return null;
-}
-
-/**
- * Set CSRF token in cookie
- */
-function setCsrfCookie(token: string) {
-    document.cookie = `XSRF-TOKEN=${token}; path=/; SameSite=Strict`;
-}
 
 /**
  * Get auth token from localStorage
@@ -48,18 +34,8 @@ function clearAuthToken() {
     localStorage.removeItem('auth_token');
 }
 
-// Request interceptor: Add CSRF token and auth token
+// Request interceptor: Add auth token
 api.interceptors.request.use((config) => {
-    const method = config.method?.toLowerCase();
-    
-    // Add CSRF token to non-GET requests
-    if (method && ['post', 'put', 'patch', 'delete'].includes(method)) {
-        const csrfToken = getCsrfToken();
-        if (csrfToken) {
-            config.headers['X-CSRF-Token'] = csrfToken;
-        }
-    }
-
     // Add auth token if available
     const authToken = getAuthToken();
     if (authToken) {
@@ -69,26 +45,14 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Response interceptor: Extract CSRF token and handle auth errors
+// Response interceptor: Handle auth errors
 api.interceptors.response.use(
-    (response) => {
-        // Extract CSRF token from response headers if present
-        const csrfToken = response.headers['x-csrf-token'];
-        if (csrfToken) {
-            setCsrfCookie(csrfToken);
-        }
-        return response;
-    },
-    (error) => {
+    (response) => response,
+    async (error) => {
         // Handle unauthorized - redirect to login
         if (error.response?.status === 401) {
             clearAuthToken();
             window.location.href = '/login';
-        }
-
-        // Handle forbidden
-        if (error.response?.status === 403) {
-            window.location.href = '/unauthorized';
         }
 
         return Promise.reject(error);
@@ -96,4 +60,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { getCsrfToken, setCsrfCookie, getAuthToken, setAuthToken, clearAuthToken };
+export { getAuthToken, setAuthToken, clearAuthToken };

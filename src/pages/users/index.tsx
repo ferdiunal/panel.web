@@ -1,14 +1,11 @@
-/**
- * User Resource Index Page
- * Displays list of users with CRUD operations
- */
-
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FormView } from '@/components/views/FormView';
+import { FormDialog } from '@/components/forms/FormDialog';
+import { UniversalResourceForm } from '@/components/forms/UniversalResourceForm';
+import { useFormDialog } from '@/hooks/useFormDialog';
 import { DetailView } from '@/components/views/DetailView';
 import { IndexView } from '@/components/views/IndexView';
 import { getCreateFields, getUpdateFields, getDetailFields } from '@/resources/user';
@@ -29,10 +26,11 @@ export const loader = async () => {
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [formMode, setFormMode] = useState<'create' | 'update'>('create');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Use form dialog hook for form modal
+  const { mode: formMode, openDialog, closeDialog } = useFormDialog('user-form');
 
   // Fetch users
   const { data: users = [], isLoading, error } = useQuery({
@@ -109,7 +107,8 @@ export default function UsersPage() {
     },
     onSuccess: () => {
       toast.success('User created successfully');
-      setIsFormOpen(false);
+      closeDialog();
+      setSelectedUser(null);
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (error) => {
@@ -140,7 +139,7 @@ export default function UsersPage() {
     },
     onSuccess: () => {
       toast.success('User updated successfully');
-      setIsFormOpen(false);
+      closeDialog();
       setSelectedUser(null);
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
@@ -167,15 +166,21 @@ export default function UsersPage() {
   });
 
   const handleCreateClick = () => {
-    setFormMode('create');
     setSelectedUser(null);
-    setIsFormOpen(true);
+    openDialog({
+      mode: 'create',
+      resourceType: 'user',
+    });
   };
 
   const handleEditClick = (user: User) => {
-    setFormMode('update');
     setSelectedUser(user);
-    setIsFormOpen(true);
+    openDialog({
+      mode: 'edit',
+      resourceType: 'user',
+      resourceId: user.id,
+      initialData: user.attributes,
+    });
   };
 
   const handleViewClick = (user: User) => {
@@ -236,23 +241,25 @@ export default function UsersPage() {
       />
 
       {/* Form Modal */}
-      <FormView
-        resourceType="user"
-        mode={formMode}
-        resource={selectedUser || undefined}
-        fields={formMode === 'create' ? createFields : updateFields}
-        isOpen={isFormOpen}
-        isSubmitting={createMutation.isPending || updateMutation.isPending}
-        onSubmit={handleFormSubmit}
-        onCancel={() => {
-          setIsFormOpen(false);
-          setSelectedUser(null);
-        }}
-        onSuccess={() => {
-          setIsFormOpen(false);
-          setSelectedUser(null);
-        }}
-      />
+      <FormDialog
+        dialogId="user-form"
+        title={formMode === 'create' ? 'Add User' : 'Edit User'}
+        description={formMode === 'create' ? 'Create a new user' : 'Update user information'}
+        size="lg"
+      >
+        <UniversalResourceForm
+          resourceType="user"
+          mode={formMode}
+          resourceId={selectedUser?.id}
+          fields={formMode === 'create' ? (createFields as any) : (updateFields as any)}
+          initialData={selectedUser?.attributes || {}}
+          onSubmit={handleFormSubmit}
+          onCancel={() => {
+            closeDialog();
+            setSelectedUser(null);
+          }}
+        />
+      </FormDialog>
 
       {/* Detail Modal */}
       <DetailView

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { pageService } from "@/services/page"
-import { ResourceForm } from "@/components/resource-form"
+import { UniversalResourceForm } from "@/components/forms/UniversalResourceForm"
 import { toast } from "sonner"
 import { useMemo } from "react"
 import { redirect, useLoaderData } from "react-router-dom"
@@ -61,12 +61,13 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="border rounded-lg p-6 bg-card text-card-foreground shadow-sm">
-                    <ResourceForm
+                    <UniversalResourceForm
+                        resourceType="settings"
+                        mode="edit"
                         fields={pageData.meta.fields}
                         initialData={initialData}
                         onSubmit={async (data) => await saveMutation.mutateAsync(data)}
-                        hideCancel={true}
-                        submitLabel="Kaydet"
+                        onCancel={undefined}
                     />
                 </div>
             </div>

@@ -8,7 +8,7 @@ import { Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BadgeField } from "@/components/fields/BadgeField"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
-import { ResourceForm } from "@/components/resource-form"
+import { UniversalResourceForm } from "@/components/forms/UniversalResourceForm"
 import { ResourceDetail } from "@/components/resource-detail"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -429,8 +429,10 @@ export default function ResourceIndexPage() {
                                     </Button>
                                 }
                             >
-                                <ResourceForm
-                                    fields={createFields}
+                                <UniversalResourceForm
+                                    resourceType={resource || ''}
+                                    mode="create"
+                                    fields={createFields as any}
                                     onSubmit={handleCreateSubmit}
                                     onCancel={() => setIsCreateOpen(false)}
                                     container={createContainer}
@@ -480,16 +482,18 @@ export default function ResourceIndexPage() {
                     }}
                     ref={setEditContainer}
                 >
-                    <ResourceForm
+                    <UniversalResourceForm
                         key={(editingItem?.id as FieldData)?.data || 'edit-form'}
-                        fields={editFields}
+                        resourceType={resource || ''}
+                        mode="edit"
+                        resourceId={(editingItem?.id as FieldData)?.data}
+                        fields={editFields as any}
                         initialData={editInitialData}
                         onSubmit={handleUpdateSubmit}
                         onCancel={() => {
                             setIsEditOpen(false)
                             setEditingItem(null)
                         }}
-                        submitLabel="Guncelle"
                         container={editContainer}
                     />
                 </ResponsiveModal>

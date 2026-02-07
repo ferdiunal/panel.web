@@ -4,7 +4,6 @@
  */
 
 // Views
-export { FormView } from './views/FormView';
 export { DetailView } from './views/DetailView';
 export { IndexView } from './views/IndexView';
 export { EmptyState } from './views/EmptyState';

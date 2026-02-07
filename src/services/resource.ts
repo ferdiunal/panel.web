@@ -87,6 +87,11 @@ export const resourceService = {
         const { data } = await api.get<{ data: any[] }>(`/resource/${resource}/cards`);
         return data.data;
     },
+
+    getActions: async (resource: string) => {
+        const { data } = await api.get<{ actions: any[] }>(`/resource/${resource}/actions`);
+        return data.actions;
+    },
 };
 
 function toFormData(data: any): FormData {

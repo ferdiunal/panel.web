@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useLoaderData, type LoaderFunctionArgs, redirect } from "react-router-dom"
 import { resourceService } from "@/services/resource"
 import type { ResourceItem, FieldData, Card as CardType } from "@/types"
@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { parseResourceParams, type ResourceParams } from "@/lib/resource-params"
 import { useResourceParams } from "@/hooks/useResourceParams"
+import { ActionButton, ActionModal } from "@/components/actions"
+import { useActionStore } from "@/stores/action-store"
 
 interface LoaderData {
     data: any
@@ -321,6 +323,31 @@ export default function ResourceIndexPage() {
         enabled: !!resource,
     })
 
+    // Actions Query
+    const { data: actions = [] } = useQuery({
+        queryKey: ["resource", resource, "actions"],
+        queryFn: async () => {
+            if (!resource) return []
+            return resourceService.getActions(resource)
+        },
+        enabled: !!resource,
+    })
+
+    // Action store
+    const { setActions, selectedIds, setSelectedIds, clearSelectedIds } = useActionStore()
+
+    // Update actions in store when fetched
+    useEffect(() => {
+        if (actions.length > 0) {
+            setActions(actions)
+        }
+    }, [actions, setActions])
+
+    // Clear selected IDs when resource changes
+    useEffect(() => {
+        clearSelectedIds()
+    }, [resource, clearSelectedIds])
+
     // Render loading skeleton
     if (isLoading && !resourceData) {
         return (
@@ -360,32 +387,37 @@ export default function ResourceIndexPage() {
                     </div>
                 )}
 
-                {/* Header with title and create button */}
+                {/* Header with title and action buttons */}
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold tracking-tight">{resourceData.meta.title}</h1>
-                    {resourceData.meta.policy.create && (
-                        <ResponsiveModal
-                            title={`Yeni ${resourceData.meta.title}`}
-                            description="Asagidaki bilgileri doldurunuz."
-                            open={isCreateOpen}
-                            variant={resourceData.meta.dialog_type}
-                            onOpenChange={setIsCreateOpen}
-                            ref={setCreateContainer}
-                            trigger={
-                                <Button onClick={() => setIsCreateOpen(true)}>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Yeni Ekle
-                                </Button>
-                            }
-                        >
-                            <ResourceForm
-                                fields={createFields}
-                                onSubmit={handleCreateSubmit}
-                                onCancel={() => setIsCreateOpen(false)}
-                                container={createContainer}
-                            />
-                        </ResponsiveModal>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {actions.length > 0 && (
+                            <ActionButton actions={actions} selectedIds={selectedIds} />
+                        )}
+                        {resourceData.meta.policy.create && (
+                            <ResponsiveModal
+                                title={`Yeni ${resourceData.meta.title}`}
+                                description="Asagidaki bilgileri doldurunuz."
+                                open={isCreateOpen}
+                                variant={resourceData.meta.dialog_type}
+                                onOpenChange={setIsCreateOpen}
+                                ref={setCreateContainer}
+                                trigger={
+                                    <Button onClick={() => setIsCreateOpen(true)}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Yeni Ekle
+                                    </Button>
+                                }
+                            >
+                                <ResourceForm
+                                    fields={createFields}
+                                    onSubmit={handleCreateSubmit}
+                                    onCancel={() => setIsCreateOpen(false)}
+                                    container={createContainer}
+                                />
+                            </ResponsiveModal>
+                        )}
+                    </div>
                 </div>
 
                 {/* IndexView with dropdown actions */}
@@ -408,7 +440,13 @@ export default function ResourceIndexPage() {
                     onDelete={(item: any) => {
                         if (item.policy?.delete) openDeleteDialog(item)
                     }}
+                    enableSelection={actions.length > 0}
+                    selectedIds={selectedIds}
+                    onSelectionChange={setSelectedIds}
                 />
+
+                {/* Action Modal */}
+                {resource && <ActionModal resource={resource} />}
 
                 {/* Edit Modal */}
                 <ResponsiveModal

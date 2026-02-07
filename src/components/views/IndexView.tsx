@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
@@ -43,6 +44,9 @@ export interface IndexViewProps<T extends Resource = Resource> {
   onView?: (resource: T) => void;
   onRetry?: () => void;
   className?: string;
+  enableSelection?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 /**
@@ -71,10 +75,42 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       onView,
       onRetry,
       className,
+      enableSelection = false,
+      selectedIds = [],
+      onSelectionChange,
     },
     ref
   ) => {
     const showActions = !!(onEdit || onDelete || onView);
+
+    // Selection handlers
+    const handleSelectAll = useCallback(
+      (checked: boolean) => {
+        if (!onSelectionChange) return;
+        if (checked) {
+          const allIds = resources.map((r) => String(r.id));
+          onSelectionChange(allIds);
+        } else {
+          onSelectionChange([]);
+        }
+      },
+      [resources, onSelectionChange]
+    );
+
+    const handleSelectRow = useCallback(
+      (id: string, checked: boolean) => {
+        if (!onSelectionChange) return;
+        if (checked) {
+          onSelectionChange([...selectedIds, id]);
+        } else {
+          onSelectionChange(selectedIds.filter((selectedId) => selectedId !== id));
+        }
+      },
+      [selectedIds, onSelectionChange]
+    );
+
+    const isAllSelected = resources.length > 0 && selectedIds.length === resources.length;
+    const isSomeSelected = selectedIds.length > 0 && selectedIds.length < resources.length;
 
     const handleSearchChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,6 +178,16 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
           <Table>
             <TableHeader>
               <TableRow>
+                {enableSelection && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                      className={isSomeSelected ? 'data-[state=checked]:bg-muted' : ''}
+                    />
+                  </TableHead>
+                )}
                 {columns.map((column) => (
                   <TableHead key={column.key}>
                     {column.sortable ? (
@@ -163,7 +209,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length + (showActions ? 1 : 0)} className="text-center py-8">
+                  <TableCell colSpan={columns.length + (showActions ? 1 : 0) + (enableSelection ? 1 : 0)} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 rounded-full bg-muted-foreground/30 animate-pulse" />
                       <span className="text-sm text-muted-foreground">Loading...</span>
@@ -172,20 +218,33 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
                 </TableRow>
               ) : resources.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length + (showActions ? 1 : 0)} className="text-center py-8">
+                  <TableCell colSpan={columns.length + (showActions ? 1 : 0) + (enableSelection ? 1 : 0)} className="text-center py-8">
                     <span className="text-sm text-muted-foreground">No data</span>
                   </TableCell>
                 </TableRow>
               ) : (
-                resources.map((resource) => (
-                  <TableRow key={resource.id}>
-                    {columns.map((column) => (
-                      <TableCell key={`${resource.id}-${column.key}`}>
-                        {column.render
-                          ? column.render(resource[column.key as keyof Resource], resource)
-                          : String(resource[column.key as keyof Resource] || '')}
-                      </TableCell>
-                    ))}
+                resources.map((resource) => {
+                  const resourceId = String(resource.id);
+                  const isSelected = selectedIds.includes(resourceId);
+
+                  return (
+                    <TableRow key={resource.id}>
+                      {enableSelection && (
+                        <TableCell>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleSelectRow(resourceId, checked as boolean)}
+                            aria-label={`Select row ${resourceId}`}
+                          />
+                        </TableCell>
+                      )}
+                      {columns.map((column) => (
+                        <TableCell key={`${resource.id}-${column.key}`}>
+                          {column.render
+                            ? column.render(resource[column.key as keyof Resource], resource)
+                            : String(resource[column.key as keyof Resource] || '')}
+                        </TableCell>
+                      ))}
                     {showActions && (
                       <TableCell>
                         {(onView && (resource.policy?.view ?? true)) ||
@@ -230,11 +289,14 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
                           </DropdownMenu>
                         ) : null}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
+                      )}
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })
+          )}
+        </TableBody>
           </Table>
         </div>
         )}

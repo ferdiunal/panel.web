@@ -102,7 +102,6 @@ export const MorphToField = React.forwardRef<HTMLDivElement, MorphToFieldProps>(
     },
     ref
   ) => {
-    console.log(value)
     const [open, setOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [options, setOptions] = useState<MorphableOption[]>([]);

@@ -57,11 +57,42 @@ export interface ResourceResponse {
     };
 };
 
+// Card Data Types
+export interface ValueCardData {
+    value?: number | string;
+    title?: string;
+}
+
+export interface TrendCardData {
+    data?: Array<{ date: string; value: number }>;
+    title?: string;
+}
+
+export interface PartitionCardData {
+    data?: Record<string, number>;
+    colors?: string[];
+    format?: string;
+}
+
+export interface ProgressCardData {
+    current?: number;
+    target?: number;
+    format?: string;
+}
+
+export interface TableCardData {
+    data?: any[];
+    columns?: any[];
+}
+
+export type CardData = ValueCardData | TrendCardData | PartitionCardData | ProgressCardData | TableCardData | any;
+
 export interface Card {
-    component: string;
+    component: 'value-metric' | 'trend-metric' | 'partition-metric' | 'progress-metric' | 'table-metric' | string;
     title: string;
     width: string;
-    data: any;
+    data: CardData;
+    error?: string;
 }
 
 // ============================================================================

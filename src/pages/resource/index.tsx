@@ -324,7 +324,7 @@ export default function ResourceIndexPage() {
     }, [resourceData])
 
     // Cards Query
-    const { data: cards = [] } = useQuery({
+    const { data: cards = [], isLoading: isCardsLoading, error: cardsError } = useQuery({
         queryKey: ["resource", resource, "cards"],
         queryFn: async () => {
             if (!resource) return []
@@ -387,7 +387,17 @@ export default function ResourceIndexPage() {
     return (
             <div className="flex flex-col gap-4 p-4 md:p-8 pt-0">
                 {/* Cards */}
-                {cards?.length > 0 && (
+                {isCardsLoading ? (
+                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                        {[1, 2, 3, 4].map((i) => (
+                            <Skeleton key={i} className="h-32" />
+                        ))}
+                    </div>
+                ) : cardsError ? (
+                    <div className="p-4 border rounded bg-red-50 text-red-500">
+                        Failed to load cards: {cardsError.message}
+                    </div>
+                ) : cards?.length > 0 ? (
                     <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
                         {cards.map((card: CardType, index: number) => (
                             <div key={index} className="col-span-1">
@@ -395,7 +405,7 @@ export default function ResourceIndexPage() {
                             </div>
                         ))}
                     </div>
-                )}
+                ) : null}
 
                 {/* Header with title and action buttons */}
                 <div className="flex items-center justify-between">

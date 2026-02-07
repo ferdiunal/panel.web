@@ -4,6 +4,7 @@ import axios from "@/lib/axios";
 import { Badge } from "@/components/ui/badge";
 import type { FieldData } from "@/types";
 import { Loader2, ExternalLink } from "lucide-react";
+import { RelationshipHoverCard } from "../RelationshipHoverCard";
 
 interface MorphToDetailFieldProps {
     field: FieldData;
@@ -44,11 +45,15 @@ export function MorphToDetailField({ field, record }: MorphToDetailFieldProps) {
 
     const [label, setLabel] = useState<string>("");
     const [loading, setLoading] = useState(false);
+    const [relatedData, setRelatedData] = useState<Record<string, any> | null>(null);
 
     const types = (field.props?.types as Array<{ label: string, value: string, slug: string }>) || [];
     const typeDef = types.find(t => t.value === typeValue || t.slug === typeValue);
     const typeLabel = typeDef?.label || typeValue;
     const slug = typeDef?.slug;
+
+    // Hover card config'ini al
+    const hoverCardConfig = field.props?.hover_card as any;
 
     useEffect(() => {
         if (!typeValue || !idValue || !typeDef) {
@@ -68,7 +73,7 @@ export function MorphToDetailField({ field, record }: MorphToDetailFieldProps) {
             try {
                 const res = await axios.get(`/api/resource/${typeDef.slug}/${idValue}`);
                 const item = res.data.data;
-                
+
                 const displays = (field.props?.displays as Record<string, string>) || {}
                 const preferredField = displays[typeValue] || displays[slug || ""]
 
@@ -81,10 +86,12 @@ export function MorphToDetailField({ field, record }: MorphToDetailFieldProps) {
                     fetchedLabel = item?.name?.data || item?.title?.data || item?.label?.data ||
                     item?.name || item?.title || item?.label || `#${idValue}`;
                 }
-                
+
                 setLabel(fetchedLabel);
+                setRelatedData(item); // Hover card için veriyi sakla
             } catch (e) {
                 setLabel(`#${idValue}`);
+                setRelatedData(null);
             } finally {
                 setLoading(false);
             }
@@ -98,25 +105,36 @@ export function MorphToDetailField({ field, record }: MorphToDetailFieldProps) {
 
     const displayLabel = label || `#${idValue}`;
 
+    // Link element'i oluştur
+    const linkElement = loading ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+    ) : slug ? (
+        <Link
+            to={`/resources/${slug}/${idValue}`}
+            className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+        >
+            {displayLabel}
+            <ExternalLink className="h-3.5 w-3.5" />
+        </Link>
+    ) : (
+        <span className="font-medium">{displayLabel}</span>
+    );
+
+    // Hover card ile wrap et (eğer aktifse ve veri varsa)
+    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData && !loading ? (
+        <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
+            {linkElement}
+        </RelationshipHoverCard>
+    ) : (
+        linkElement
+    );
+
     return (
         <div className="flex items-center gap-3">
             <Badge variant="secondary" className="font-normal">
                 {typeLabel}
             </Badge>
-
-            {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : slug ? (
-                <Link
-                    to={`/resources/${slug}/${idValue}`}
-                    className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
-                >
-                    {displayLabel}
-                    <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
-            ) : (
-                <span className="font-medium">{displayLabel}</span>
-            )}
+            {content}
         </div>
     );
 }

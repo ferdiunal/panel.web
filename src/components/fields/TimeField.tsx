@@ -1,14 +1,14 @@
 /**
- * DateTimeField Component
+ * TimeField Component
  *
- * Tarih ve saat seçimi için kullanılan bileşen.
+ * Saat seçimi için kullanılan bileşen.
  * İki mod destekler:
- * 1. Dialog modu: Popover içinde takvim ve saat girişi (varsayılan)
- * 2. Native modu: HTML datetime-local input (useNative prop'u ile)
+ * 1. Dialog modu: Popover içinde saat girişi (varsayılan)
+ * 2. Native modu: HTML time input (useNative prop'u ile)
  *
  * Özellikler:
- * - Dialog modu: Takvim arayüzü + saat girişi, "Done" butonu ile kapanma
- * - Native modu: HTML5 datetime-local input, mobil uyumlu
+ * - Dialog modu: Popover içinde time input, "Tamam" butonu ile kapanma
+ * - Native modu: HTML5 time input, mobil uyumlu
  * - Label, hata mesajı ve yardım metni desteği
  * - Erişilebilirlik özellikleri
  *
@@ -16,40 +16,38 @@
  *
  * ```tsx
  * // Dialog modu (varsayılan)
- * <DateTimeField
- *   name="appointment"
- *   label="Randevu Tarihi ve Saati"
- *   value={appointment}
- *   onChange={setAppointment}
+ * <TimeField
+ *   name="start_time"
+ *   label="Başlangıç Saati"
+ *   value={startTime}
+ *   onChange={setStartTime}
  * />
  *
  * // Native modu
- * <DateTimeField
- *   name="appointment"
- *   label="Randevu Tarihi ve Saati"
- *   value={appointment}
- *   onChange={setAppointment}
+ * <TimeField
+ *   name="start_time"
+ *   label="Başlangıç Saati"
+ *   value={startTime}
+ *   onChange={setStartTime}
  *   useNative
  * />
  * ```
  */
 
 import React from 'react';
-import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { CalendarIcon, Info } from 'lucide-react';
+import { Clock, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 
-export interface DateTimeFieldProps {
+export interface TimeFieldProps {
   name: string;
   label: string;
-  value: Date | undefined;
-  onChange: (date: Date | undefined) => void;
+  value: string; // HH:mm formatında (örn: "14:30")
+  onChange: (time: string) => void;
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -61,30 +59,29 @@ export interface DateTimeFieldProps {
    */
   tooltip?: string;
   /**
-   * Native HTML datetime-local input kullan
-   * true: HTML5 datetime-local input (mobil uyumlu, hafif)
-   * false/undefined: Dialog ile takvim ve saat (varsayılan)
+   * Native HTML time input kullan
+   * true: HTML5 time input (mobil uyumlu, hafif)
+   * false/undefined: Dialog ile saat girişi (varsayılan)
    */
   useNative?: boolean;
 }
 
 /**
- * DateTimeField Component
+ * TimeField Component
  *
- * Tarih ve saat seçimi için esnek bileşen.
+ * Saat seçimi için esnek bileşen.
  * useNative prop'una göre Dialog veya Native input kullanır.
  *
  * Dialog Modu (useNative={false} veya undefined):
- * - Takvim arayüzü ile tarih seçimi
- * - Saat girişi için time input
- * - "Done" butonu ile dialog kapanma
+ * - Popover içinde time input
+ * - "Tamam" butonu ile dialog kapanma
  *
  * Native Modu (useNative={true}):
- * - HTML5 datetime-local input
- * - Mobil cihazlarda native datetime picker
+ * - HTML5 time input
+ * - Mobil cihazlarda native time picker
  * - Hafif ve hızlı
  */
-export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputElement, DateTimeFieldProps>(
+export const TimeField = React.forwardRef<HTMLButtonElement | HTMLInputElement, TimeFieldProps>(
   (
     {
       name,
@@ -94,7 +91,7 @@ export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputEleme
       error,
       disabled = false,
       required = false,
-      placeholder = 'Pick a date and time',
+      placeholder = 'Saat seçin',
       helpText,
       className,
       tooltip,
@@ -103,18 +100,12 @@ export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputEleme
     ref
   ) => {
     const [isOpen, setIsOpen] = React.useState(false);
+    const [tempValue, setTempValue] = React.useState(value);
 
     // Native mod
     if (useNative) {
-      const dateTimeValue = value ? format(value, "yyyy-MM-dd'T'HH:mm") : '';
-
       const handleNativeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const dateTimeStr = e.target.value;
-        if (dateTimeStr) {
-          onChange(new Date(dateTimeStr));
-        } else {
-          onChange(undefined);
-        }
+        onChange(e.target.value);
       };
 
       return (
@@ -141,8 +132,8 @@ export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputEleme
             ref={ref as React.Ref<HTMLInputElement>}
             id={name}
             name={name}
-            type="datetime-local"
-            value={dateTimeValue}
+            type="time"
+            value={value}
             onChange={handleNativeChange}
             disabled={disabled}
             placeholder={placeholder}
@@ -167,31 +158,23 @@ export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputEleme
     }
 
     // Dialog modu
-    const handleDateChange = (date: Date | undefined) => {
-      if (date) {
-        // Saat bilgisini koru
-        if (value) {
-          date.setHours(value.getHours());
-          date.setMinutes(value.getMinutes());
-        }
-        onChange(date);
-      } else {
-        onChange(undefined);
+    const handleOpenChange = (open: boolean) => {
+      setIsOpen(open);
+      if (open) {
+        // Dialog açıldığında mevcut değeri temp value'ya kopyala
+        setTempValue(value);
       }
+    };
+
+    const handleDone = () => {
+      // Temp value'yu asıl value'ya kaydet
+      onChange(tempValue);
+      setIsOpen(false);
     };
 
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const time = e.target.value;
-      if (time && value) {
-        const [hours, minutes] = time.split(':').map(Number);
-        const newDate = new Date(value);
-        newDate.setHours(hours);
-        newDate.setMinutes(minutes);
-        onChange(newDate);
-      }
+      setTempValue(e.target.value);
     };
-
-    const timeValue = value ? format(value, 'HH:mm') : '';
 
     return (
       <div className={cn('flex flex-col gap-2', className)}>
@@ -213,7 +196,7 @@ export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputEleme
             </TooltipProvider>
           )}
         </div>
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
             <Button
               ref={ref as React.Ref<HTMLButtonElement>}
@@ -228,34 +211,28 @@ export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputEleme
                 error && 'border-destructive focus-visible:ring-destructive/20'
               )}
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {value ? format(value, 'PPP HH:mm') : placeholder}
+              <Clock className="mr-2 h-4 w-4" />
+              {value || placeholder}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-4" align="start">
             <div className="flex flex-col gap-4">
-              <Calendar
-                mode="single"
-                selected={value}
-                onSelect={handleDateChange}
-                disabled={disabled}
-                initialFocus
-              />
               <div className="flex flex-col gap-2">
-                <Label htmlFor={`${name}-time`} className="text-sm font-medium">
+                <Label htmlFor={`${name}-input`} className="text-sm font-medium">
                   Saat
                 </Label>
                 <Input
-                  id={`${name}-time`}
+                  id={`${name}-input`}
                   type="time"
-                  value={timeValue}
+                  value={tempValue}
                   onChange={handleTimeChange}
-                  disabled={disabled || !value}
+                  disabled={disabled}
                   className="w-full"
+                  autoFocus
                 />
               </div>
               <Button
-                onClick={() => setIsOpen(false)}
+                onClick={handleDone}
                 className="w-full"
               >
                 Tamam
@@ -278,4 +255,4 @@ export const DateTimeField = React.forwardRef<HTMLButtonElement | HTMLInputEleme
   }
 );
 
-DateTimeField.displayName = 'DateTimeField';
+TimeField.displayName = 'TimeField';

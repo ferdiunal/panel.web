@@ -14,6 +14,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 import { useFieldUpdate } from '@/stores/form-state-store';
 import { fieldRegistry } from './FieldRegistry';
 import type { FieldDefinition } from '@/types/form';
+import { searchRelationship } from '@/lib/relationship-api';
 
 export interface FieldRendererProps {
   formId: string;
@@ -80,6 +81,10 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
             : false,
         }}
         render={({ field: controllerField, fieldState }) => {
+          // Relationship field'lar için searchFn oluştur
+          const isRelationshipField = ['belongs-to-field', 'has-one-field', 'has-many-field', 'belongs-to-many-field'].includes(fieldType);
+          const relatedResource = enhancedField.props?.related_resource;
+
           // Transform props for the actual field component
           const fieldProps = {
             field: enhancedField,
@@ -94,6 +99,10 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
             placeholder: enhancedField.placeholder,
             helpText: enhancedField.help_text,
             container,
+            // Relationship field'lar için searchFn ekle
+            ...(isRelationshipField && relatedResource && {
+              searchFn: (query: string) => searchRelationship(relatedResource, query),
+            }),
             // Pass through any additional field-specific props
             ...enhancedField.props,
           };

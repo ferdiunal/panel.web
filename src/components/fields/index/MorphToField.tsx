@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "@/lib/axios";
 import { Badge } from "@/components/ui/badge";
 import type { FieldData } from "@/types";
+import { RelationshipHoverCard } from "../RelationshipHoverCard";
 
 interface MorphToIndexFieldProps {
     field: FieldData;
@@ -11,6 +12,7 @@ interface MorphToIndexFieldProps {
 
 export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
     const [displayLabel, setDisplayLabel] = useState<string>("");
+    const [relatedData, setRelatedData] = useState<Record<string, any> | null>(null);
 
     // Try to get type and id from various sources
     const typeKey = `${field.key}_type`;
@@ -49,6 +51,9 @@ export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
     const typeLabel = typeDef?.label || typeValue;
     const slug = typeDef?.slug;
 
+    // Hover card config'ini al
+    const hoverCardConfig = field.props?.hover_card as any;
+
     // Fetch display name for the related resource
     useEffect(() => {
         if (!typeValue || !idValue || !typeDef) {
@@ -83,8 +88,10 @@ export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
         }
 
         setDisplayLabel(label)
+        setRelatedData(item); // Hover card için veriyi sakla
       } catch (e) {
         setDisplayLabel(`#${idValue}`)
+        setRelatedData(null);
       }
     }
     fetchLabel();
@@ -96,22 +103,34 @@ export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
 
     const finalLabel = displayLabel || `#${idValue}`;
 
+    // Link element'i oluştur
+    const linkElement = slug ? (
+        <Link
+            to={`/resources/${slug}/${idValue}`}
+            className="text-sm text-primary hover:underline"
+            onClick={(e) => e.stopPropagation()}
+        >
+            {finalLabel}
+        </Link>
+    ) : (
+        <span className="text-sm font-medium">{finalLabel}</span>
+    );
+
+    // Hover card ile wrap et (eğer aktifse ve veri varsa)
+    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData ? (
+        <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
+            {linkElement}
+        </RelationshipHoverCard>
+    ) : (
+        linkElement
+    );
+
     return (
         <div className="flex items-center gap-2">
             <Badge variant="outline" className="font-normal text-xs">
                 {typeLabel}
             </Badge>
-            {slug ? (
-                <Link
-                    to={`/resources/${slug}/${idValue}`}
-                    className="text-sm text-primary hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    {finalLabel}
-                </Link>
-            ) : (
-                <span className="text-sm font-medium">{finalLabel}</span>
-            )}
+            {content}
         </div>
     );
 }

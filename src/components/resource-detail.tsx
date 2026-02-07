@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
 import { IndexView, type IndexViewColumn } from "@/components/views/IndexView"
+import {
+    Empty,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+} from "@/components/ui/empty"
+import { Database } from "lucide-react"
 
 interface ResourceDetailProps {
     fields: FieldData[]
@@ -32,8 +40,24 @@ export function ResourceDetail({ fields, onClose }: ResourceDetailProps) {
         if ((field.view === "has-many-field" ||
              field.view === "belongs-to-many-field" ||
              field.view === "morph-to-many-field") &&
-            Array.isArray(field.data) &&
-            field.data.length > 0) {
+            Array.isArray(field.data)) {
+
+            // Boş relationship durumu için Empty component göster
+            if (field.data.length === 0) {
+                return (
+                    <Empty className="border">
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <Database className="h-6 w-6" />
+                            </EmptyMedia>
+                            <EmptyTitle>İlişkili Kayıt Yok</EmptyTitle>
+                            <EmptyDescription>
+                                Bu kayıtla ilişkilendirilmiş başka kayıt bulunmuyor.
+                            </EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
+                )
+            }
 
             const relatedResource = field.props?.related_resource as string
             const data = field.data as any[]

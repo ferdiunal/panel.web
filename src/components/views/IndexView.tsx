@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash, Filter } from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash, Filter, Database, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
 import {
@@ -37,6 +37,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 
 export interface IndexViewColumn<T = any> {
   key: string;
@@ -427,9 +434,17 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
         )}
 
         {isEmpty ? (
-          <div className="rounded-lg border border-dashed p-8 text-center">
-            <p className="text-sm text-muted-foreground">No resources found</p>
-          </div>
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Database className="h-6 w-6" />
+              </EmptyMedia>
+              <EmptyTitle>Kayıt Bulunamadı</EmptyTitle>
+              <EmptyDescription>
+                Henüz hiç kayıt eklenmemiş. Yeni kayıt eklemek için yukarıdaki butonu kullanabilirsiniz.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className="rounded-lg border overflow-hidden">
             <Table>
@@ -482,8 +497,18 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
                   </TableRow>
                 ) : table.getRowModel().rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={table.getAllColumns().length} className="text-center py-8">
-                      <span className="text-sm text-muted-foreground">No data</span>
+                    <TableCell colSpan={table.getAllColumns().length} className="text-center py-12">
+                      <Empty>
+                        <EmptyHeader>
+                          <EmptyMedia variant="icon">
+                            <Search className="h-6 w-6" />
+                          </EmptyMedia>
+                          <EmptyTitle>Sonuç Bulunamadı</EmptyTitle>
+                          <EmptyDescription>
+                            Arama kriterlerinize uygun kayıt bulunamadı. Lütfen farklı bir arama terimi deneyin.
+                          </EmptyDescription>
+                        </EmptyHeader>
+                      </Empty>
                     </TableCell>
                   </TableRow>
                 ) : (

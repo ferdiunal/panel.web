@@ -2,6 +2,8 @@ import React from 'react';
 import InputMask from 'react-input-mask';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface TextInputProps {
@@ -15,6 +17,11 @@ export interface TextInputProps {
   placeholder?: string;
   helpText?: string;
   className?: string;
+  /**
+   * Tooltip metni - Label'ın yanında info ikonu ile gösterilir
+   * Form, index ve detail sayfalarında kullanılabilir
+   */
+  tooltip?: string;
   /**
    * Input maskesi (opsiyonel)
    * Örnek formatlar:
@@ -114,6 +121,7 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
       placeholder,
       helpText,
       className,
+      tooltip,
       mask,
       maskChar = '_',
       alwaysShowMask = false,
@@ -137,17 +145,31 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
 
     return (
       <div className={cn('flex flex-col gap-2', className)}>
-        <Label htmlFor={name} className="text-sm font-medium">
-          {label}
-          {required && <span className="text-destructive">*</span>}
-        </Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor={name} className="text-sm font-medium">
+            {label}
+            {required && <span className="text-destructive">*</span>}
+          </Label>
+          {tooltip && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
 
         {/* Mask varsa InputMask kullan, yoksa normal Input kullan */}
         {mask ? (
           <InputMask
             mask={mask}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
             maskChar={maskChar}
             alwaysShowMask={alwaysShowMask}
             disabled={disabled}
@@ -164,7 +186,7 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
           <Input
             ref={ref}
             {...inputProps}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
           />
         )}
 

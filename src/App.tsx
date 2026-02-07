@@ -14,6 +14,7 @@ import PageViewer, { loader as pageViewerLoader } from "@/pages/common/page-view
 import { usePageTitle } from "@/hooks/use-page-title"
 import { GlobalLoader } from "@/components/global-loader"
 import { ErrorPage } from "@/pages/error"
+import { ThemeProvider } from "@/components/theme-provider"
 
 // Protected Route Wrapper Component
 const ProtectedRoute = () => {
@@ -209,8 +210,10 @@ const queryClient = new QueryClient()
 
 export default function App() {
     return (
-        <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
-        </QueryClientProvider>
+        <ThemeProvider defaultTheme="system" storageKey="panel-ui-theme">
+            <QueryClientProvider client={queryClient}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>
+        </ThemeProvider>
     )
 }

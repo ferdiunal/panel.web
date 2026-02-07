@@ -15,3 +15,17 @@ export { HasOneField, type HasOneFieldProps } from './HasOneField';
 export { HasManyField, type HasManyFieldProps } from './HasManyField';
 export { BelongsToManyField, type BelongsToManyFieldProps } from './BelongsToManyField';
 export { MorphToField, type MorphToFieldProps } from './MorphToField';
+
+// Index field exports (for table/list views)
+export { BelongsToIndexField } from './index/BelongsToField';
+export { HasOneIndexField } from './index/HasOneField';
+export { MorphToIndexField } from './index/MorphToField';
+export { HasManyIndexField } from './index/HasManyField';
+export { BelongsToManyIndexField } from './index/BelongsToManyField';
+
+// Detail field exports (for detail/show views)
+export { BelongsToDetailField } from './detail/BelongsToField';
+export { HasOneDetailField } from './detail/HasOneField';
+export { MorphToDetailField } from './detail/MorphToField';
+export { HasManyDetailField } from './detail/HasManyField';
+export { BelongsToManyDetailField } from './detail/BelongsToManyField';

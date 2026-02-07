@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import {
   Combobox,
@@ -9,9 +9,16 @@ import {
   ComboboxChips,
   ComboboxChip,
   ComboboxChipsInput,
+  useComboboxAnchor,
 } from '@/components/ui/combobox';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
+
+// Define a minimal type for options to avoid Resource type errors if it's missing fields
+interface Option {
+  id: string | number;
+  name?: string;
+}
 
 export interface HasManyFieldProps {
   name: string;
@@ -20,6 +27,7 @@ export interface HasManyFieldProps {
   onChange: (value: string[]) => void;
   resourceType: string;
   searchFn: (query: string) => Promise<Resource[]>;
+  options?: Record<string, string>; // Pre-loaded options from backend
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -30,11 +38,11 @@ export interface HasManyFieldProps {
 
 /**
  * HasManyField Component
- * 
+ *
  * A multi-select combobox field for HasMany relationships.
  * Displays a label with optional required indicator, searchable multi-select dropdown,
  * error message below field if error exists, and optional help text.
- * 
+ *
  * Validates: Requirements 5.2
  */
 export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
@@ -42,10 +50,11 @@ export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
     {
       name,
       label,
-      value,
+      value = [],
       onChange,
       resourceType: _resourceType,
       searchFn,
+      options: initialOptions = {},
       error,
       disabled = false,
       required = false,
@@ -55,48 +64,60 @@ export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
     },
     ref
   ) => {
-    // Ensure value is always an array to prevent runtime errors
-    const safeValue = Array.isArray(value) ? value : [];
-
     const [searchQuery, setSearchQuery] = useState('');
-    const [options, setOptions] = useState<Resource[]>([]);
+    const [availableOptions, setAvailableOptions] = useState<Option[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const anchor = useComboboxAnchor();
+
+    // Convert initialOptions (Record<string, string>) to Option[]
+    const preloadedResources = useMemo(() => {
+      return Object.entries(initialOptions).map(([id, name]) => ({
+        id: id,
+        name: name,
+      }));
+    }, [initialOptions]);
+
+    // Initial load of options
+    useEffect(() => {
+      setAvailableOptions(preloadedResources);
+    }, [preloadedResources]);
 
     const handleSearch = useCallback(
       async (query: string) => {
         setSearchQuery(query);
         if (query.length === 0) {
-          setOptions([]);
+          setAvailableOptions(preloadedResources);
           return;
         }
 
         setIsLoading(true);
         try {
           const results = await searchFn(query);
-          setOptions(results);
+          // Convert Resource[] to Option[] and merge
+          const mappedResults: Option[] = results.map(r => ({
+            id: String(r.id),
+            name: r.name || String(r.id) // Fallback if name is missing
+          }));
+
+          const combined = [...preloadedResources, ...mappedResults];
+          const unique = Array.from(new Map(combined.map(item => [String(item.id), item])).values());
+          setAvailableOptions(unique);
         } catch (err) {
           console.error('Search failed:', err);
-          setOptions([]);
+          setAvailableOptions(preloadedResources);
         } finally {
           setIsLoading(false);
         }
       },
-      [searchFn]
+      [searchFn, preloadedResources]
     );
 
-    const selectedOptions = useMemo(() => {
-      return options.filter((opt) => safeValue.includes(opt.id));
-    }, [options, safeValue]);
-
-    const handleAddValue = useCallback(
-      (idOrNull: string | null) => {
-        if (idOrNull && !safeValue.includes(idOrNull)) {
-          onChange([...safeValue, idOrNull]);
-          setSearchQuery('');
-        }
-      },
-      [safeValue, onChange]
-    );
+    // Map current values to display names
+    const getDisplayValue = useCallback((id: string) => {
+      const option = availableOptions.find(opt => String(opt.id) === String(id)) ||
+                     preloadedResources.find(opt => String(opt.id) === String(id));
+      return option?.name || id;
+    }, [availableOptions, preloadedResources]);
 
     return (
       <div className={cn('flex flex-col gap-2', className)} ref={ref}>
@@ -104,56 +125,50 @@ export const HasManyField = React.forwardRef<HTMLDivElement, HasManyFieldProps>(
           {label}
           {required && <span className="text-destructive">*</span>}
         </Label>
+
         <Combobox
-          value=""
-          onValueChange={handleAddValue}
+          multiple
+          autoHighlight
+          value={value}
+          onValueChange={(val) => {
+            onChange(val as string[]);
+            setSearchQuery('');
+          }}
           disabled={disabled}
         >
-          <ComboboxChips
-            id={name}
-            aria-invalid={!!error}
-            aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
-          >
-            {safeValue.map((id) => {
-              const resource = selectedOptions.find((opt) => opt.id === id);
-              return (
-                <ComboboxChip
-                  key={id}
-                  showRemove
-                >
-                  {resource?.name || id}
-                </ComboboxChip>
-              );
-            })}
+          <ComboboxChips ref={anchor} className="w-full max-w-xs">
+            {value.map((val: string) => (
+              <ComboboxChip key={val} className="mr-1 mb-1">
+                {getDisplayValue(val)}
+              </ComboboxChip>
+            ))}
             <ComboboxChipsInput
-              placeholder={placeholder}
+              placeholder={value.length === 0 ? placeholder : undefined}
               value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              disabled={disabled}
+              {...({ onValueChange: (val: string) => handleSearch(val) } as any)}
             />
           </ComboboxChips>
-          <ComboboxContent>
-            {isLoading && (
+
+          <ComboboxContent anchor={anchor}>
+            {isLoading ? (
               <div className="p-2 text-sm text-muted-foreground text-center">
                 Loading...
               </div>
-            )}
-            {!isLoading && (
+            ) : (
               <>
-                <ComboboxList>
-                  {options
-                    .filter((opt) => !safeValue.includes(opt.id))
-                    .map((option) => (
-                      <ComboboxItem key={option.id} value={option.id}>
-                        {option.name || option.id}
-                      </ComboboxItem>
-                    ))}
-                </ComboboxList>
                 <ComboboxEmpty>No results found</ComboboxEmpty>
+                <ComboboxList>
+                  {availableOptions.map((option) => (
+                    <ComboboxItem key={option.id} value={String(option.id)}>
+                      {option.name || String(option.id)}
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
               </>
             )}
           </ComboboxContent>
         </Combobox>
+
         {error && (
           <p id={`${name}-error`} className="text-sm text-destructive">
             {error}

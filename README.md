@@ -52,7 +52,9 @@ Bu proje, **Panel.go** SDK'sının varsayılan yönetim paneli arayüzüdür. Go
 
 - ✅ **CRUD Operations** - Create, read, update, delete resources
 - ✅ **Resource Management** - Users, Products, Posts, Categories
-- ✅ **Field Types** - 10+ field types with validation
+- ✅ **Field Types** - 15+ field types with validation
+- ✅ **Input Masking** - Phone numbers, dates, credit cards, IBAN with react-input-mask
+- ✅ **Phone Input** - International phone number input with country selection (200+ countries)
 - ✅ **Relationships** - BelongsTo, HasMany, HasOne, BelongsToMany, MorphTo
 - ✅ **Authentication** - Login, register, session management
 - ✅ **CSRF Protection** - Automatic token handling

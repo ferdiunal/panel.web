@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/auth"
 import { useAppStore } from "@/stores/app"
 import DashboardLayout from "@/layouts/dashboard-layout"
 import ResourceIndexPage, { loader as resourceLoader } from "@/pages/resource/index"
+import LensPage, { loader as lensLoader } from "@/pages/resource/lens"
 import SettingsPage, { loader as settingsLoader } from "@/pages/settings/index"
 import PageViewer, { loader as pageViewerLoader } from "@/pages/common/page-viewer"
 import { usePageTitle } from "@/hooks/use-page-title"
@@ -156,6 +157,22 @@ const router = createBrowserRouter([
                                             return `${capitalize(params.resource || "")} | ${siteName}`
                                         } catch {
                                             return `${capitalize(params.resource || "")} | Panel`
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                path: "/resource/:resource/lens/:lens",
+                                element: <LensPage />,
+                                loader: lensLoader,
+                                handle: {
+                                    title: (params: any) => {
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `${capitalize(params.resource || "")} - ${capitalize(params.lens || "")} | ${siteName}`
+                                        } catch {
+                                            return `${capitalize(params.resource || "")} - ${capitalize(params.lens || "")} | Panel`
                                         }
                                     }
                                 }

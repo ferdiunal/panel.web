@@ -16,6 +16,7 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { useAppStore, useAuthStore } from "@/stores"
 import { IndexView, type IndexViewColumn } from "@/components/views/IndexView"
 import { Skeleton } from "@/components/ui/skeleton"
+import { LensSelector } from "@/components/LensSelector"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -333,6 +334,17 @@ export default function ResourceIndexPage() {
         enabled: !!resource,
     })
 
+    // Lenses Query
+    const { data: lenses = [] } = useQuery({
+        queryKey: ["resource", resource, "lenses"],
+        queryFn: async () => {
+            if (!resource) return []
+            return resourceService.getLenses(resource)
+        },
+        enabled: !!resource,
+        staleTime: 60000, // 1 dakika
+    })
+
     // Actions Query
     const { data: actions = [] } = useQuery({
         queryKey: ["resource", resource, "actions"],
@@ -411,6 +423,12 @@ export default function ResourceIndexPage() {
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold tracking-tight">{resourceData.meta.title}</h1>
                     <div className="flex items-center gap-2">
+                        {lenses.length > 0 && (
+                            <LensSelector
+                                resourceName={resource || ''}
+                                lenses={lenses}
+                            />
+                        )}
                         {actions.length > 0 && (
                             <ActionButton actions={actions} selectedIds={selectedIds} />
                         )}

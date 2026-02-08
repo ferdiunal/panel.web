@@ -2,6 +2,7 @@ import api from "@/lib/axios";
 import type { ResourceResponse, FieldData } from "@/types";
 import type { ResourceParams } from "@/lib/resource-params";
 import type { ResolveDependenciesRequest, ResolveDependenciesResponse } from "@/types/dependencies";
+import type { LensData, LensResponse, LensQueryParams } from "@/types/lens";
 import qs from "qs";
 
 export const resourceService = {
@@ -103,6 +104,70 @@ export const resourceService = {
             request
         );
         return data;
+    },
+
+    /**
+     * Lens API Metodları
+     * Backend lens özelliği için API çağrıları
+     */
+
+    /**
+     * Bir resource için mevcut lens'leri getirir
+     * @param resource - Resource adı (örn: "users")
+     * @returns Lens listesi
+     */
+    getLenses: async (resource: string): Promise<LensData[]> => {
+        const { data } = await api.get<{ data: LensData[] }>(
+            `/resource/${resource}/lenses`
+        );
+        return data.data;
+    },
+
+    /**
+     * Belirli bir lens'in verilerini getirir
+     * @param resource - Resource adı
+     * @param lens - Lens slug'ı
+     * @param params - Query parametreleri (sayfa, arama, sıralama vb.)
+     * @returns Lens response verisi
+     */
+    getLensData: async (
+        resource: string,
+        lens: string,
+        params: LensQueryParams
+    ): Promise<LensResponse> => {
+        // Query parametrelerini oluştur
+        const queryParams: Record<string, any> = {};
+
+        if (params.page) queryParams.page = params.page;
+        if (params.per_page) queryParams.per_page = params.per_page;
+        if (params.search) queryParams.search = params.search;
+        if (params.sort_by) queryParams.sort_by = params.sort_by;
+        if (params.sort_order) queryParams.sort_order = params.sort_order;
+        if (params.filters) queryParams.filters = params.filters;
+
+        const queryString = qs.stringify(queryParams, {
+            encode: true,
+            encodeValuesOnly: true,
+            skipNulls: true,
+        });
+
+        const { data } = await api.get<LensResponse>(
+            `/resource/${resource}/lens/${lens}${queryString ? `?${queryString}` : ''}`
+        );
+        return data;
+    },
+
+    /**
+     * Bir lens için kartları getirir
+     * @param resource - Resource adı
+     * @param lens - Lens slug'ı
+     * @returns Kart listesi
+     */
+    getLensCards: async (resource: string, lens: string): Promise<any[]> => {
+        const { data } = await api.get<{ data: any[] }>(
+            `/resource/${resource}/lens/${lens}/cards`
+        );
+        return data.data;
     },
 };
 

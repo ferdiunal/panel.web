@@ -1,7 +1,8 @@
 /**
  * DialogField Component
  *
- * Modal/dialog içinde form veya wizard gösteren field component'i.
+ * Responsive modal/dialog içinde form veya wizard gösteren field component'i.
+ * Desktop'ta Dialog, mobilde Drawer kullanır.
  * Kullanıcıdan modal içinde veri toplamak için kullanılır.
  */
 
@@ -13,13 +14,22 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { DialogContent as DialogFormContent } from './DialogContent';
 import { DialogWizard } from './DialogWizard';
 import type { DialogFieldProps } from '@/types/dialog';
 
 /**
- * DialogField - Modal/dialog içinde form gösteren field component'i
+ * DialogField - Responsive modal/dialog içinde form gösteren field component'i
+ * Desktop'ta Dialog, mobilde Drawer kullanır
  *
  * Kullanım:
  * ```tsx
@@ -59,6 +69,8 @@ export const DialogField: React.FC<DialogFieldProps> = ({
   dialogSize = 'md',
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  // Desktop için md breakpoint (768px) kullan
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   // defaultOpen değiştiğinde dialog'u aç/kapat
   useEffect(() => {
@@ -90,6 +102,32 @@ export const DialogField: React.FC<DialogFieldProps> = ({
     full: 'max-w-full',
   };
 
+  // Content component'i - hem Dialog hem Drawer için aynı
+  const renderContent = () => (
+    <>
+      {/* Content: Form mode */}
+      {contentType === 'form' && (
+        <DialogFormContent
+          fields={fields}
+          initialData={value}
+          onComplete={handleComplete}
+          onCancel={handleCancel}
+        />
+      )}
+
+      {/* Content: Wizard mode */}
+      {contentType === 'wizard' && (
+        <DialogWizard
+          steps={steps}
+          initialData={value}
+          onComplete={handleComplete}
+          onSkip={handleSkip}
+          onCancel={handleCancel}
+        />
+      )}
+    </>
+  );
+
   return (
     <div className={className}>
       {/* Trigger button (eğer defaultOpen false ise) */}
@@ -115,39 +153,39 @@ export const DialogField: React.FC<DialogFieldProps> = ({
         </div>
       )}
 
-      {/* Dialog */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className={sizeClasses[dialogSize]}>
-          {/* Dialog Header */}
-          {(dialogTitle || dialogDesc) && (
-            <DialogHeader>
-              {dialogTitle && <DialogTitle>{dialogTitle}</DialogTitle>}
-              {dialogDesc && <DialogDescription>{dialogDesc}</DialogDescription>}
-            </DialogHeader>
-          )}
+      {/* Desktop: Dialog */}
+      {isDesktop ? (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogContent className={sizeClasses[dialogSize]}>
+            {/* Dialog Header */}
+            {(dialogTitle || dialogDesc) && (
+              <DialogHeader>
+                {dialogTitle && <DialogTitle>{dialogTitle}</DialogTitle>}
+                {dialogDesc && <DialogDescription>{dialogDesc}</DialogDescription>}
+              </DialogHeader>
+            )}
 
-          {/* Content: Form mode */}
-          {contentType === 'form' && (
-            <DialogFormContent
-              fields={fields}
-              initialData={value}
-              onComplete={handleComplete}
-              onCancel={handleCancel}
-            />
-          )}
+            {renderContent()}
+          </DialogContent>
+        </Dialog>
+      ) : (
+        /* Mobile: Drawer */
+        <Drawer open={isOpen} onOpenChange={setIsOpen}>
+          <DrawerContent>
+            {/* Drawer Header */}
+            {(dialogTitle || dialogDesc) && (
+              <DrawerHeader>
+                {dialogTitle && <DrawerTitle>{dialogTitle}</DrawerTitle>}
+                {dialogDesc && <DrawerDescription>{dialogDesc}</DrawerDescription>}
+              </DrawerHeader>
+            )}
 
-          {/* Content: Wizard mode */}
-          {contentType === 'wizard' && (
-            <DialogWizard
-              steps={steps}
-              initialData={value}
-              onComplete={handleComplete}
-              onSkip={handleSkip}
-              onCancel={handleCancel}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+            <div className="px-4 pb-4 overflow-y-auto">
+              {renderContent()}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
     </div>
   );
 };

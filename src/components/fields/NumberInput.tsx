@@ -1,15 +1,23 @@
+/**
+ * NumberInput - Mikro Frontend Pattern
+ *
+ * FieldLayout kullanarak standart number input implementasyonu
+ * Increment/decrement butonları ile
+ */
+
 import React from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Plus, Minus } from 'lucide-react';
+import { FieldLayout } from './FieldLayout';
 
 export interface NumberInputProps {
   name: string;
-  label: string;
+  label?: string;
   value: number | string;
   onChange: (value: number | string) => void;
+  onBlur?: () => void;
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -23,12 +31,54 @@ export interface NumberInputProps {
 
 /**
  * NumberInput Component
- * 
- * A number input field component built with shadcn/ui Input.
- * Displays a label with optional required indicator, number input field with increment/decrement buttons,
- * error message below field if error exists, and optional help text.
- * 
- * Validates: Requirements 4.2
+ *
+ * Mikro frontend pattern'ine uygun number input component'i
+ * FieldLayout kullanarak tutarlı layout sağlar
+ *
+ * Özellikler:
+ * - FieldLayout kullanır (tutarlı layout)
+ * - Increment/decrement butonları
+ * - Min/max değer kontrolü
+ * - Step desteği
+ * - Hata mesajı gösterimi
+ * - Yardım metni desteği
+ * - Erişilebilirlik özellikleri (aria-invalid, aria-describedby)
+ *
+ * Kullanım Örnekleri:
+ *
+ * ```tsx
+ * // Basit sayı girişi
+ * <NumberInput
+ *   name="age"
+ *   label="Yaş"
+ *   value={age}
+ *   onChange={setAge}
+ *   min={0}
+ *   max={120}
+ * />
+ *
+ * // Ondalık sayı girişi
+ * <NumberInput
+ *   name="price"
+ *   label="Fiyat"
+ *   value={price}
+ *   onChange={setPrice}
+ *   min={0}
+ *   step={0.01}
+ *   placeholder="0.00"
+ * />
+ *
+ * // Zorunlu alan
+ * <NumberInput
+ *   name="quantity"
+ *   label="Miktar"
+ *   value={quantity}
+ *   onChange={setQuantity}
+ *   min={1}
+ *   required
+ *   error={errors.quantity}
+ * />
+ * ```
  */
 export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
   (
@@ -37,6 +87,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       label,
       value,
       onChange,
+      onBlur,
       error,
       disabled = false,
       required = false,
@@ -66,11 +117,15 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     };
 
     return (
-      <div className={cn('flex flex-col gap-2', className)}>
-        <Label htmlFor={name} className="text-sm font-medium">
-          {label}
-          {required && <span className="text-destructive">*</span>}
-        </Label>
+      <FieldLayout
+        name={name}
+        label={label}
+        error={error}
+        required={required}
+        helpText={helpText}
+        disabled={disabled}
+        className={className}
+      >
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -90,6 +145,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
             type="number"
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
             disabled={disabled}
             placeholder={placeholder}
             min={min}
@@ -114,17 +170,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        {error && (
-          <p id={`${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        {helpText && !error && (
-          <p id={`${name}-help`} className="text-sm text-muted-foreground">
-            {helpText}
-          </p>
-        )}
-      </div>
+      </FieldLayout>
     );
   }
 );

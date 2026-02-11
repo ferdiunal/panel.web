@@ -30,6 +30,25 @@ import { BelongsToManyField } from '@/components/fields/BelongsToManyField';
 import { BadgeField } from '@/components/fields/BadgeField';
 import { DialogField } from '@/components/fields/DialogField';
 
+// Import view-specific field components
+// Form views
+import { TextFormField } from '@/components/fields/form/TextInput';
+import { SelectFormField } from '@/components/fields/form/SelectField';
+import { DateFormField } from '@/components/fields/form/DateField';
+import { TelFormField } from '@/components/fields/form/TelInput';
+
+// Index views
+import { TextIndexField } from '@/components/fields/index/TextInput';
+import { SelectIndexField } from '@/components/fields/index/SelectField';
+import { DateIndexField } from '@/components/fields/index/DateField';
+import { TelIndexField } from '@/components/fields/index/TelInput';
+
+// Detail views
+import { TextDetailField } from '@/components/fields/detail/TextInput';
+import { SelectDetailField } from '@/components/fields/detail/SelectField';
+import { DateDetailField } from '@/components/fields/detail/DateField';
+import { TelDetailField } from '@/components/fields/detail/TelInput';
+
 // Memoize field components with custom comparison
 export const MemoizedComboboxField = React.memo(ComboboxField, (prev, next) => {
   return (
@@ -260,6 +279,8 @@ export function registerAllFields() {
   fieldRegistry.register('number-field', MemoizedNumberInput as any);
   fieldRegistry.register('url', MemoizedURLInput as any);
   fieldRegistry.register('url-field', MemoizedURLInput as any);
+  fieldRegistry.register('tel', TelFormField as any);
+  fieldRegistry.register('tel-field', TelFormField as any);
   fieldRegistry.register('textarea', MemoizedTextareaField as any);
   fieldRegistry.register('textarea-field', MemoizedTextareaField as any);
 
@@ -306,6 +327,30 @@ export function registerAllFields() {
   // Dialog field
   fieldRegistry.register('dialog', MemoizedDialogField as any);
   fieldRegistry.register('dialog-field', MemoizedDialogField as any);
+
+  // ============================================================================
+  // View-Specific Field Components (Form/Index/Detail Pattern)
+  // ============================================================================
+
+  // Text Field - Form/Index/Detail Views
+  fieldRegistry.register('text-field-form', TextFormField as any);
+  fieldRegistry.register('text-field-index', TextIndexField as any);
+  fieldRegistry.register('text-field-detail', TextDetailField as any);
+
+  // Select Field - Form/Index/Detail Views
+  fieldRegistry.register('select-field-form', SelectFormField as any);
+  fieldRegistry.register('select-field-index', SelectIndexField as any);
+  fieldRegistry.register('select-field-detail', SelectDetailField as any);
+
+  // Date Field - Form/Index/Detail Views
+  fieldRegistry.register('date-field-form', DateFormField as any);
+  fieldRegistry.register('date-field-index', DateIndexField as any);
+  fieldRegistry.register('date-field-detail', DateDetailField as any);
+
+  // Tel Field - Form/Index/Detail Views
+  fieldRegistry.register('tel-field-form', TelFormField as any);
+  fieldRegistry.register('tel-field-index', TelIndexField as any);
+  fieldRegistry.register('tel-field-detail', TelDetailField as any);
 }
 
 // Auto-register on module load

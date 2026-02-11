@@ -1,13 +1,21 @@
+/**
+ * EmailInput - Mikro Frontend Pattern
+ *
+ * FieldLayout kullanarak standart email input implementasyonu
+ * HTML5 email validation desteği ile
+ */
+
 import React from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { FieldLayout } from './FieldLayout';
 
 export interface EmailInputProps {
   name: string;
-  label: string;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -18,13 +26,48 @@ export interface EmailInputProps {
 
 /**
  * EmailInput Component
- * 
- * An email input field component built with shadcn/ui Input.
- * Displays a label with optional required indicator, email input field with proper styling,
- * error message below field if error exists, and optional help text.
- * Supports email validation through the HTML5 email input type.
- * 
- * Validates: Requirements 4.3
+ *
+ * Mikro frontend pattern'ine uygun email input component'i
+ * FieldLayout kullanarak tutarlı layout sağlar
+ *
+ * Özellikler:
+ * - FieldLayout kullanır (tutarlı layout)
+ * - HTML5 email validation (type="email")
+ * - Hata mesajı gösterimi
+ * - Yardım metni desteği
+ * - Erişilebilirlik özellikleri (aria-invalid, aria-describedby)
+ *
+ * Kullanım Örnekleri:
+ *
+ * ```tsx
+ * // Basit email girişi
+ * <EmailInput
+ *   name="email"
+ *   label="E-posta"
+ *   value={email}
+ *   onChange={setEmail}
+ *   placeholder="ornek@email.com"
+ * />
+ *
+ * // Zorunlu alan
+ * <EmailInput
+ *   name="email"
+ *   label="E-posta Adresi"
+ *   value={email}
+ *   onChange={setEmail}
+ *   required
+ *   error={errors.email}
+ * />
+ *
+ * // Yardım metni ile
+ * <EmailInput
+ *   name="email"
+ *   label="İş E-postası"
+ *   value={email}
+ *   onChange={setEmail}
+ *   helpText="Şirket e-posta adresinizi girin"
+ * />
+ * ```
  */
 export const EmailInput = React.forwardRef<HTMLInputElement, EmailInputProps>(
   (
@@ -33,6 +76,7 @@ export const EmailInput = React.forwardRef<HTMLInputElement, EmailInputProps>(
       label,
       value,
       onChange,
+      onBlur,
       error,
       disabled = false,
       required = false,
@@ -43,11 +87,15 @@ export const EmailInput = React.forwardRef<HTMLInputElement, EmailInputProps>(
     ref
   ) => {
     return (
-      <div className={cn('flex flex-col gap-2', className)}>
-        <Label htmlFor={name} className="text-sm font-medium">
-          {label}
-          {required && <span className="text-destructive">*</span>}
-        </Label>
+      <FieldLayout
+        name={name}
+        label={label}
+        error={error}
+        required={required}
+        helpText={helpText}
+        disabled={disabled}
+        className={className}
+      >
         <Input
           ref={ref}
           id={name}
@@ -55,6 +103,7 @@ export const EmailInput = React.forwardRef<HTMLInputElement, EmailInputProps>(
           type="email"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           disabled={disabled}
           placeholder={placeholder}
           aria-invalid={!!error}
@@ -63,17 +112,7 @@ export const EmailInput = React.forwardRef<HTMLInputElement, EmailInputProps>(
             error && 'border-destructive focus-visible:ring-destructive/20'
           )}
         />
-        {error && (
-          <p id={`${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        {helpText && !error && (
-          <p id={`${name}-help`} className="text-sm text-muted-foreground">
-            {helpText}
-          </p>
-        )}
-      </div>
+      </FieldLayout>
     );
   }
 );

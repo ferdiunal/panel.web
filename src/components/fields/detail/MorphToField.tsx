@@ -2,16 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "@/lib/axios";
 import { Badge } from "@/components/ui/badge";
-import type { FieldData } from "@/types";
 import { Loader2, ExternalLink } from "lucide-react";
 import { RelationshipHoverCard } from "../RelationshipHoverCard";
+import { FieldLayout } from "../FieldLayout";
+import type { DetailFieldProps } from "@/types"; // DetailFieldProps kullan
 
-interface MorphToDetailFieldProps {
-    field: FieldData;
-    record: Record<string, any>;
-}
-
-export function MorphToDetailField({ field, record }: MorphToDetailFieldProps) {
+export function MorphToDetailField({ field, record, onResourceClick }: DetailFieldProps) {
     const typeKey = `${field.key}_type`;
     const idKey = `${field.key}_id`;
 
@@ -99,29 +95,38 @@ export function MorphToDetailField({ field, record }: MorphToDetailFieldProps) {
         fetchTitle();
     }, [typeValue, idValue, typeDef, field.key, record]);
 
-    if (!typeValue || !idValue) {
-        return <span className="text-muted-foreground">-</span>;
-    }
-
-    const displayLabel = label || `#${idValue}`;
+    const displayLabel = label || (idValue ? `#${idValue}` : '');
 
     // Link element'i oluştur
     const linkElement = loading ? (
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-    ) : slug ? (
-        <Link
-            to={`/resources/${slug}/${idValue}`}
-            className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
-        >
-            {displayLabel}
-            <ExternalLink className="h-3.5 w-3.5" />
-        </Link>
-    ) : (
+    ) : typeValue && idValue && slug ? (
+        onResourceClick ? (
+            <button
+                type="button"
+                onClick={() => onResourceClick(slug, idValue)}
+                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium bg-transparent border-0 p-0 cursor-pointer"
+            >
+                {displayLabel}
+                <ExternalLink className="h-3.5 w-3.5" />
+            </button>
+        ) : (
+            <Link
+                to={`/resource/${slug}?detail_id=${idValue}`}
+                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+            >
+                {displayLabel}
+                <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+        )
+    ) : typeValue && idValue ? (
         <span className="font-medium">{displayLabel}</span>
+    ) : (
+        <span className="text-muted-foreground">—</span>
     );
 
     // Hover card ile wrap et (eğer aktifse ve veri varsa)
-    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData && !loading ? (
+    const linkContent = hoverCardConfig && hoverCardConfig.enabled && relatedData && !loading ? (
         <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
             {linkElement}
         </RelationshipHoverCard>
@@ -129,12 +134,26 @@ export function MorphToDetailField({ field, record }: MorphToDetailFieldProps) {
         linkElement
     );
 
-    return (
+    const content = typeValue || idValue ? (
         <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="font-normal">
-                {typeLabel}
-            </Badge>
-            {content}
+            {typeValue && (
+                <Badge variant="secondary" className="font-normal">
+                    {typeLabel}
+                </Badge>
+            )}
+            {linkContent}
         </div>
+    ) : (
+        <span className="text-muted-foreground">—</span>
+    );
+
+    return (
+        <FieldLayout
+            name={field.key}
+            label={field.name || field.label}
+            helpText={field.help_text}
+        >
+            {content}
+        </FieldLayout>
     );
 }

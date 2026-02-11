@@ -23,12 +23,14 @@ import { generateFormId } from '@/utils/form-helpers';
 export interface UniversalResourceFormProps {
   formId?: string;
   resourceType: string;
+  ignoreResourceField?: string;
   mode: 'create' | 'edit';
   resourceId?: string | number;
   fields: FieldDefinition[];
   initialData?: Record<string, any>;
   schema?: z.ZodSchema;
   onSubmit: (data: Record<string, any>) => Promise<void>;
+  onCreateAndContinue?: (data: Record<string, any>) => Promise<void>;
   onCancel?: () => void;
   enableDependentFields?: boolean;
   container?: HTMLElement | null;
@@ -42,11 +44,13 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
   formId: providedFormId,
   resourceType,
   mode,
+  ignoreResourceField,
   resourceId,
   fields,
   initialData = {},
   schema,
   onSubmit,
+  onCreateAndContinue,
   onCancel,
   enableDependentFields = true,
   container,
@@ -92,30 +96,58 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
     [formId, onSubmit, form]
   );
 
-  // Watch form values for dependency resolution
-  const formValues = form.watch();
+  // Handle create and continue submission
+  const handleCreateAndContinue = useCallback(
+    async (data: Record<string, any>) => {
+      if (!onCreateAndContinue) return;
 
-  // Handle field changes for dependency resolution
+      const store = useFormStateStore.getState();
+      store.setSubmitting(formId, true);
+
+      try {
+        await onCreateAndContinue(data);
+        // Don't reset form - we'll transition to edit mode
+      } catch (error) {
+        console.error('Form submission failed:', error);
+      } finally {
+        store.setSubmitting(formId, false);
+      }
+    },
+    [formId, onCreateAndContinue]
+  );
+
+  // Reset form when initialData changes (for edit mode)
   useEffect(() => {
-    // This effect will trigger when form values change
-    // Dependency resolution is handled by useFormDependencies
-  }, [formValues]);
+    if (mode === 'edit' && initialData && Object.keys(initialData).length > 0) {
+      form.reset(initialData);
+    }
+  }, [initialData, mode, form]);
 
   return (
     <FormProvider {...form}>
       <form
-        onSubmit={form.handleSubmit(handleSubmit as any)}
         className={className}
         noValidate
+        name={formId}
+        id={formId}
       >
         {/* Form fields */}
         <div className="space-y-4">
-          {fields.map((field) => (
+          {fields.filter(
+            (field) => {
+              if(ignoreResourceField && field.props['related_resource'] === ignoreResourceField) {
+                return false;
+              }
+
+              return true
+            }
+          ).map((field) => (
             <FieldRenderer
               key={field.key}
               formId={formId}
               field={field}
               container={container}
+              parentResourceId={resourceId}
             />
           ))}
         </div>
@@ -125,6 +157,8 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
           isSubmitting={isSubmitting}
           isResolving={isResolving}
           mode={mode}
+          onSubmit={form.handleSubmit(handleSubmit as any)}
+          onCreateAndContinue={onCreateAndContinue ? form.handleSubmit(handleCreateAndContinue as any) : undefined}
           onCancel={onCancel}
           className="mt-6"
         />

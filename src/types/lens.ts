@@ -2,7 +2,7 @@
  * Lens Type Definitions
  *
  * Lens özelliği için gerekli TypeScript type tanımları.
- * Laravel Nova'nın lens yapısından esinlenilerek oluşturulmuştur.
+ * Resource verilerini farklı perspektiflerden görüntülemek için kullanılır.
  */
 
 import type { ResourceItem, FieldData } from '../types';

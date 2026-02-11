@@ -1,10 +1,31 @@
 /**
- * Custom hook for fetching resources with React Query
+ * Resource Sorgu Hook'ları
+ *
+ * React Query ile resource verilerini çekmek için kullanılır.
+ * Merkezi `api` (axios) instance'ını kullanır — `apiClient` KULLANILMAMALI.
+ *
+ * ## Kullanım
+ *
+ * ### Listeleme:
+ * ```tsx
+ * const { data, isLoading, error } = useResourceQuery('users', {
+ *   page: 1,
+ *   pageSize: 10,
+ *   search: 'john',
+ *   sortBy: 'name',
+ *   sortOrder: 'asc',
+ * });
+ * ```
+ *
+ * ### Tekil kayıt:
+ * ```tsx
+ * const { data } = useSingleResourceQuery('users', '123');
+ * ```
  */
 
 import { useQuery } from '@tanstack/react-query';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import api from '@/lib/axios';
 import type { AnyResource, ApiListResponse } from '@/types';
 
 interface UseResourceQueryOptions {
@@ -38,8 +59,8 @@ export function useResourceQuery(
         }
       });
 
-      const response = await apiClient.get<ApiListResponse<AnyResource>>(`/${resourceType}?${params.toString()}`);
-      return response;
+      const { data } = await api.get<ApiListResponse<AnyResource>>(`/${resourceType}?${params.toString()}`);
+      return data;
     },
     enabled,
   });
@@ -55,8 +76,8 @@ export function useSingleResourceQuery(
   return useQuery({
     queryKey: [resourceType, resourceId],
     queryFn: async () => {
-      const response = await apiClient.get<AnyResource>(`/${resourceType}/${resourceId}`);
-      return response;
+      const { data } = await api.get<AnyResource>(`/${resourceType}/${resourceId}`);
+      return data;
     },
     enabled,
   });

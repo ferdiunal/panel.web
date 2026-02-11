@@ -9,7 +9,7 @@
  * - Props transformation (FieldComponentProps → actual field props)
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useFieldUpdate } from '@/stores/form-state-store';
 import { fieldRegistry } from './FieldRegistry';
@@ -20,13 +20,14 @@ export interface FieldRendererProps {
   formId: string;
   field: FieldDefinition;
   container?: HTMLElement | null;
+  parentResourceId?: string | number; // Parent resource ID (edit modunda kullanılır)
 }
 
 /**
  * FieldRenderer - Renders a single field with dependency updates
  */
 export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
-  ({ formId, field, container }) => {
+  ({ formId, field, container, parentResourceId }) => {
     const { control } = useFormContext();
 
     // Subscribe to field updates from dependency resolution
@@ -57,19 +58,48 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
     }
 
     // Get field component from registry
-    const fieldType = enhancedField.view || enhancedField.type;
-    const FieldComponent = fieldRegistry.get(fieldType);
+    // Strategy: Prefer 'type' based lookup first, then 'view' based
+    // Backend types: "text", "tel", "code" -> Registry keys: "text-field-form", "tel-field-form", "code-field-form"
+    
+    const typeKey = `${enhancedField.type}-field-form`;
+    const viewKey = `${enhancedField.view}-form`; // view usually includes "-field" suffix
+    
+    let FieldComponent = fieldRegistry.get(typeKey) || fieldRegistry.get(viewKey);
+
+    // Fallback to direct view/type lookup if form-specific not found
+    if (!FieldComponent) {
+       FieldComponent = fieldRegistry.get(enhancedField.view) || fieldRegistry.get(enhancedField.type);
+    }
 
     if (!FieldComponent) {
-      console.warn(`No component registered for field type: ${fieldType}`);
+      console.warn(`No component registered for field type: ${enhancedField.type} or view: ${enhancedField.view}`);
       return (
         <div className="p-4 border border-yellow-300 bg-yellow-50 rounded">
           <p className="text-sm text-yellow-800">
-            Unknown field type: {fieldType}
+            Unknown field type: {enhancedField.type}
           </p>
         </div>
       );
     }
+
+    // Relationship field kontrolü ve searchFn memoization
+    // Bu değerleri Controller dışında hesaplıyoruz çünkü useCallback kullanacağız
+    // Check original type or view for relationship identification
+    const isRelationshipField = ['belongs-to', 'has-one', 'has-many', 'belongs-to-many'].includes(enhancedField.type) || 
+                                ['belongs-to-field', 'has-one-field', 'has-many-field', 'belongs-to-many-field'].includes(enhancedField.view);
+    const relatedResource = enhancedField.props?.related_resource;
+
+    // searchFn'i useCallback ile memoize et - sonsuz render döngüsünü önler
+    // Her render'da yeni fonksiyon oluşturmak yerine, sadece relatedResource değiştiğinde yeni fonksiyon oluştur
+    const searchFn = useCallback(
+      (query: string) => {
+        if (relatedResource) {
+          return searchRelationship(relatedResource, query);
+        }
+        return Promise.resolve([]);
+      },
+      [relatedResource]
+    );
 
     return (
       <Controller
@@ -81,12 +111,14 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
             : false,
         }}
         render={({ field: controllerField, fieldState }) => {
-          // Relationship field'lar için searchFn oluştur
-          const isRelationshipField = ['belongs-to-field', 'has-one-field', 'has-many-field', 'belongs-to-many-field'].includes(fieldType);
-          const relatedResource = enhancedField.props?.related_resource;
-
           // Transform props for the actual field component
+          // Backend props'ları ÖNCE spread et, sonra memoized değerler gelsin.
+          // Böylece searchFn gibi memoized fonksiyonlar backend props tarafından
+          // override edilemez ve stabil referanslarını korur.
           const fieldProps = {
+            // Backend'den gelen field-specific props (options, types, vs.)
+            ...enhancedField.props,
+            // Core props — bunlar backend props'larını override eder
             field: enhancedField,
             name: enhancedField.key,
             label: enhancedField.label,
@@ -99,12 +131,12 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
             placeholder: enhancedField.placeholder,
             helpText: enhancedField.help_text,
             container,
-            // Relationship field'lar için searchFn ekle
+            // Relationship field'lar için memoized searchFn ve parentResourceId
+            // En sonda olmalı — backend props tarafından override edilmemeli
             ...(isRelationshipField && relatedResource && {
-              searchFn: (query: string) => searchRelationship(relatedResource, query),
+              searchFn: searchFn,
+              parentResourceId: parentResourceId,
             }),
-            // Pass through any additional field-specific props
-            ...enhancedField.props,
           };
 
           return <FieldComponent {...fieldProps} />;

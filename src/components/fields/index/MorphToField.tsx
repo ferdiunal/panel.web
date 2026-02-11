@@ -4,6 +4,7 @@ import axios from "@/lib/axios";
 import { Badge } from "@/components/ui/badge";
 import type { FieldData } from "@/types";
 import { RelationshipHoverCard } from "../RelationshipHoverCard";
+import { FieldLayout } from "../FieldLayout";
 
 interface MorphToIndexFieldProps {
     field: FieldData;
@@ -97,14 +98,10 @@ export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
     fetchLabel();
   }, [typeValue, idValue, typeDef, record, field.key]);
 
-    if (!typeValue || !idValue) {
-        return <span className="text-muted-foreground">-</span>;
-    }
-
-    const finalLabel = displayLabel || `#${idValue}`;
+    const finalLabel = displayLabel || (idValue ? `#${idValue}` : '');
 
     // Link element'i oluştur
-    const linkElement = slug ? (
+    const linkElement = typeValue && idValue && slug ? (
         <Link
             to={`/resources/${slug}/${idValue}`}
             className="text-sm text-primary hover:underline"
@@ -112,12 +109,14 @@ export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
         >
             {finalLabel}
         </Link>
-    ) : (
+    ) : typeValue && idValue ? (
         <span className="text-sm font-medium">{finalLabel}</span>
+    ) : (
+        <span className="text-muted-foreground">—</span>
     );
 
     // Hover card ile wrap et (eğer aktifse ve veri varsa)
-    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData ? (
+    const linkContent = hoverCardConfig && hoverCardConfig.enabled && relatedData ? (
         <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
             {linkElement}
         </RelationshipHoverCard>
@@ -125,12 +124,27 @@ export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
         linkElement
     );
 
-    return (
+    const content = typeValue || idValue ? (
         <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-normal text-xs">
-                {typeLabel}
-            </Badge>
-            {content}
+            {typeValue && (
+                <Badge variant="outline" className="font-normal text-xs">
+                    {typeLabel}
+                </Badge>
+            )}
+            {linkContent}
         </div>
+    ) : (
+        <span className="text-muted-foreground">—</span>
+    );
+
+    return (
+        <FieldLayout
+            name={field.key}
+            label={field.name || field.label}
+            helpText={field.help_text}
+            hideLabel={true}
+        >
+            {content}
+        </FieldLayout>
     );
 }

@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFormDialog } from '@/hooks/useFormDialog';
 
 export interface FormDialogProps {
@@ -64,7 +65,9 @@ export const FormDialog: React.FC<FormDialogProps> = ({
             {description && <DialogDescription>{description}</DialogDescription>}
           </DialogHeader>
         )}
-        <div className="mt-4">{children}</div>
+        <ScrollArea className="max-h-[60vh] mt-4">
+          {children}
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

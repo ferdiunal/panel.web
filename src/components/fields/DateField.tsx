@@ -1,37 +1,8 @@
 /**
- * DateField Component
+ * DateField - Mikro Frontend Pattern
  *
- * Tarih seçimi için kullanılan bileşen.
- * İki mod destekler:
- * 1. Dialog modu: Popover içinde takvim ile tarih seçimi (varsayılan)
- * 2. Native modu: HTML date input (useNative prop'u ile)
- *
- * Özellikler:
- * - Dialog modu: Takvim arayüzü, tarih seçildiğinde otomatik kapanma
- * - Native modu: HTML5 date input, mobil uyumlu
- * - Label, hata mesajı ve yardım metni desteği
- * - Erişilebilirlik özellikleri
- *
- * Kullanım Örnekleri:
- *
- * ```tsx
- * // Dialog modu (varsayılan)
- * <DateField
- *   name="birth_date"
- *   label="Doğum Tarihi"
- *   value={birthDate}
- *   onChange={setBirthDate}
- * />
- *
- * // Native modu
- * <DateField
- *   name="birth_date"
- *   label="Doğum Tarihi"
- *   value={birthDate}
- *   onChange={setBirthDate}
- *   useNative
- * />
- * ```
+ * FieldLayout kullanarak standart date field implementasyonu
+ * İki mod destekler: Dialog (takvim) ve Native (HTML date input)
  */
 
 import React from 'react';
@@ -39,17 +10,18 @@ import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CalendarIcon, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { FieldLayout } from './FieldLayout';
 
 export interface DateFieldProps {
   name: string;
-  label: string;
+  label?: string;
   value: Date | undefined;
   onChange: (date: Date | undefined) => void;
+  onBlur?: () => void;
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -71,8 +43,16 @@ export interface DateFieldProps {
 /**
  * DateField Component
  *
- * Tarih seçimi için esnek bileşen.
- * useNative prop'una göre Dialog veya Native input kullanır.
+ * Mikro frontend pattern'ine uygun date field component'i
+ * FieldLayout kullanarak tutarlı layout sağlar
+ *
+ * Özellikler:
+ * - FieldLayout kullanır (tutarlı layout)
+ * - İki mod: Dialog (takvim) veya Native (HTML date input)
+ * - Tooltip desteği
+ * - Hata mesajı gösterimi
+ * - Yardım metni desteği
+ * - Erişilebilirlik özellikleri (aria-invalid, aria-describedby)
  *
  * Dialog Modu (useNative={false} veya undefined):
  * - Takvim arayüzü ile tarih seçimi
@@ -83,6 +63,37 @@ export interface DateFieldProps {
  * - HTML5 date input
  * - Mobil cihazlarda native date picker
  * - Hafif ve hızlı
+ *
+ * Kullanım Örnekleri:
+ *
+ * ```tsx
+ * // Dialog modu (varsayılan)
+ * <DateField
+ *   name="birth_date"
+ *   label="Doğum Tarihi"
+ *   value={birthDate}
+ *   onChange={setBirthDate}
+ * />
+ *
+ * // Native modu
+ * <DateField
+ *   name="birth_date"
+ *   label="Doğum Tarihi"
+ *   value={birthDate}
+ *   onChange={setBirthDate}
+ *   useNative
+ * />
+ *
+ * // Tooltip ile
+ * <DateField
+ *   name="start_date"
+ *   label="Başlangıç Tarihi"
+ *   value={startDate}
+ *   onChange={setStartDate}
+ *   tooltip="Projenin başlangıç tarihini seçin"
+ *   required
+ * />
+ * ```
  */
 export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, DateFieldProps>(
   (
@@ -91,6 +102,7 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
       label,
       value,
       onChange,
+      onBlur,
       error,
       disabled = false,
       required = false,
@@ -103,6 +115,23 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
     ref
   ) => {
     const [isOpen, setIsOpen] = React.useState(false);
+
+    // Tooltip varsa label'a ekle
+    const labelContent = label && tooltip && (
+      <div className="flex items-center gap-2">
+        <span>{label}</span>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    );
 
     // Native mod
     if (useNative) {
@@ -118,25 +147,28 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
       };
 
       return (
-        <div className={cn('flex flex-col gap-2', className)}>
-          <div className="flex items-center gap-2">
-            <Label htmlFor={name} className="text-sm font-medium">
-              {label}
-              {required && <span className="text-destructive">*</span>}
-            </Label>
-            {tooltip && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">{tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
+        <FieldLayout
+          name={name}
+          label={labelContent ? undefined : label}
+          error={error}
+          required={required}
+          helpText={helpText}
+          disabled={disabled}
+          className={className}
+          hideLabel={!!labelContent}
+        >
+          {/* Tooltip varsa custom label göster */}
+          {labelContent && (
+            <div className="mb-2">
+              {labelContent}
+              {required && (
+                <span className="ml-1 text-destructive" aria-label="required">
+                  *
+                </span>
+              )}
+            </div>
+          )}
+
           <Input
             ref={ref as React.Ref<HTMLInputElement>}
             id={name}
@@ -144,6 +176,7 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
             type="date"
             value={dateValue}
             onChange={handleNativeChange}
+            onBlur={onBlur}
             disabled={disabled}
             placeholder={placeholder}
             aria-invalid={!!error}
@@ -152,17 +185,7 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
               error && 'border-destructive focus-visible:ring-destructive/20'
             )}
           />
-          {error && (
-            <p id={`${name}-error`} className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          {helpText && !error && (
-            <p id={`${name}-help`} className="text-sm text-muted-foreground">
-              {helpText}
-            </p>
-          )}
-        </div>
+        </FieldLayout>
       );
     }
 
@@ -174,25 +197,28 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
     };
 
     return (
-      <div className={cn('flex flex-col gap-2', className)}>
-        <div className="flex items-center gap-2">
-          <Label htmlFor={name} className="text-sm font-medium">
-            {label}
-            {required && <span className="text-destructive">*</span>}
-          </Label>
-          {tooltip && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">{tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
+      <FieldLayout
+        name={name}
+        label={labelContent ? undefined : label}
+        error={error}
+        required={required}
+        helpText={helpText}
+        disabled={disabled}
+        className={className}
+        hideLabel={!!labelContent}
+      >
+        {/* Tooltip varsa custom label göster */}
+        {labelContent && (
+          <div className="mb-2">
+            {labelContent}
+            {required && (
+              <span className="ml-1 text-destructive" aria-label="required">
+                *
+              </span>
+            )}
+          </div>
+        )}
+
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -200,6 +226,7 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
               id={name}
               variant="outline"
               disabled={disabled}
+              onBlur={onBlur}
               aria-invalid={!!error}
               aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
               className={cn(
@@ -222,17 +249,7 @@ export const DateField = React.forwardRef<HTMLButtonElement | HTMLInputElement, 
             />
           </PopoverContent>
         </Popover>
-        {error && (
-          <p id={`${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        {helpText && !error && (
-          <p id={`${name}-help`} className="text-sm text-muted-foreground">
-            {helpText}
-          </p>
-        )}
-      </div>
+      </FieldLayout>
     );
   }
 );

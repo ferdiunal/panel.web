@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "@/lib/axios";
 import type { FieldData } from "@/types";
 import { RelationshipHoverCard } from "../RelationshipHoverCard";
+import { FieldLayout } from "../FieldLayout";
 
 /**
  * BelongsToIndexFieldProps - BelongsTo field için index sayfası props
@@ -108,15 +109,10 @@ export function BelongsToIndexField({ field, record }: BelongsToIndexFieldProps)
         fetchRelatedData();
     }, [relatedId, relatedResource, displayKey, field.key, record]);
 
-    // İlişkili kayıt yoksa
-    if (!relatedId) {
-        return <span className="text-muted-foreground text-sm">-</span>;
-    }
-
-    const finalLabel = displayLabel || `#${relatedId}`;
+    const finalLabel = displayLabel || (relatedId ? `#${relatedId}` : '');
 
     // Link element'i oluştur
-    const linkElement = (
+    const linkElement = relatedId ? (
         <Link
             to={`/resources/${relatedResource}/${relatedId}`}
             className="text-sm text-primary hover:underline"
@@ -124,17 +120,27 @@ export function BelongsToIndexField({ field, record }: BelongsToIndexFieldProps)
         >
             {loading ? '...' : finalLabel}
         </Link>
+    ) : (
+        <span className="text-muted-foreground text-sm">—</span>
     );
 
-    // Hover card devre dışıysa veya config yoksa sadece link'i render et
-    if (!hoverCardConfig || !hoverCardConfig.enabled || !relatedData) {
-        return linkElement;
-    }
-
-    // Hover card ile render et
-    return (
+    // Hover card ile wrap et (eğer aktifse ve veri varsa)
+    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData ? (
         <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
             {linkElement}
         </RelationshipHoverCard>
+    ) : (
+        linkElement
+    );
+
+    return (
+        <FieldLayout
+            name={field.key}
+            label={field.name || field.label}
+            helpText={field.help_text}
+            hideLabel={true}
+        >
+            {content}
+        </FieldLayout>
     );
 }

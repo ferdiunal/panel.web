@@ -36,6 +36,13 @@ export const resourceService = {
         queryParams[resource].page = params.page;
         queryParams[resource].per_page = params.per_page;
 
+        // Add relationship filter params (viaResource, viaResourceId, viaRelationship)
+        // These are passed in params but not defined in ResourceParams interface
+        const extraParams = params as any;
+        if (extraParams.viaResource) queryParams.viaResource = extraParams.viaResource;
+        if (extraParams.viaResourceId) queryParams.viaResourceId = extraParams.viaResourceId;
+        if (extraParams.viaRelationship) queryParams.viaRelationship = extraParams.viaRelationship;
+
         const queryString = qs.stringify(queryParams, {
             encode: true,
             encodeValuesOnly: true,

@@ -2,7 +2,7 @@
  * LensSelector Component
  *
  * Resource için mevcut lens'leri dropdown menu olarak gösterir.
- * Laravel Nova'nın LensSelector.vue component'inden esinlenilmiştir.
+ * Resource verilerini farklı perspektiflerden görüntülemek için lens seçimi sağlar.
  *
  * Kullanım:
  * ```tsx

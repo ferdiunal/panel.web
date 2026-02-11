@@ -1,10 +1,12 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, redirect } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { queryClient } from '@/lib/query-client'
 import { Toaster } from "@/components/ui/sonner"
 import LoginPage, {loader as loginloader} from "@/pages/auth/login"
 import RegisterPage, { loader as registerLoader } from "@/pages/auth/register"
 import ForgotPasswordPage, { loader as forgotPasswordLoader } from "@/pages/auth/forgot-password"
 import UnauthorizedPage, { loader as unauthorizedLoader } from "@/pages/auth/unauthorized"
+import { NotFoundPage, ForbiddenPage, ServerErrorPage } from "@/pages/errors"
 import { useAuthStore } from "@/stores/auth"
 import { useAppStore } from "@/stores/app"
 import DashboardLayout from "@/layouts/dashboard-layout"
@@ -16,6 +18,7 @@ import { usePageTitle } from "@/hooks/use-page-title"
 import { GlobalLoader } from "@/components/global-loader"
 import { ErrorPage } from "@/pages/error"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ResourceErrorBoundary, RootErrorBoundary } from "@/components/error-boundaries"
 
 // Protected Route Wrapper Component
 const ProtectedRoute = () => {
@@ -45,16 +48,18 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const router = createBrowserRouter([
     {
         element: <RootLayout />,
+        errorElement: <RootErrorBoundary />,
         hydrateFallbackElement: <GlobalLoader />,
         children: [
             {
                 index: true,
                 loader: async () => {
+                    // Oturum kontrolü yaparak doğru sayfaya yönlendir
+                    // checkSession başarılıysa /dashboard, başarısızsa /login
                     try {
-                        const { isAuthenticated } = useAuthStore.getState()
-                        return redirect(isAuthenticated ? "/dashboard" : "/login")
-                    } catch (error) {
-                        console.error('Index loader error:', error)
+                        await useAuthStore.getState().checkSession()
+                        return redirect("/dashboard")
+                    } catch {
                         return redirect("/login")
                     }
                 }
@@ -124,6 +129,51 @@ const router = createBrowserRouter([
                 }
             },
             {
+                path: "/404",
+                element: <NotFoundPage />,
+                handle: {
+                    title: () => {
+                        try {
+                            const { settings } = useAppStore.getState()
+                            const siteName = settings.site_name || "Panel"
+                            return `404 | Sayfa Bulunamadı | ${siteName}`
+                        } catch {
+                            return "404 | Sayfa Bulunamadı | Panel"
+                        }
+                    }
+                }
+            },
+            {
+                path: "/403",
+                element: <ForbiddenPage />,
+                handle: {
+                    title: () => {
+                        try {
+                            const { settings } = useAppStore.getState()
+                            const siteName = settings.site_name || "Panel"
+                            return `403 | Erişim Engellendi | ${siteName}`
+                        } catch {
+                            return "403 | Erişim Engellendi | Panel"
+                        }
+                    }
+                }
+            },
+            {
+                path: "/500",
+                element: <ServerErrorPage />,
+                handle: {
+                    title: () => {
+                        try {
+                            const { settings } = useAppStore.getState()
+                            const siteName = settings.site_name || "Panel"
+                            return `500 | Sunucu Hatası | ${siteName}`
+                        } catch {
+                            return "500 | Sunucu Hatası | Panel"
+                        }
+                    }
+                }
+            },
+            {
                 element: <ProtectedRoute />,
                 children: [
                     {
@@ -133,6 +183,7 @@ const router = createBrowserRouter([
                                 path: "/settings",
                                 element: <SettingsPage />,
                                 loader: settingsLoader,
+                                errorElement: <ResourceErrorBoundary />,
                                 handle: {
                                     title: () => {
                                         try {
@@ -149,6 +200,7 @@ const router = createBrowserRouter([
                                 path: "/resource/:resource",
                                 element: <ResourceIndexPage />,
                                 loader: resourceLoader,
+                                errorElement: <ResourceErrorBoundary />,
                                 handle: {
                                     title: (params: any) => {
                                         try {
@@ -165,6 +217,7 @@ const router = createBrowserRouter([
                                 path: "/resource/:resource/lens/:lens",
                                 element: <LensPage />,
                                 loader: lensLoader,
+                                errorElement: <ResourceErrorBoundary />,
                                 handle: {
                                     title: (params: any) => {
                                         try {
@@ -177,27 +230,11 @@ const router = createBrowserRouter([
                                     }
                                 }
                             },
-
-                            // {
-                            //     path: "/resource/:resource",
-                            //     element: <ResourceIndexPage />,
-                            //     loader: resourceLoader,
-                            //     handle: {
-                            //         title: (params: any) => {
-                            //             try {
-                            //                 const { settings } = useAppStore.getState()
-                            //                 const siteName = settings.site_name || "Panel"
-                            //                 return `${capitalize(params.resource || "")} | ${siteName}`
-                            //             } catch {
-                            //                 return `${capitalize(params.resource || "")} | Panel`
-                            //             }
-                            //         }
-                            //     }
-                            // },
                             {
                                 path: "/:page",
                                 element: <PageViewer />,
                                 loader: pageViewerLoader,
+                                errorElement: <ResourceErrorBoundary />,
                                 handle: {
                                     title: (params: any) => {
                                         try {
@@ -222,8 +259,6 @@ const router = createBrowserRouter([
         ]
     }
 ])
-
-const queryClient = new QueryClient()
 
 export default function App() {
     return (

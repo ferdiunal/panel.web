@@ -21,7 +21,7 @@ export interface FieldData {
     required: boolean;
     sortable: boolean;
     stacked: boolean;
-    text_align: string;
+    text_align: 'left' | 'center' | 'right';
     type: string;
     view: string;
     visible?: boolean;
@@ -201,6 +201,9 @@ export interface FieldDefinition {
   disabled?: boolean;
   placeholder?: string;
   helpText?: string;
+    stacked?: boolean;
+    help_text?: string;
+    key?: string;
   options?: Array<{ value: string; label: string }>;
   validation?: Record<string, unknown>;
   props?: Record<string, unknown>;
@@ -273,3 +276,6 @@ export interface PageListResponse {
   data: PageItem[];
 }
 
+// Re-export field view types — types/field-views.ts barrel'ı
+// types.ts dosya olarak types/ dizinini gölgelediği için burada re-export gerekli
+export type { FormFieldProps, IndexFieldProps, DetailFieldProps } from './types/field-views';

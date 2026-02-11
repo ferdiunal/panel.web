@@ -9,14 +9,27 @@ import { useAppStore, useAuthStore } from "@/stores"
 export const loader = async () => {
     try {
         await useAppStore.getState().init()
+    } catch (error) {
+        console.error('App init failed:', error)
+    }
+
+    try {
         await useAuthStore.getState().checkSession()
     } catch {
         return redirect('/login');
     }
+
+    // Fetch settings page with error handling
     try {
         return await pageService.fetchPage("settings")
-    } catch (error) {
-        throw new Error("Ayarlar yüklenemedi")
+    } catch (error: any) {
+        const status = error.response?.status || 500
+        const message = error.response?.data?.message || error.message || 'Ayarlar yüklenemedi'
+
+        throw new Response(message, {
+            status,
+            statusText: error.response?.statusText
+        })
     }
 }
 

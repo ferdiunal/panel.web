@@ -190,7 +190,8 @@ export const MorphToField = React.forwardRef<HTMLDivElement, MorphToFieldProps>(
       }
     }, [resourceSlug, name, searchFn, normalizedTypes]);
 
-    // Fetch options when popover opens or search changes
+    // Popover açıldığında veya arama değiştiğinde options'ları çek
+    // fetchOptions zaten fetchingRef ve lastFetchRef ile duplicate koruması yapıyor
     useEffect(() => {
       if (!open || !selectedType) return;
 
@@ -199,7 +200,7 @@ export const MorphToField = React.forwardRef<HTMLDivElement, MorphToFieldProps>(
       }, 300);
 
       return () => clearTimeout(timer);
-    }, [searchQuery, selectedType, open]);
+    }, [searchQuery, selectedType, open, fetchOptions]);
 
     // Fetch initial options if selectedId exists (for edit mode)
     useEffect(() => {

@@ -55,7 +55,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
             return (
                 <Sheet open={open} onOpenChange={onOpenChange}>
                     {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-                    <SheetContent side={side}>
+                    <SheetContent side={side} className={className}>
                         <SheetHeader>
                             {title && <SheetTitle>{title}</SheetTitle>}
                             {description && <SheetDescription>{description}</SheetDescription>}

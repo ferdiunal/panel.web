@@ -1,16 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import type { FieldData } from "@/types";
+import type { DetailFieldProps } from "@/types";
 import { ExternalLink } from "lucide-react";
 import { RelationshipHoverCard } from "../RelationshipHoverCard";
-
-/**
- * HasOneDetailFieldProps - HasOne field için detail sayfası props
- */
-interface HasOneDetailFieldProps {
-    field: FieldData;
-    record: Record<string, any>;
-}
+import { FieldLayout } from "../FieldLayout";
 
 /**
  * HasOneDetailField - HasOne field için detail sayfası component'ı
@@ -53,7 +46,7 @@ interface HasOneDetailFieldProps {
  * />
  * ```
  */
-export function HasOneDetailField({ field, record }: HasOneDetailFieldProps) {
+export function HasOneDetailField({ field, record, onResourceClick }: DetailFieldProps) {
     const [displayLabel, setDisplayLabel] = useState<string>("");
     const [relatedData, setRelatedData] = useState<Record<string, any> | null>(null);
 
@@ -90,34 +83,49 @@ export function HasOneDetailField({ field, record }: HasOneDetailFieldProps) {
         setRelatedData(null);
     }, [relatedResource, displayKey, field.key, record]);
 
-    // İlişkili kayıt yoksa
-    if (!relatedData) {
-        return <span className="text-muted-foreground">-</span>;
-    }
-
-    const relatedId = relatedData.id?.data || relatedData.id;
-    const finalLabel = displayLabel || `#${relatedId}`;
+    const relatedId = relatedData?.id?.data || relatedData?.id;
+    const finalLabel = displayLabel || (relatedId ? `#${relatedId}` : '');
 
     // Link element'i oluştur
-    const linkElement = (
-        <Link
-            to={`/resources/${relatedResource}/${relatedId}`}
-            className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
-        >
-            {finalLabel}
-            <ExternalLink className="h-3.5 w-3.5" />
-        </Link>
+    const linkElement = relatedData ? (
+        onResourceClick ? (
+            <button
+                type="button"
+                onClick={() => onResourceClick(relatedResource, relatedId)}
+                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium bg-transparent border-0 p-0 cursor-pointer"
+            >
+                {finalLabel}
+                <ExternalLink className="h-3.5 w-3.5" />
+            </button>
+        ) : (
+            <Link
+                to={`/resource/${relatedResource}?detail_id=${relatedId}`}
+                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+            >
+                {finalLabel}
+                <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+        )
+    ) : (
+        <span className="text-muted-foreground">—</span>
     );
 
-    // Hover card devre dışıysa veya config yoksa sadece link'i render et
-    if (!hoverCardConfig || !hoverCardConfig.enabled) {
-        return linkElement;
-    }
-
-    // Hover card ile render et
-    return (
+    // Hover card ile wrap et (eğer aktifse ve veri varsa)
+    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData ? (
         <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
             {linkElement}
         </RelationshipHoverCard>
+    ) : (
+        linkElement
+    );
+
+    return (
+        <FieldLayout
+            name={field.key}
+            label={field.name || field.label}
+            helpText={field.help_text}
+        >
+            {content}
+        </FieldLayout>
     );
 }

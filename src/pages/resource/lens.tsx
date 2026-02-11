@@ -21,12 +21,14 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   const lens = params.lens;
 
   if (!resource || !lens) {
-    throw new Error('Resource or lens not found');
+    throw new Response('Resource or lens not found', { status: 404 });
   }
 
   try {
     await useAppStore.getState().init();
-  } catch {}
+  } catch (error) {
+    console.error('App init failed:', error);
+  }
 
   try {
     await useAuthStore.getState().checkSession();

@@ -37,7 +37,6 @@ export async function loader() {
 
 
 export default function LoginPage() {
-  console.log('Render Login Page');
   const navigate = useNavigate();
   const { login, setError } = useAuthStore();
   const { features } = useAppStore();
@@ -80,8 +79,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  console.log(features)
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import {
   Combobox,
@@ -11,8 +12,17 @@ import {
   ComboboxChipsInput,
   useComboboxAnchor,
 } from '@/components/ui/combobox';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
+import { QuickCreateModal } from './QuickCreateModal';
+
+/**
+ * Varsayılan boş options objesi.
+ * Component dışında sabit referans olarak tanımlanır —
+ * her render'da yeni {} oluşmasını ve sonsuz API döngüsünü engeller.
+ */
+const EMPTY_OPTIONS: Record<string, string> = {};
 
 // Define a minimal type for options to avoid Resource type errors if it's missing fields
 interface Option {
@@ -49,7 +59,7 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
       value = [],
       onChange,
       searchFn,
-      options: initialOptions = {},
+      options: initialOptions = EMPTY_OPTIONS,
       error,
       disabled = false,
       required = false,
@@ -62,6 +72,7 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
     const [searchQuery, setSearchQuery] = useState('');
     const [availableOptions, setAvailableOptions] = useState<Option[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const anchor = useComboboxAnchor();
 
     // Convert initialOptions (Record<string, string>) to Option[]
@@ -72,16 +83,54 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
       }));
     }, [initialOptions]);
 
-    // Initial load of options
+    // Load initial options on mount if initialOptions is empty
     useEffect(() => {
-      setAvailableOptions(preloadedResources);
-    }, [preloadedResources]);
+      if (Object.keys(initialOptions).length === 0) {
+        const loadInitialOptions = async () => {
+          setIsLoading(true);
+          try {
+            const results = await searchFn('');
+            const mappedResults: Option[] = results.map(r => ({
+              id: String(r.id),
+              name: r.name || String(r.id)
+            }));
+            setAvailableOptions(mappedResults);
+          } catch (err) {
+            console.error('Failed to load initial options:', err);
+            setAvailableOptions([]);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        loadInitialOptions();
+      } else {
+        setAvailableOptions(preloadedResources);
+      }
+    }, [initialOptions, searchFn, preloadedResources]);
 
     const handleSearch = useCallback(
       async (query: string) => {
         setSearchQuery(query);
         if (query.length === 0) {
-          setAvailableOptions(preloadedResources);
+          // Reload initial options when search is cleared
+          if (Object.keys(initialOptions).length === 0) {
+            setIsLoading(true);
+            try {
+              const results = await searchFn('');
+              const mappedResults: Option[] = results.map(r => ({
+                id: String(r.id),
+                name: r.name || String(r.id)
+              }));
+              setAvailableOptions(mappedResults);
+            } catch (err) {
+              console.error('Failed to reload options:', err);
+              setAvailableOptions(preloadedResources);
+            } finally {
+              setIsLoading(false);
+            }
+          } else {
+            setAvailableOptions(preloadedResources);
+          }
           return;
         }
 
@@ -93,7 +142,7 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
             id: String(r.id),
             name: r.name || String(r.id) // Fallback if name is missing
           }));
-          
+
           const combined = [...preloadedResources, ...mappedResults];
           const unique = Array.from(new Map(combined.map(item => [String(item.id), item])).values());
           setAvailableOptions(unique);
@@ -104,7 +153,7 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
           setIsLoading(false);
         }
       },
-      [searchFn, preloadedResources]
+      [searchFn, preloadedResources, initialOptions]
     );
 
     // Map current values to display names
@@ -120,8 +169,10 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
           {label}
           {required && <span className="text-destructive">*</span>}
         </Label>
-        
-        <Combobox
+
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Combobox
           multiple
           autoHighlight
           value={value}
@@ -164,6 +215,18 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
             )}
           </ComboboxContent>
         </Combobox>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => setQuickCreateOpen(true)}
+            disabled={disabled}
+            title="Hızlı oluştur"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
 
         {error && (
           <p id={`${name}-error`} className="text-sm text-destructive">
@@ -175,6 +238,27 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
             {helpText}
           </p>
         )}
+
+        {/* Quick Create Modal */}
+        <QuickCreateModal
+          resourceSlug={name}
+          open={quickCreateOpen}
+          onOpenChange={setQuickCreateOpen}
+          onSuccess={(createdResource) => {
+            // Yeni kaydı availableOptions'a ekle
+            const newOption: Option = {
+              id: String(createdResource.id?.data || createdResource.id),
+              name: createdResource.name?.data || createdResource.name || createdResource.title?.data || createdResource.title || `#${createdResource.id}`,
+            };
+            setAvailableOptions([...availableOptions, newOption]);
+
+            // Yeni kaydı value array'ine ekle
+            onChange([...value, String(newOption.id)]);
+
+            // Search query'yi temizle
+            setSearchQuery('');
+          }}
+        />
       </div>
     );
   }

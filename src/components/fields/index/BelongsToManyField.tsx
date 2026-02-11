@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { FieldData } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { FieldLayout } from "../FieldLayout";
 
 /**
  * BelongsToManyIndexFieldProps - BelongsToMany field için index sayfası props
@@ -59,16 +60,13 @@ export function BelongsToManyIndexField({ field, record }: BelongsToManyIndexFie
         }
     }
 
-    // İlişkili kayıt yoksa
-    if (count === 0) {
-        return <span className="text-muted-foreground text-sm">-</span>;
-    }
-
     // Ana kaydın ID'sini al
     const recordId = record.id?.data || record.id;
 
     // Link element'i oluştur
-    return (
+    const content = count === 0 ? (
+        <span className="text-muted-foreground text-sm">—</span>
+    ) : (
         <Link
             to={`/resources/${relatedResource}?filter[${field.key}]=${recordId}`}
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
@@ -79,5 +77,16 @@ export function BelongsToManyIndexField({ field, record }: BelongsToManyIndexFie
             </Badge>
             <span>{count === 1 ? 'kayıt' : 'kayıt'}</span>
         </Link>
+    );
+
+    return (
+        <FieldLayout
+            name={field.key}
+            label={field.name || field.label}
+            helpText={field.help_text}
+            hideLabel={true}
+        >
+            {content}
+        </FieldLayout>
     );
 }

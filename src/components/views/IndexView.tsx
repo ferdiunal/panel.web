@@ -270,7 +270,30 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
           cell: (info) => {
             const value = info.getValue();
             const resource = info.row.original;
-            return col.render ? col.render(value, resource) : String(value || '');
+
+            if (col.render) {
+              return col.render(value, resource);
+            }
+
+            // Handle object values (like select options)
+            if (value && typeof value === 'object') {
+              // If it's an array, join the labels
+              if (Array.isArray(value)) {
+                return value.map(v => v?.label || v?.name || String(v)).join(', ');
+              }
+              // If it's an object with label property, use that
+              if ('label' in value) {
+                return String(value.label);
+              }
+              // If it's an object with name property, use that
+              if ('name' in value) {
+                return String(value.name);
+              }
+              // Otherwise, stringify it
+              return JSON.stringify(value);
+            }
+
+            return String(value || '');
           },
           enableSorting: col.sortable ?? false,
           enableColumnFilter: col.filterable ?? false,

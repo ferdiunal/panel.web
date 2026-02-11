@@ -1,17 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from "@/lib/axios";
-import type { FieldData } from "@/types";
 import { Loader2, ExternalLink } from "lucide-react";
+import { FieldLayout } from "../FieldLayout";
+import type { DetailFieldProps } from "@/types"; // DetailFieldProps kullan
 import { RelationshipHoverCard } from "../RelationshipHoverCard";
-
-/**
- * BelongsToDetailFieldProps - BelongsTo field için detail sayfası props
- */
-interface BelongsToDetailFieldProps {
-    field: FieldData;
-    record: Record<string, any>;
-}
 
 /**
  * BelongsToDetailField - BelongsTo field için detail sayfası component'ı
@@ -55,7 +48,7 @@ interface BelongsToDetailFieldProps {
  * />
  * ```
  */
-export function BelongsToDetailField({ field, record }: BelongsToDetailFieldProps) {
+export function BelongsToDetailField({ field, record, onResourceClick }: DetailFieldProps) {
     const [displayLabel, setDisplayLabel] = useState<string>("");
     const [relatedData, setRelatedData] = useState<Record<string, any> | null>(null);
     const [loading, setLoading] = useState(false);
@@ -72,7 +65,7 @@ export function BelongsToDetailField({ field, record }: BelongsToDetailFieldProp
     // Hover card config'ini al
     const hoverCardConfig = field.props?.hover_card as any;
 
-    // İlişkili kayıt verilerini fetch et
+    // İlişkili kayıt verilerini fetch et veya options'dan al
     useEffect(() => {
         if (!relatedId || !relatedResource) {
             setDisplayLabel("");
@@ -80,7 +73,30 @@ export function BelongsToDetailField({ field, record }: BelongsToDetailFieldProp
             return;
         }
 
-        // Eğer record'da ilişkili veri zaten varsa (eager loading), onu kullan
+        // 1. Önce props.options kontrol et (En hızlı yöntem)
+        // Backend bazen options içinde { "16": "Test Şirket" } gibi veriyi gönderiyor
+        if (field.props?.options) {
+            const options = field.props.options as Record<string, string> | Array<{label: string, value: any}>;
+            
+            // Array format: [{label: 'Test', value: 16}]
+            if (Array.isArray(options)) {
+                const option = options.find(opt => String(opt.value) === String(relatedId));
+                if (option) {
+                    setDisplayLabel(option.label);
+                    return;
+                }
+            } 
+            // Object format: { "16": "Test" }
+            else {
+                const label = options[String(relatedId)];
+                if (label) {
+                    setDisplayLabel(label);
+                    return;
+                }
+            }
+        }
+
+        // 2. Eğer record'da ilişkili veri zaten varsa (eager loading), onu kullan
         const nestedData = record[field.key.replace('_id', '')];
         if (nestedData && typeof nestedData === 'object') {
             const label = nestedData[displayKey]?.data || nestedData[displayKey] || `#${relatedId}`;
@@ -89,7 +105,7 @@ export function BelongsToDetailField({ field, record }: BelongsToDetailFieldProp
             return;
         }
 
-        // API'den fetch et
+        // 3. Hiçbiri yoksa API'den fetch et
         const fetchRelatedData = async () => {
             setLoading(true);
             try {
@@ -112,45 +128,57 @@ export function BelongsToDetailField({ field, record }: BelongsToDetailFieldProp
         };
 
         fetchRelatedData();
-    }, [relatedId, relatedResource, displayKey, field.key, record]);
+    }, [relatedId, relatedResource, displayKey, field.key, record, field.props?.options]);
 
-    // İlişkili kayıt yoksa
-    if (!relatedId) {
-        return <span className="text-muted-foreground">-</span>;
-    }
-
-    const finalLabel = displayLabel || `#${relatedId}`;
-
-    // Loading state
-    if (loading) {
-        return (
-            <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <span className="text-muted-foreground">Yükleniyor...</span>
-            </div>
-        );
-    }
+    const finalLabel = displayLabel || (relatedId ? `#${relatedId}` : '');
 
     // Link element'i oluştur
-    const linkElement = (
-        <Link
-            to={`/resources/${relatedResource}/${relatedId}`}
-            className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
-        >
-            {finalLabel}
-            <ExternalLink className="h-3.5 w-3.5" />
-        </Link>
+    // Detay sayfası olmadığı için listeleme sayfasına yönlendirip query param ile modalı açıyoruz
+    // Veya onResourceClick varsa onu kullanıyoruz (modal içinde modal açmak yerine content değiştirme)
+    const linkElement = loading ? (
+        <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-muted-foreground">Yükleniyor...</span>
+        </div>
+    ) : relatedId ? (
+        onResourceClick ? (
+            <button
+                type="button"
+                onClick={() => onResourceClick(relatedResource, relatedId)}
+                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium bg-transparent border-0 p-0 cursor-pointer"
+            >
+                {finalLabel}
+                <ExternalLink className="h-3.5 w-3.5" />
+            </button>
+        ) : (
+            <Link
+                to={`/resource/${relatedResource}?detail_id=${relatedId}`}
+                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+            >
+                {finalLabel}
+                <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+        )
+    ) : (
+        <span className="text-muted-foreground">—</span>
     );
 
-    // Hover card devre dışıysa veya config yoksa sadece link'i render et
-    if (!hoverCardConfig || !hoverCardConfig.enabled || !relatedData) {
-        return linkElement;
-    }
-
-    // Hover card ile render et
-    return (
+    // Hover card ile wrap et (eğer aktifse ve veri varsa)
+    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData && !loading ? (
         <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
             {linkElement}
         </RelationshipHoverCard>
+    ) : (
+        linkElement
+    );
+
+    return (
+        <FieldLayout
+            name={field.key}
+            label={field.name || field.label}
+            helpText={field.help_text}
+        >
+            {content}
+        </FieldLayout>
     );
 }

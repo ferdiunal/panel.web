@@ -1,10 +1,35 @@
 /**
- * Custom hooks for resource mutations (create, update, delete)
+ * Resource Mutation Hook'ları
+ *
+ * React Query ile resource oluşturma, güncelleme ve silme işlemleri için kullanılır.
+ * Merkezi `api` (axios) instance'ını kullanır — `apiClient` KULLANILMAMALI.
+ *
+ * ## Kullanım
+ *
+ * ### Oluşturma:
+ * ```tsx
+ * const createMutation = useCreateResourceMutation('users', {
+ *   onSuccess: (data) => console.log('Oluşturuldu:', data),
+ * });
+ * createMutation.mutate({ name: 'John', email: 'john@test.com' });
+ * ```
+ *
+ * ### Güncelleme:
+ * ```tsx
+ * const updateMutation = useUpdateResourceMutation('users', '123');
+ * updateMutation.mutate({ name: 'Jane' });
+ * ```
+ *
+ * ### Silme:
+ * ```tsx
+ * const deleteMutation = useDeleteResourceMutation('users');
+ * deleteMutation.mutate('123');
+ * ```
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseMutationResult } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import api from '@/lib/axios';
 import type { AnyResource, FormData } from '@/types';
 import { toast } from 'sonner';
 
@@ -25,7 +50,7 @@ interface MutationOptions {
 }
 
 /**
- * Show notifications from API response
+ * API yanıtındaki bildirimleri toast olarak gösterir
  */
 function showNotifications(notifications?: Notification[]) {
   if (!notifications || notifications.length === 0) return;
@@ -56,14 +81,11 @@ export function useCreateResourceMutation(
 
   return useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await apiClient.post<ApiResponse<AnyResource>>(`/${resourceType}`, data);
-      return response;
+      const response = await api.post<ApiResponse<AnyResource>>(`/${resourceType}`, data);
+      return response.data;
     },
     onSuccess: (response) => {
-      // Show notifications from API response
       showNotifications(response.notifications);
-
-      // Invalidate the resource list query
       queryClient.invalidateQueries({ queryKey: [resourceType] });
       options.onSuccess?.(response.data);
     },
@@ -82,14 +104,11 @@ export function useUpdateResourceMutation(
 
   return useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await apiClient.put<ApiResponse<AnyResource>>(`/${resourceType}/${resourceId}`, data);
-      return response;
+      const response = await api.put<ApiResponse<AnyResource>>(`/${resourceType}/${resourceId}`, data);
+      return response.data;
     },
     onSuccess: (response) => {
-      // Show notifications from API response
       showNotifications(response.notifications);
-
-      // Invalidate both the resource list and single resource queries
       queryClient.invalidateQueries({ queryKey: [resourceType] });
       queryClient.invalidateQueries({ queryKey: [resourceType, resourceId] });
       options.onSuccess?.(response.data);
@@ -108,14 +127,11 @@ export function useDeleteResourceMutation(
 
   return useMutation({
     mutationFn: async (resourceId: string) => {
-      const response = await apiClient.delete<ApiResponse<void>>(`/${resourceType}/${resourceId}`);
-      return response;
+      const response = await api.delete<ApiResponse<void>>(`/${resourceType}/${resourceId}`);
+      return response.data;
     },
     onSuccess: (response) => {
-      // Show notifications from API response
       showNotifications(response.notifications);
-
-      // Invalidate the resource list query
       queryClient.invalidateQueries({ queryKey: [resourceType] });
       options.onSuccess?.({} as AnyResource);
     },

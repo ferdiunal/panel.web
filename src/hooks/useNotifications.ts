@@ -1,6 +1,27 @@
+/**
+ * Notifications Hook
+ *
+ * Kullanıcı bildirimlerini çekmek ve yönetmek için hook.
+ * Oturum açık olduğunda bildirimleri çeker ve 30 saniyede bir günceller.
+ *
+ * ## Kullanım
+ *
+ * ```tsx
+ * const { notifications, unreadCount, loading, refetch } = useNotifications();
+ *
+ * // Okunmamış bildirim sayısı
+ * <Badge>{unreadCount}</Badge>
+ *
+ * // Bildirimleri listele
+ * {notifications.map(n => <NotificationItem key={n.id} notification={n} />)}
+ *
+ * // Manuel yenile
+ * <Button onClick={refetch}>Yenile</Button>
+ * ```
+ */
 import { useEffect, useState } from 'react'
-import { useAuth } from './useAuth'
-import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
+import api from '@/lib/axios'
 
 interface Notification {
   id: string
@@ -13,14 +34,14 @@ interface Notification {
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuthStore()
 
   const fetchNotifications = async () => {
     if (!isAuthenticated) return
 
     try {
       setLoading(true)
-      const response = await axios.get('/api/notifications')
+      const response = await api.get('/notifications')
       setNotifications(response.data.data || [])
     } catch (error) {
       console.error('Failed to fetch notifications:', error)
@@ -32,10 +53,10 @@ export function useNotifications() {
   useEffect(() => {
     if (!isAuthenticated) return
 
-    // Initial fetch
+    // İlk yükleme
     fetchNotifications()
 
-    // Poll every 30 seconds
+    // 30 saniyede bir güncelle
     const interval = setInterval(fetchNotifications, 30000)
 
     return () => clearInterval(interval)

@@ -9,6 +9,36 @@ import api from './axios';
 import type { Resource } from '@/types';
 
 /**
+ * Backend'den gelen field değerini normalize eder
+ * FieldData objesi ise .data property'sini extract eder
+ */
+function extractFieldValue(field: any): any {
+  if (!field) return field;
+  // Eğer field bir obje ve data property'si varsa, data'yı döndür
+  if (typeof field === 'object' && 'data' in field) {
+    return field.data;
+  }
+  return field;
+}
+
+/**
+ * Backend'den gelen resource item'ı normalize eder
+ * Her field'ın .data property'sini extract eder
+ */
+function normalizeResourceItem(item: any): Resource {
+  const normalized: any = {};
+  
+  // Her field'ı normalize et
+  for (const key in item) {
+    if (Object.prototype.hasOwnProperty.call(item, key)) {
+      normalized[key] = extractFieldValue(item[key]);
+    }
+  }
+  
+  return normalized as Resource;
+}
+
+/**
  * Relationship field'da arama yap
  *
  * Mevcut resource index API'sini kullanır: GET /api/resources/{resource}
@@ -28,24 +58,26 @@ export async function searchRelationship(
   resourceType: string,
   query: string
 ): Promise<Resource[]> {
-  if (!query || query.trim().length === 0) {
-    return [];
-  }
-
   try {
     // Mevcut resource index API'sini kullan
-    // URL formatı: /api/resources/{resource}?{resource}[search]={query}
-    const response = await api.get<{ data: Resource[] }>(
-      `/resources/${resourceType}`,
-      {
-        params: {
-          [`${resourceType}[search]`]: query,
-          [`${resourceType}[per_page]`]: 20, // Sonuçları sınırla
-        },
-      }
+    // URL formatı: /api/resource/{resource}?{resource}[search]={query}
+    const params: Record<string, any> = {
+      [`${resourceType}[per_page]`]: 20, // Sonuçları sınırla
+    };
+
+    // Query boş değilse, search parametresi ekle
+    if (query && query.trim().length > 0) {
+      params[`${resourceType}[search]`] = query;
+    }
+
+    const response = await api.get<{ data: any[] }>(
+      `/resource/${resourceType}`,
+      { params }
     );
 
-    return response.data?.data || [];
+    // Backend response'unu normalize et - her field'ın .data property'sini extract et
+    const rawData = response.data?.data || [];
+    return rawData.map(normalizeResourceItem);
   } catch (error) {
     console.error(`Relationship search failed for ${resourceType}:`, error);
     return [];
@@ -70,8 +102,8 @@ export async function searchMorphToRelationship(
   }
 
   try {
-    const response = await api.get<{ data: Resource[]  }>(
-      `/resources/${resourceType}`,
+    const response = await api.get<{ data: any[] }>(
+      `/resource/${resourceType}`,
       {
         params: {
           [`${resourceType}[search]`]: query,
@@ -81,7 +113,9 @@ export async function searchMorphToRelationship(
       }
     );
 
-    return response.data?.data || [];
+    // Backend response'unu normalize et - her field'ın .data property'sini extract et
+    const rawData = response.data?.data || [];
+    return rawData.map(normalizeResourceItem);
   } catch (error) {
     console.error(`MorphTo search failed for ${resourceType}:`, error);
     return [];

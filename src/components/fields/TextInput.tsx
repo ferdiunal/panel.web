@@ -1,16 +1,24 @@
+/**
+ * TextInput - Mikro Frontend Pattern
+ *
+ * FieldLayout kullanarak standart text input implementasyonu
+ * Mask ve tooltip desteği ile
+ */
+
 import React from 'react';
 import InputMask from 'react-input-mask';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FieldLayout } from './FieldLayout';
 
 export interface TextInputProps {
   name: string;
-  label: string;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -52,12 +60,13 @@ export interface TextInputProps {
 /**
  * TextInput Component
  *
- * Shadcn/ui Input bileşeni ile oluşturulmuş temel metin giriş alanı.
- * Opsiyonel olarak input maskesi desteği sağlar.
+ * Mikro frontend pattern'ine uygun text input component'i
+ * FieldLayout kullanarak tutarlı layout sağlar
  *
  * Özellikler:
- * - Label ve zorunlu alan göstergesi
+ * - FieldLayout kullanır (tutarlı layout)
  * - Input maskesi desteği (telefon, TC kimlik, tarih, kredi kartı vb.)
+ * - Tooltip desteği
  * - Hata mesajı gösterimi
  * - Yardım metni desteği
  * - Erişilebilirlik özellikleri (aria-invalid, aria-describedby)
@@ -92,21 +101,7 @@ export interface TextInputProps {
  *   mask="99999999999"
  *   required
  * />
- *
- * // Tarih maskeli giriş
- * <TextInput
- *   name="birthDate"
- *   label="Doğum Tarihi"
- *   value={birthDate}
- *   onChange={setBirthDate}
- *   mask="99/99/9999"
- *   placeholder="GG/AA/YYYY"
- *   maskChar="_"
- *   alwaysShowMask
- * />
  * ```
- *
- * Validates: Requirements 4.1
  */
 export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
   (
@@ -115,6 +110,7 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
       label,
       value,
       onChange,
+      onBlur,
       error,
       disabled = false,
       required = false,
@@ -133,7 +129,7 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
       id: name,
       name: name,
       type: 'text' as const,
-      value: value,
+      value: value || '',
       disabled: disabled,
       placeholder: placeholder,
       'aria-invalid': !!error,
@@ -143,33 +139,55 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
       ),
     };
 
+    // Tooltip varsa label'a ekle
+    const labelContent = label && (
+      <div className="flex items-center gap-2">
+        <span>{label}</span>
+        {tooltip && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">{tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+    );
+
     return (
-      <div className={cn('flex flex-col gap-2', className)}>
-        <div className="flex items-center gap-2">
-          <Label htmlFor={name} className="text-sm font-medium">
-            {label}
-            {required && <span className="text-destructive">*</span>}
-          </Label>
-          {tooltip && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">{tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
+      <FieldLayout
+        name={name}
+        label={labelContent ? undefined : label}
+        error={error}
+        required={required}
+        helpText={helpText}
+        disabled={disabled}
+        className={className}
+        hideLabel={!!labelContent}
+      >
+        {/* Tooltip varsa custom label göster */}
+        {labelContent && (
+          <div className="mb-2">
+            {labelContent}
+            {required && (
+              <span className="ml-1 text-destructive" aria-label="required">
+                *
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Mask varsa InputMask kullan, yoksa normal Input kullan */}
         {mask ? (
           <InputMask
             mask={mask}
-            value={value}
+            value={value || ''}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+            onBlur={onBlur}
             maskChar={maskChar}
             alwaysShowMask={alwaysShowMask}
             disabled={disabled}
@@ -187,20 +205,10 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
             ref={ref}
             {...inputProps}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+            onBlur={onBlur}
           />
         )}
-
-        {error && (
-          <p id={`${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        {helpText && !error && (
-          <p id={`${name}-help`} className="text-sm text-muted-foreground">
-            {helpText}
-          </p>
-        )}
-      </div>
+      </FieldLayout>
     );
   }
 );

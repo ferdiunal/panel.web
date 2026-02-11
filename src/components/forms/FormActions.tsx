@@ -15,6 +15,8 @@ export interface FormActionsProps {
   isSubmitting: boolean;
   isResolving?: boolean;
   mode: 'create' | 'edit';
+  onSubmit?: () => Promise<void>;
+  onCreateAndContinue?: () => Promise<void>;
   onCancel?: () => void;
   submitLabel?: string;
   cancelLabel?: string;
@@ -28,6 +30,8 @@ export const FormActions: React.FC<FormActionsProps> = ({
   isSubmitting,
   isResolving = false,
   mode,
+  onSubmit,
+  onCreateAndContinue,
   onCancel,
   submitLabel,
   cancelLabel = 'Cancel',
@@ -66,8 +70,19 @@ export const FormActions: React.FC<FormActionsProps> = ({
           {cancelLabel}
         </Button>
       )}
+      {mode === 'create' && onCreateAndContinue && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCreateAndContinue}
+          disabled={isSubmitting || isResolving}
+        >
+          {isSubmitting ? 'Submitting...' : 'Create & Continue'}
+        </Button>
+      )}
       <Button
-        type="submit"
+        type="button"
+        onClick={onSubmit}
         disabled={isSubmitting || isResolving}
       >
         {isSubmitting ? 'Submitting...' : finalSubmitLabel}

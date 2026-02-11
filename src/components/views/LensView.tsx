@@ -2,7 +2,7 @@
  * LensView Component
  *
  * Lens verilerini görüntüleyen ana component.
- * Laravel Nova'nın Lens.vue component'inden esinlenilmiştir.
+ * Resource verilerini özel filtreler ve görünümlerle sunar.
  *
  * Özellikler:
  * - Cards görüntüleme
@@ -102,7 +102,7 @@ export function LensView({
       const key = header.key;
       return {
         key,
-        label: header.name || header.label || key,
+        label: header.label || header.name || key,
         sortable: header.sortable,
         render: (_: any, resource: ResourceItem) => {
           const field: FieldData = resource[key] as FieldData;

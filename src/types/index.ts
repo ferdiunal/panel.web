@@ -8,4 +8,5 @@ export * from './schemas';
 export * from './dependencies';
 export * from './form';
 export * from './dialog';
+export * from './field-views';
 

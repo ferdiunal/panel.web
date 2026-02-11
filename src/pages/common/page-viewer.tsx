@@ -17,15 +17,18 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
         page = "dashboard"
     }
 
+    // Önce uygulama ayarlarını yükle (init kendi catch'inde hata yutar)
+    await useAppStore.getState().init()
+
+    // Oturum kontrolü — başarısızsa /login'e yönlendir
     try {
         await useAuthStore.getState().checkSession()
     } catch {
         return redirect('/login');
     }
 
+    // Fetch page data with error handling
     try {
-        // @ts-ignore
-        await useAppStore.getState().init()
         const res = await pageService.fetchPage(page)
         return {
             slug: page,
@@ -33,8 +36,14 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
             description: res.description,
             cards: res.meta?.cards || []
         }
-    } catch (error) {
-        throw new Error("Sayfa yüklenirken hata oluştu.")
+    } catch (error: any) {
+        const status = error.response?.status || 500
+        const message = error.response?.data?.message || error.message || 'Sayfa yüklenirken hata oluştu'
+
+        throw new Response(message, {
+            status,
+            statusText: error.response?.statusText
+        })
     }
 }
 

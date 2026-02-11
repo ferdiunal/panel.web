@@ -1,3 +1,10 @@
+/**
+ * SelectField - Mikro Frontend Pattern
+ *
+ * FieldLayout kullanarak standart select field implementasyonu
+ * shadcn/ui Select component ile
+ */
+
 import React from 'react';
 import {
   Select,
@@ -6,8 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { FieldLayout } from './FieldLayout';
 
 export interface SelectOption {
   value: string;
@@ -16,9 +23,10 @@ export interface SelectOption {
 
 export interface SelectFieldProps {
   name: string;
-  label: string;
-  value: string;
+  label?: string;
+  value: string | null | undefined;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -30,13 +38,55 @@ export interface SelectFieldProps {
 
 /**
  * SelectField Component
- * 
- * A dropdown select field component built with shadcn/ui Select.
- * Displays a label with optional required indicator, select dropdown with options,
- * error message below field if error exists, and optional help text.
- * Supports rendering options as dropdown items.
- * 
- * Validates: Requirements 4.7
+ *
+ * Mikro frontend pattern'ine uygun select field component'i
+ * FieldLayout kullanarak tutarlı layout sağlar
+ *
+ * Özellikler:
+ * - FieldLayout kullanır (tutarlı layout)
+ * - shadcn/ui Select component
+ * - Dropdown seçim listesi
+ * - Hata mesajı gösterimi
+ * - Yardım metni desteği
+ * - Erişilebilirlik özellikleri (aria-invalid, aria-describedby)
+ *
+ * Kullanım Örnekleri:
+ *
+ * ```tsx
+ * // Basit select field
+ * <SelectField
+ *   name="status"
+ *   label="Durum"
+ *   value={status}
+ *   onChange={setStatus}
+ *   options={[
+ *     { value: 'active', label: 'Aktif' },
+ *     { value: 'inactive', label: 'Pasif' }
+ *   ]}
+ * />
+ *
+ * // Zorunlu alan
+ * <SelectField
+ *   name="category"
+ *   label="Kategori"
+ *   value={category}
+ *   onChange={setCategory}
+ *   options={categories}
+ *   required
+ *   error={errors.category}
+ * />
+ *
+ * // Placeholder ile
+ * <SelectField
+ *   name="country"
+ *   label="Ülke"
+ *   value={country}
+ *   onChange={setCountry}
+ *   options={countries}
+ *   placeholder="Ülke seçin"
+ *   helpText="Yaşadığınız ülkeyi seçin"
+ * />
+ * ```
  */
 export const SelectField = React.forwardRef<HTMLButtonElement, SelectFieldProps>(
   (
@@ -45,6 +95,7 @@ export const SelectField = React.forwardRef<HTMLButtonElement, SelectFieldProps>
       label,
       value,
       onChange,
+      onBlur,
       error,
       disabled = false,
       required = false,
@@ -56,15 +107,20 @@ export const SelectField = React.forwardRef<HTMLButtonElement, SelectFieldProps>
     ref
   ) => {
     return (
-      <div className={cn('flex flex-col gap-2', className)}>
-        <Label htmlFor={name} className="text-sm font-medium">
-          {label}
-          {required && <span className="text-destructive">*</span>}
-        </Label>
-        <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <FieldLayout
+        name={name}
+        label={label}
+        error={error}
+        required={required}
+        helpText={helpText}
+        disabled={disabled}
+        className={className}
+      >
+        <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
           <SelectTrigger
             ref={ref}
             id={name}
+            onBlur={onBlur}
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
             className={cn(
@@ -81,17 +137,7 @@ export const SelectField = React.forwardRef<HTMLButtonElement, SelectFieldProps>
             ))}
           </SelectContent>
         </Select>
-        {error && (
-          <p id={`${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        {helpText && !error && (
-          <p id={`${name}-help`} className="text-sm text-muted-foreground">
-            {helpText}
-          </p>
-        )}
-      </div>
+      </FieldLayout>
     );
   }
 );

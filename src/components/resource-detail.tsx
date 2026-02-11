@@ -1,206 +1,182 @@
 import type { FieldData } from "@/types"
-import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useNavigate } from "react-router-dom"
-import { IndexView, type IndexViewColumn } from "@/components/views/IndexView"
-import {
-    Empty,
-    EmptyDescription,
-    EmptyHeader,
-    EmptyMedia,
-    EmptyTitle,
-} from "@/components/ui/empty"
-import { Database } from "lucide-react"
+
+// Detail Field Components
+import { TextDetailField } from "@/components/fields/detail/TextInput"
+import { SelectDetailField } from "@/components/fields/detail/SelectField"
+import { TextareaDetailField } from "@/components/fields/detail/TextareaField"
+import { DateDetailField } from "@/components/fields/detail/DateField"
+import { DateTimeDetailField } from "@/components/fields/detail/DateTimeField"
+import { BooleanGroupDetailField } from "@/components/fields/detail/BooleanGroupField"
+import { EmailDetailField } from "@/components/fields/detail/EmailInput"
+import { NumberDetailField } from "@/components/fields/detail/NumberInput"
+import { PasswordDetailField } from "@/components/fields/detail/PasswordInput"
+import { TelDetailField } from "@/components/fields/detail/TelInput"
+import { URLDetailField } from "@/components/fields/detail/URLInput"
+import { BadgeDetailField } from "@/components/fields/detail/BadgeField"
+import { ColorDetailField } from "@/components/fields/detail/ColorField"
+import { CodeDetailField } from "@/components/fields/detail/CodeField"
+import { RichTextDetailField } from "@/components/fields/detail/RichTextField"
+import { SwitchDetailField } from "@/components/fields/detail/SwitchField"
+import { CheckboxDetailField } from "@/components/fields/detail/CheckboxField"
+import { RadioGroupDetailField } from "@/components/fields/detail/RadioGroupField"
+import { ComboboxDetailField } from "@/components/fields/detail/ComboboxField"
+import { AsyncComboboxDetailField } from "@/components/fields/detail/AsyncComboboxField"
+import { TimeDetailField } from "@/components/fields/detail/TimeField"
+
+// Relationship Detail Fields
+import { BelongsToDetailField } from "@/components/fields/detail/BelongsToField"
+import { HasManyDetailField } from "@/components/fields/detail/HasManyField"
+import { BelongsToManyDetailField } from "@/components/fields/detail/BelongsToManyField"
+import { MorphToManyDetailField } from "@/components/fields/detail/MorphToManyField"
+import { HasOneDetailField } from "@/components/fields/detail/HasOneField"
+import { MorphToDetailField } from "@/components/fields/detail/MorphToField"
 
 interface ResourceDetailProps {
+    resourceName: string
+    resourceId: string | number
     fields: FieldData[]
     onClose: () => void
+    onResourceClick?: (resource: string, id: string | number) => void
 }
 
-export function ResourceDetail({ fields, onClose }: ResourceDetailProps) {
-    const navigate = useNavigate()
-
+export function ResourceDetail({ resourceName, resourceId, fields, onClose, onResourceClick }: ResourceDetailProps) {
     // Check if there are any relationship table fields
     const hasRelationshipTables = fields.some(field =>
         (field.view === "has-many-field" ||
          field.view === "belongs-to-many-field" ||
-         field.view === "morph-to-many-field") &&
-        Array.isArray(field.data) &&
-        field.data.length > 0
+         field.view === "morph-to-many-field")
     )
 
-    const renderValue = (field: FieldData) => {
-        if (!field.data && field.data !== 0) {
-            return <span className="text-muted-foreground italic">-</span>
+    const renderDetailField = (field: FieldData) => {
+        // Common props for all detail fields
+        const props = {
+            field,
+            record: { [field.key]: field.data, id: resourceId }, 
+            resourceName,
+            onResourceClick
         }
 
-        // Handle relationship tables (HasMany, BelongsToMany, MorphToMany)
-        if ((field.view === "has-many-field" ||
-             field.view === "belongs-to-many-field" ||
-             field.view === "morph-to-many-field") &&
-            Array.isArray(field.data)) {
-
-            // Boş relationship durumu için Empty component göster
-            if (field.data.length === 0) {
-                return (
-                    <Empty className="border">
-                        <EmptyHeader>
-                            <EmptyMedia variant="icon">
-                                <Database className="h-6 w-6" />
-                            </EmptyMedia>
-                            <EmptyTitle>İlişkili Kayıt Yok</EmptyTitle>
-                            <EmptyDescription>
-                                Bu kayıtla ilişkilendirilmiş başka kayıt bulunmuyor.
-                            </EmptyDescription>
-                        </EmptyHeader>
-                    </Empty>
-                )
-            }
-
-            const relatedResource = field.props?.related_resource as string
-            const data = field.data as any[]
-
-            // Get all unique keys from the data
-            const allKeys = new Set<string>()
-            data.forEach(item => {
-                if (typeof item === 'object' && item !== null) {
-                    Object.keys(item).forEach(key => {
-                        // Skip internal keys
-                        if (!key.startsWith('_') && key !== 'pivot') {
-                            allKeys.add(key)
-                        }
-                    })
+        // Field view mapping
+        switch (field.view) {
+            case 'text-field':
+            case 'id-field':
+            case 'id-field-index':
+                return <TextDetailField {...props} />
+            case 'textarea-field':
+                return <TextareaDetailField {...props} />
+            case 'email-field':
+                return <EmailDetailField {...props} />
+            case 'select-field':
+                return <SelectDetailField {...props} />
+            case 'date-field':
+                return <DateDetailField {...props} />
+            case 'datetime-field':
+                return <DateTimeDetailField {...props} />
+            case 'boolean-field':
+                // Boolean field için Switch veya Checkbox kullanılabilir
+                return <SwitchDetailField {...props} />
+            case 'boolean-group-field':
+                return <BooleanGroupDetailField {...props} />
+            case 'number-field':
+                return <NumberDetailField {...props} />
+            case 'password-field':
+                return <PasswordDetailField {...props} />
+            case 'tel-field':
+                return <TelDetailField {...props} />
+            case 'url-field':
+                return <URLDetailField {...props} />
+            case 'badge-field':
+                return <BadgeDetailField {...props} />
+            case 'color-field':
+                return <ColorDetailField {...props} />
+            case 'code-field':
+                return <CodeDetailField {...props} />
+            case 'rich-text-field':
+            case 'markdown-field':
+            case 'trix-field':
+                return <RichTextDetailField {...props} />
+            case 'checkbox-field':
+                return <CheckboxDetailField {...props} />
+            case 'radio-group-field':
+                return <RadioGroupDetailField {...props} />
+            case 'combobox-field':
+                return <ComboboxDetailField {...props} />
+            case 'async-combobox-field':
+                return <AsyncComboboxDetailField {...props} />
+            case 'time-field':
+                return <TimeDetailField {...props} />
+            
+            // Relationships
+            case 'belongs-to-field':
+                return <BelongsToDetailField {...props} />
+            case 'has-one-field':
+                return <HasOneDetailField {...props} />
+            case 'morph-to-field':
+                return <MorphToDetailField {...props} />
+            
+            // Relationship Tables (Managed separately below, but handled here just in case)
+            case 'has-many-field':
+                return <HasManyDetailField {...props} />
+            case 'belongs-to-many-field':
+                return <BelongsToManyDetailField {...props} />
+            case 'morph-to-many-field':
+                return <MorphToManyDetailField {...props} />
+            case 'relationship':
+                // Generic relationship type fallback
+                if (field.props?.related_resource) {
+                    // Try to guess the type or use a default
+                    return <BelongsToDetailField {...props} />
                 }
-            })
-
-            const keys = Array.from(allKeys)
-
-            // Create columns for IndexView
-            const columns: IndexViewColumn[] = keys.map(key => ({
-                key,
-                label: key.replace(/_/g, ' '),
-                sortable: false,
-                render: (value: any) => formatCellValue(value)
-            }))
-
-            // Handle view action
-            const handleView = relatedResource ? (resource: any) => {
-                const itemId = resource.id || resource.ID
-                if (itemId) {
-                    navigate(`/resource/${relatedResource}?id=${itemId}`)
-                }
-            } : undefined
-
-            return (
-                <IndexView
-                    resources={data}
-                    columns={columns}
-                    onView={handleView}
-                    className="border-0"
-                />
-            )
+                return <TextDetailField {...props} />
+                
+            default:
+                // Fallback to text field for unknown types
+                return <TextDetailField {...props} />
         }
-
-        // Handle objects (like relations)
-        if (typeof field.data === 'object' && field.data !== null) {
-            const data = field.data as any
-
-            // Handle Arrays (for non-relationship fields)
-            if (Array.isArray(data)) {
-                if (data.length === 0) return <span className="text-muted-foreground italic">-</span>
-
-                return (
-                    <div className="flex flex-wrap gap-1">
-                        {data.map((item: any, i: number) => {
-                            const label = typeof item === 'object'
-                                ? (item.name || item.title || item.label || item.username || item.email || item.id)
-                                : item
-
-                            return (
-                                <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                                    {String(label)}
-                                </span>
-                            )
-                        })}
-                    </div>
-                )
-            }
-
-            // Check for empty/zero object (id 0)
-            if (data.id === 0 || data.ID === 0) {
-                return <span className="text-muted-foreground italic">-</span>
-            }
-
-            // Try to find a displayable string
-            const display = data.name || data.email || data.title || data.username || data.id || JSON.stringify(data)
-            return <span className="break-all">{display}</span>
-        }
-
-        // Handle options (BelongsTo/HasOne with primitive value ID)
-        if (field.props?.options) {
-            const options = field.props.options as Record<string, string>
-            const valStr = String(field.data)
-            if (options[valStr]) {
-                return <span className="break-all">{options[valStr]}</span>
-            }
-        }
-
-        if (field.view === "image-field") {
-            return (
-                <div className="flex items-center gap-2 mx-auto">
-                    <Avatar className="h-16 w-16">
-                        <AvatarImage src={field.data} alt={field.name} />
-                        <AvatarFallback>IMG</AvatarFallback>
-                    </Avatar>
-                </div>
-            )
-        }
-
-        if (field.type === "boolean" || field.view === "boolean-field") {
-            return field.data ? "Evet" : "Hayır"
-        }
-
-        if (field.view === "file-field") {
-            return (
-                <a href={field.data} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                    {String(field.data)}
-                </a>
-            )
-        }
-
-        // Default text
-        return <span className="break-all">{String(field.data)}</span>
     }
 
     return (
         <div className={cn("space-y-4 pt-4", hasRelationshipTables && "max-w-full")}>
-            {fields.map((field) => {
-                if (field.type === "hidden") return null
-
-                // Check if this is a relationship table field
-                const isRelationshipTable =
-                    (field.view === "has-many-field" ||
-                     field.view === "belongs-to-many-field" ||
-                     field.view === "morph-to-many-field") &&
-                    Array.isArray(field.data) &&
-                    field.data.length > 0
-
-                return (
-                    <div key={field.key} className={cn("space-y-1", isRelationshipTable && "col-span-full")}>
-                        <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-                            {field.name || field.label}
-                        </Label>
-                        <div className={cn(
-                            isRelationshipTable ? "" : "rounded-md p-3",
-                            field.view === "image-field" ? "flex justify-center" : !isRelationshipTable && "text-sm border shadow-sm bg-background"
-                        )}>
-                            {renderValue(field)}
+            {/* Önce normal field'ları render et - max-w-sm ile sınırla */}
+            <div className="max-w-sm space-y-4">
+                {fields
+                    .filter(field => {
+                        if (field.type === "hidden") return false;
+                        // Relationship field'ları filtrele (bunlar aşağıda geniş render edilecek)
+                        const isRelationshipTable =
+                            (field.view === "has-many-field" ||
+                             field.view === "belongs-to-many-field" ||
+                             field.view === "morph-to-many-field");
+                        return !isRelationshipTable;
+                    })
+                    .map((field) => (
+                        <div key={field.key} className="">
+                            {/* Detail component'leri zaten label render ediyor */}
+                            {renderDetailField(field)}
                         </div>
-                    </div>
-                )
-            })}
+                    ))}
+            </div>
+
+            {/* Sonra relationship field'ları render et - tam genişlik */}
+            <div className="w-full space-y-6 pt-4 border-t">
+                {fields
+                    .filter(field => {
+                        if (field.type === "hidden") return false;
+                        // Sadece relationship field'ları
+                        const isRelationshipTable =
+                            (field.view === "has-many-field" ||
+                             field.view === "belongs-to-many-field" ||
+                             field.view === "morph-to-many-field");
+                        return isRelationshipTable;
+                    })
+                    .map((field) => (
+                        <div key={field.key} className="w-full">
+                            {renderDetailField(field)}
+                        </div>
+                    ))}
+            </div>
 
             <div className="flex justify-end pt-4">
                 <Button variant="outline" onClick={onClose} className="w-full md:w-auto">
@@ -209,25 +185,4 @@ export function ResourceDetail({ fields, onClose }: ResourceDetailProps) {
             </div>
         </div>
     )
-}
-
-function formatCellValue(value: any): string {
-    if (value === null || value === undefined) {
-        return '-'
-    }
-
-    if (typeof value === 'boolean') {
-        return value ? 'Yes' : 'No'
-    }
-
-    if (typeof value === 'object') {
-        // Handle dates
-        if (value instanceof Date) {
-            return value.toLocaleDateString()
-        }
-        // Handle nested objects
-        return JSON.stringify(value)
-    }
-
-    return String(value)
 }

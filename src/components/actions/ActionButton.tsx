@@ -35,14 +35,13 @@ export function ActionButton({ actions, selectedIds }: ActionButtonProps) {
           <ChevronDown className="ml-2 h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" style={{ width: "max-content" }}>
         {indexActions.map((action) => (
           <DropdownMenuItem
             key={action.slug}
             onClick={() => handleActionClick(action)}
             className={action.destructive ? 'text-destructive' : ''}
           >
-            {action.icon && <span className="mr-2">{action.icon}</span>}
             {action.name}
           </DropdownMenuItem>
         ))}

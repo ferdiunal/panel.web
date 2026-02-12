@@ -366,6 +366,19 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       getCoreRowModel: getCoreRowModel(),
       getSortedRowModel: getSortedRowModel(),
       getFilteredRowModel: getFilteredRowModel(),
+      // Extract gerçek ID'yi her row için (row index yerine)
+      getRowId: (row) => {
+        const idField = row['id'] as any;
+        console.log('🔍 getRowId called:', { idField, row });
+
+        if (idField && typeof idField === 'object' && 'data' in idField) {
+          console.log('✅ Using nested data:', idField.data);
+          return String(idField.data);
+        }
+
+        console.log('⚠️ Using direct value:', idField);
+        return String(idField);
+      },
       state: {
         sorting,
         columnFilters,

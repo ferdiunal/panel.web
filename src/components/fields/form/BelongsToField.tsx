@@ -1,5 +1,5 @@
 /**
- * BelongsToField - Mikro Frontend Pattern
+ * BelongsToFormField - Mikro Frontend Pattern
  *
  * FieldLayout kullanarak standart BelongsTo relationship field implementasyonu
  * Async search ve quick create özellikleri ile
@@ -18,122 +18,35 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Resource } from '@/types';
-import { QuickCreateModal } from './QuickCreateModal';
-import { FieldLayout } from './FieldLayout';
+import { QuickCreateModal } from '../QuickCreateModal';
+import { FieldLayout } from '../FieldLayout';
+import type { FormFieldProps } from '@/types';
 
-/**
- * Varsayılan boş options objesi.
- * Component dışında sabit referans olarak tanımlanır —
- * her render'da yeni {} oluşmasını engeller.
- * Bu olmadan `useEffect([..., initialOptions])` her render'da
- * yeni referans görür ve sonsuz API döngüsü yaratır.
- */
 const EMPTY_OPTIONS: Record<string, string> = {};
 
-export interface BelongsToFieldProps {
-  name: string;
-  label?: string;
-  value: string | null;
-  onChange: (value: string | null) => void;
-  onBlur?: () => void;
-  resourceType: string;
-  related_resource: string;
-  searchFn: (query: string) => Promise<Resource[]>;
-  options?: Record<string, string>; // Pre-loaded options from backend
-  container?: HTMLElement;
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-  helpText?: string;
-  className?: string;
-  placeholder?: string;
-  /**
-   * Tooltip metni - Label'ın yanında info ikonu ile gösterilir
-   */
-  tooltip?: string;
-  parentResourceId?: string | number; // Parent resource ID (edit modunda kullanılır)
-}
+export const BelongsToFormField: React.FC<FormFieldProps> = ({
+  field,
+  name,
+  label,
+  value,
+  onChange,
+  onBlur,
+  error,
+  disabled = false,
+  required = false,
+  placeholder = 'Select a resource...',
+  helpText,
+  container,
+  className,
+}) => {
+    // Props extraction from field.props
+    const related_resource = field.props?.related_resource as string;
+    const searchFn = field.props?.searchFn as (query: string) => Promise<Resource[]>;
+    const optionsProp = field.props?.options as Record<string, string>;
+    const initialOptions = optionsProp || EMPTY_OPTIONS;
+    const tooltip = field.props?.tooltip as string;
+    const parentResourceId = field.props?.parentResourceId as string | number;
 
-/**
- * BelongsToField Component
- *
- * Mikro frontend pattern'ine uygun BelongsTo relationship field component'i
- * FieldLayout kullanarak tutarlı layout sağlar
- *
- * Özellikler:
- * - FieldLayout kullanır (tutarlı layout)
- * - Async search desteği
- * - Quick create modal (Plus butonu)
- * - Pre-loaded options desteği
- * - Tooltip desteği
- * - Hata mesajı gösterimi
- * - Yardım metni desteği
- * - Erişilebilirlik özellikleri
- *
- * Kullanım Örnekleri:
- *
- * ```tsx
- * // Basit BelongsTo field
- * <BelongsToField
- *   name="user_id"
- *   label="Kullanıcı"
- *   value={userId}
- *   onChange={setUserId}
- *   resourceType="posts"
- *   related_resource="users"
- *   searchFn={searchUsers}
- * />
- *
- * // Pre-loaded options ile
- * <BelongsToField
- *   name="category_id"
- *   label="Kategori"
- *   value={categoryId}
- *   onChange={setCategoryId}
- *   resourceType="products"
- *   related_resource="categories"
- *   searchFn={searchCategories}
- *   options={{ '1': 'Electronics', '2': 'Books' }}
- * />
- *
- * // Tooltip ile
- * <BelongsToField
- *   name="author_id"
- *   label="Yazar"
- *   value={authorId}
- *   onChange={setAuthorId}
- *   resourceType="books"
- *   related_resource="authors"
- *   searchFn={searchAuthors}
- *   tooltip="Kitabın yazarını seçin"
- *   required
- * />
- * ```
- */
-export const BelongsToField = React.forwardRef<HTMLDivElement, BelongsToFieldProps>(
-  (
-    {
-      name,
-      label,
-      value,
-      onChange,
-      onBlur,
-      resourceType: _resourceType,
-      related_resource,
-      searchFn,
-      options: initialOptions = EMPTY_OPTIONS,
-      error,
-      disabled = false,
-      required = false,
-      helpText,
-      container,
-      className,
-      placeholder = 'Select a resource...',
-      tooltip,
-      parentResourceId,
-    },
-    ref
-  ) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [options, setOptions] = useState<Resource[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -152,26 +65,29 @@ export const BelongsToField = React.forwardRef<HTMLDivElement, BelongsToFieldPro
         return;
       }
 
-      // Otherwise, fetch from API
-      const loadInitialOptions = async () => {
-        setIsLoading(true);
-        try {
-          const results = await searchFn('');
-          setOptions(results);
-        } catch (err) {
-          console.error('Failed to load initial options:', err);
-          setOptions([]);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      loadInitialOptions();
+      // Otherwise, fetch from API if searchFn is provided
+      if (searchFn) {
+        const loadInitialOptions = async () => {
+          setIsLoading(true);
+          try {
+            const results = await searchFn('');
+            setOptions(results);
+          } catch (err) {
+            console.error('Failed to load initial options:', err);
+            setOptions([]);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        loadInitialOptions();
+      }
     }, [searchFn, initialOptions]);
 
     const handleSearch = useCallback(
       async (query: string) => {
         setSearchQuery(query);
+        if (!searchFn) return;
+
         if (query.length === 0) {
           // Reload initial options when search is cleared
           if (Object.keys(initialOptions).length > 0) {
@@ -220,7 +136,7 @@ export const BelongsToField = React.forwardRef<HTMLDivElement, BelongsToFieldPro
     // Value değiştiğinde search query'yi güncelle
     useEffect(() => {
       if (selectedOptionName) {
-        setSearchQuery(selectedOptionName);
+        setSearchQuery(String(selectedOptionName));
       }
     }, [selectedOptionName]);
 
@@ -260,7 +176,7 @@ export const BelongsToField = React.forwardRef<HTMLDivElement, BelongsToFieldPro
         className={className}
         hideLabel={!!labelContent}
       >
-        <div ref={ref}>
+        <div>
           {/* Tooltip varsa custom label göster */}
           {labelContent && (
             <div className="mb-2">
@@ -312,41 +228,44 @@ export const BelongsToField = React.forwardRef<HTMLDivElement, BelongsToFieldPro
                 </ComboboxContent>
               </Combobox>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => setQuickCreateOpen(true)}
-              disabled={disabled}
-              title="Hızlı oluştur"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            {related_resource && (
+                <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setQuickCreateOpen(true)}
+                disabled={disabled}
+                title="Hızlı oluştur"
+                >
+                <Plus className="h-4 w-4" />
+                </Button>
+            )}
           </div>
 
           {/* Quick Create Modal */}
-          <QuickCreateModal
-            resourceSlug={related_resource}
-            open={quickCreateOpen}
-            onOpenChange={setQuickCreateOpen}
-            parentResourceId={parentResourceId}
-            onSuccess={(createdResource) => {
-              // Yeni kaydı options'a ekle
-              // @ts-ignore
-              const newOption: Resource = {
-                id: String(createdResource.id?.data || createdResource.id),
-                name: createdResource.name?.data || createdResource.name || createdResource.title?.data || createdResource.title || `#${createdResource.id}`,
-              };
-              setOptions(prev => [...prev, newOption]);
+          {related_resource && (
+              <QuickCreateModal
+                resourceSlug={related_resource}
+                open={quickCreateOpen}
+                onOpenChange={setQuickCreateOpen}
+                parentResourceId={parentResourceId}
+                onSuccess={(createdResource) => {
+                  // Yeni kaydı options'a ekle
+                  // @ts-ignore
+                  const newOption: Resource = {
+                    id: String(createdResource.id?.data || createdResource.id),
+                    name: createdResource.name?.data || createdResource.name || createdResource.title?.data || createdResource.title || `#${createdResource.id}`,
+                  };
+                  setOptions(prev => [...prev, newOption]);
 
-              // Yeni kaydı seç
-              onChange(String(newOption.id));
-            }}
-          />
+                  // Yeni kaydı seç
+                  onChange(String(newOption.id));
+                }}
+              />
+          )}
         </div>
       </FieldLayout>
     );
-  }
-);
+};
 
-BelongsToField.displayName = 'BelongsToField';
+BelongsToFormField.displayName = 'BelongsToFormField';

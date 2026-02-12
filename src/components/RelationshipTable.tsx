@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { resourceService } from '@/services/resource';
 import type { ResourceParams } from '@/lib/resource-params';
 import type { FieldData } from '@/types';
-import { BadgeField } from '@/components/fields/BadgeField';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -176,10 +176,9 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
 
             if (header.view === "badge-field") {
                 return (
-                    <BadgeField
-                        value={field.data}
-                        variant={field.props?.variant || 'default'}
-                    />
+                    <Badge variant={field.props?.variant || 'default'}>
+                        {field.data}
+                    </Badge>
                 )
             }
 

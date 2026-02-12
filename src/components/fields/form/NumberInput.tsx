@@ -54,6 +54,7 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
   const min = field.props?.min as number | undefined;
   const max = field.props?.max as number | undefined;
   const step = (field.props?.step as number) || 1;
+  const native = field.props?.native as boolean | undefined;
 
   const handleIncrement = () => {
     const currentValue = typeof value === 'number' ? value : parseFloat(value as string) || 0;
@@ -80,17 +81,7 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={handleDecrement}
-          disabled={disabled || (min !== undefined && (typeof value === 'number' ? value : parseFloat(value as string) || 0) <= min)}
-          className="shrink-0"
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
+      {native ? (
         <Input
           id={name}
           name={name}
@@ -106,21 +97,53 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
           aria-invalid={!!error}
           aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
           className={cn(
-            'text-center',
             error && 'border-destructive focus-visible:ring-destructive/20'
           )}
         />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={handleIncrement}
-          disabled={disabled || (max !== undefined && (typeof value === 'number' ? value : parseFloat(value as string) || 0) >= max)}
-          className="shrink-0"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
+      ) : (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handleDecrement}
+            disabled={disabled || (min !== undefined && (typeof value === 'number' ? value : parseFloat(value as string) || 0) <= min)}
+            className="shrink-0"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Input
+            id={name}
+            name={name}
+            type="number"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value ? parseFloat(e.target.value) : '')}
+            onBlur={onBlur}
+            disabled={disabled}
+            placeholder={placeholder}
+            min={min}
+            max={max}
+            step={step}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+            className={cn(
+              'text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+              '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+              error && 'border-destructive focus-visible:ring-destructive/20'
+            )}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={handleIncrement}
+            disabled={disabled || (max !== undefined && (typeof value === 'number' ? value : parseFloat(value as string) || 0) >= max)}
+            className="shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </FieldLayout>
   );
 };

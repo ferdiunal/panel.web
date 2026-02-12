@@ -1,5 +1,5 @@
 /**
- * MorphToField - Mikro Frontend Pattern
+ * MorphToFormField - Mikro Frontend Pattern
  *
  * FieldLayout kullanarak standart MorphTo relationship field implementasyonu (Form view)
  * Polymorphic relationship desteği ile
@@ -31,15 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { FieldLayout } from "../FieldLayout"
-import type { FieldData } from "@/types"
+import type { FormFieldProps } from "@/types"
 import { QuickCreateModal } from "../QuickCreateModal"
-
-interface MorphToFieldProps {
-  field: FieldData
-  value: any
-  onChange: (value: any) => void
-  resourceSlug?: string
-}
 
 interface ResourceOption {
   value: string | number
@@ -48,47 +41,27 @@ interface ResourceOption {
   subtitle?: string
 }
 
-/**
- * MorphToField Component
- *
- * Mikro frontend pattern'ine uygun MorphTo relationship field component'i (Form view)
- * FieldLayout kullanarak tutarlı layout sağlar
- *
- * Özellikler:
- * - FieldLayout kullanır (tutarlı layout)
- * - Polymorphic relationship desteği
- * - Type selection (tip seçimi)
- * - Resource selection (kaynak seçimi)
- * - Async search desteği
- * - Quick create modal
- * - Hata mesajı gösterimi
- *
- * Kullanım Örneği:
- *
- * ```tsx
- * <MorphToField
- *   field={{
- *     key: 'commentable',
- *     props: {
- *       types: [
- *         { label: 'Post', value: 'post', slug: 'posts' },
- *         { label: 'Video', value: 'video', slug: 'videos' }
- *       ]
- *     }
- *   }}
- *   value={{ type: 'post', id: 1 }}
- *   onChange={setValue}
- *   resourceSlug="comments"
- * />
- * ```
- */
-export function MorphToField({ field, value, onChange, resourceSlug }: MorphToFieldProps) {
+export const MorphToFormField: React.FC<FormFieldProps> = ({
+  field,
+  name,
+  label,
+  value,
+  onChange,
+  error,
+  disabled = false,
+  required = false,
+  helpText,
+  className,
+}) => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [options, setOptions] = useState<ResourceOption[]>([])
   const [search, setSearch] = useState("")
   const [initialLabel, setInitialLabel] = useState<string>("")
   const [quickCreateOpen, setQuickCreateOpen] = useState(false)
+
+  // Props extraction
+  const resourceSlug = field.props?.resourceSlug as string; // Ensure this is passed or available
 
   // Parse value: could be { type, id } object or separate fields
   let selectedType = value?.type || value?.morphToType || ""
@@ -100,14 +73,7 @@ export function MorphToField({ field, value, onChange, resourceSlug }: MorphToFi
     selectedId = value.data.id || value.data.morphToId
   }
 
-  // Fallback: Check field.data (server-provided value)
-  if (!selectedType && !selectedId && field.data) {
-    selectedType = field.data.type || field.data.morphToType || field.data.morph_type
-    selectedId = field.data.id || field.data.morphToId || field.data.morph_id
-  }
-
   // types dizisini memoize et — field.props?.types referansı her render'da değişebilir
-  // || [] her render'da yeni dizi oluşturur ve callback dependency'lerini tetikler
   const types = useMemo(
     () => (field.props?.types as Array<{ label: string, value: string, slug: string }>) || [],
     [field.props?.types]
@@ -230,122 +196,130 @@ export function MorphToField({ field, value, onChange, resourceSlug }: MorphToFi
   const displayLabel = selectedOption?.display || initialLabel || (selectedId ? `#${selectedId}` : "Kaynak seç...")
 
   return (
-    <div className="flex flex-col gap-3">
-      <FieldLayout
-        name={`${field.key}_type`}
-        label="Tip"
-      >
-        <Select value={selectedType} onValueChange={handleTypeChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Tip seç" />
-          </SelectTrigger>
-          <SelectContent>
-            {types.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FieldLayout>
-
-      <FieldLayout
-        name={`${field.key}_id`}
-        label="Kaynak"
-      >
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="justify-between w-full font-normal"
-                  disabled={!selectedType}
-                >
-                  {displayLabel}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <Command shouldFilter={false}>
-                  <CommandInput
-                    placeholder="Kaynak ara..."
-                    value={search}
-                    onValueChange={setSearch}
-                  />
-                  <CommandList>
-                    {loading && (
-                      <div className="py-6 text-center text-sm text-muted-foreground flex justify-center items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
-                      </div>
-                    )}
-                    {!loading && options.length === 0 && (
-                      <CommandEmpty>Kaynak bulunamadı.</CommandEmpty>
-                    )}
-                    {!loading && options.map((option) => (
-                      <CommandItem
-                        key={option.value}
-                        value={String(option.value)}
-                        onSelect={() => handleResourceSelect(option)}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            String(selectedId) === String(option.value) ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <div className="flex flex-col">
-                          <span>{option.display}</span>
-                          {option.subtitle && (
-                            <span className="text-xs text-muted-foreground">{option.subtitle}</span>
-                          )}
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setQuickCreateOpen(true)}
-            disabled={!selectedType}
-            title="Hızlı oluştur"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+    <FieldLayout
+        name={name}
+        label={label}
+        error={error}
+        required={required}
+        helpText={helpText}
+        disabled={disabled}
+        className={className}
+    >
+        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-muted-foreground">Tip</label>
+            <Select value={selectedType} onValueChange={handleTypeChange} disabled={disabled}>
+            <SelectTrigger>
+                <SelectValue placeholder="Tip seç" />
+            </SelectTrigger>
+            <SelectContent>
+                {types.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                </SelectItem>
+                ))}
+            </SelectContent>
+            </Select>
         </div>
-      </FieldLayout>
 
-      {/* Quick Create Modal */}
-      {selectedType && (
-        <QuickCreateModal
-          resourceSlug={types.find((t) => t.value === selectedType || t.slug === selectedType)?.slug || selectedType}
-          open={quickCreateOpen}
-          onOpenChange={setQuickCreateOpen}
-          onSuccess={(createdResource) => {
-            // Yeni kaydı options'a ekle
-            const newOption: ResourceOption = {
-              value: createdResource.id?.data || createdResource.id,
-              display: createdResource.name?.data || createdResource.name || createdResource.title?.data || createdResource.title || `#${createdResource.id}`,
-            };
-            setOptions([...options, newOption]);
+        <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-muted-foreground">Kaynak</label>
+            <div className="flex gap-2">
+            <div className="flex-1">
+                <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="justify-between w-full font-normal"
+                    disabled={!selectedType || disabled}
+                    >
+                    {displayLabel}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                    <Command shouldFilter={false}>
+                    <CommandInput
+                        placeholder="Kaynak ara..."
+                        value={search}
+                        onValueChange={setSearch}
+                    />
+                    <CommandList>
+                        {loading && (
+                        <div className="py-6 text-center text-sm text-muted-foreground flex justify-center items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
+                        </div>
+                        )}
+                        {!loading && options.length === 0 && (
+                        <CommandEmpty>Kaynak bulunamadı.</CommandEmpty>
+                        )}
+                        {!loading && options.map((option) => (
+                        <CommandItem
+                            key={option.value}
+                            value={String(option.value)}
+                            onSelect={() => handleResourceSelect(option)}
+                        >
+                            <Check
+                            className={cn(
+                                "mr-2 h-4 w-4",
+                                String(selectedId) === String(option.value) ? "opacity-100" : "opacity-0"
+                            )}
+                            />
+                            <div className="flex flex-col">
+                            <span>{option.display}</span>
+                            {option.subtitle && (
+                                <span className="text-xs text-muted-foreground">{option.subtitle}</span>
+                            )}
+                            </div>
+                        </CommandItem>
+                        ))}
+                    </CommandList>
+                    </Command>
+                </PopoverContent>
+                </Popover>
+            </div>
+            <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setQuickCreateOpen(true)}
+                disabled={!selectedType || disabled}
+                title="Hızlı oluştur"
+            >
+                <Plus className="h-4 w-4" />
+            </Button>
+            </div>
+        </div>
 
-            // Yeni kaydı seç
-            onChange({ type: selectedType, id: newOption.value });
-            setInitialLabel(newOption.display);
+        {/* Quick Create Modal */}
+        {selectedType && (
+            <QuickCreateModal
+            resourceSlug={types.find((t) => t.value === selectedType || t.slug === selectedType)?.slug || selectedType}
+            open={quickCreateOpen}
+            onOpenChange={setQuickCreateOpen}
+            onSuccess={(createdResource) => {
+                // Yeni kaydı options'a ekle
+                const newOption: ResourceOption = {
+                value: createdResource.id?.data || createdResource.id,
+                display: createdResource.name?.data || createdResource.name || createdResource.title?.data || createdResource.title || `#${createdResource.id}`,
+                };
+                setOptions([...options, newOption]);
 
-            // Search query'yi temizle
-            setSearch("");
-            setOpen(false);
-          }}
-        />
-      )}
-    </div>
+                // Yeni kaydı seç
+                onChange({ type: selectedType, id: newOption.value });
+                setInitialLabel(newOption.display);
+
+                // Search query'yi temizle
+                setSearch("");
+                setOpen(false);
+            }}
+            />
+        )}
+        </div>
+    </FieldLayout>
   )
 }
+
+MorphToFormField.displayName = 'MorphToFormField';

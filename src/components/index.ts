@@ -9,24 +9,33 @@ export { IndexView } from './views/IndexView';
 export { EmptyState } from './views/EmptyState';
 export { Pagination } from './views/Pagination';
 
-// Fields - Basic
-export { TextInput } from './fields/TextInput';
-export { EmailInput } from './fields/EmailInput';
-export { PasswordInput } from './fields/PasswordInput';
-export { NumberInput } from './fields/NumberInput';
-export { TextareaField } from './fields/TextareaField';
-export { URLInput } from './fields/URLInput';
-export { SelectField } from './fields/SelectField';
-export { DateField } from './fields/DateField';
-export { DateTimeField } from './fields/DateTimeField';
-export { SwitchField } from './fields/SwitchField';
-
-// Fields - Relations
-export { BelongsToField } from './fields/BelongsToField';
-export { HasOneField } from './fields/HasOneField';
-export { HasManyField } from './fields/HasManyField';
-export { BelongsToManyField } from './fields/BelongsToManyField';
-export { MorphToField } from './fields/MorphToField';
+// Fields - Re-export from the main registry/index file
+// We alias Memoized components to their original names for backward compatibility
+export { 
+  MemoizedTextInput as TextInput,
+  MemoizedEmailInput as EmailInput,
+  MemoizedPasswordInput as PasswordInput,
+  MemoizedNumberInput as NumberInput,
+  MemoizedTextareaField as TextareaField,
+  MemoizedURLInput as URLInput,
+  MemoizedSelectField as SelectField,
+  MemoizedDateField as DateField,
+  MemoizedDateTimeField as DateTimeField,
+  MemoizedSwitchField as SwitchField,
+  MemoizedBelongsToField as BelongsToField,
+  MemoizedHasOneField as HasOneField,
+  MemoizedHasManyField as HasManyField,
+  MemoizedBelongsToManyField as BelongsToManyField,
+  MemoizedMorphToField as MorphToField,
+  MemoizedComboboxField as ComboboxField,
+  MemoizedRichTextField as RichTextField,
+  MemoizedCodeField as CodeField,
+  MemoizedColorField as ColorField,
+  MemoizedBooleanGroupField as BooleanGroupField,
+  MemoizedPanelField as PanelField,
+  MemoizedBadgeField as BadgeField,
+  MemoizedDialogField as DialogField
+} from './forms/fields';
 
 // Error Handling
 export { default as ErrorDisplay } from './error-display';

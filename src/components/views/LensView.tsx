@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { BadgeField } from '@/components/fields/BadgeField';
+import { Badge } from '@/components/ui/badge';
 import type { LensViewProps } from '@/types/lens';
 import type { ResourceItem, FieldData, Card as CardType } from '@/types';
 
@@ -123,10 +123,9 @@ export function LensView({
           // Badge field rendering
           if (header.view === 'badge-field') {
             return (
-              <BadgeField
-                value={field.data}
-                variant={field.props?.variant || 'default'}
-              />
+              <Badge variant={field.props?.variant || 'default'}>
+                {field.data}
+              </Badge>
             );
           }
 

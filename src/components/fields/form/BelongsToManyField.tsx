@@ -1,6 +1,12 @@
+/**
+ * BelongsToManyFormField - Mikro Frontend Pattern
+ * 
+ * A multi-select combobox field for BelongsToMany relationships using Shadcn/Radix primitives.
+ * Supports multiple selection with chips, search, and pre-loaded options.
+ */
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { Label } from '@/components/ui/label';
 import {
   Combobox,
   ComboboxContent,
@@ -13,62 +19,39 @@ import {
   useComboboxAnchor,
 } from '@/components/ui/combobox';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
-import { QuickCreateModal } from './QuickCreateModal';
+import { QuickCreateModal } from '../QuickCreateModal';
+import { FieldLayout } from '../FieldLayout';
+import type { FormFieldProps } from '@/types';
 
-/**
- * Varsayılan boş options objesi.
- * Component dışında sabit referans olarak tanımlanır —
- * her render'da yeni {} oluşmasını ve sonsuz API döngüsünü engeller.
- */
 const EMPTY_OPTIONS: Record<string, string> = {};
 
-// Define a minimal type for options to avoid Resource type errors if it's missing fields
 interface Option {
   id: string | number;
   name?: string;
 }
 
-export interface BelongsToManyFieldProps {
-  name: string;
-  label: string;
-  value: string[];
-  onChange: (value: string[]) => void;
-  searchFn: (query: string) => Promise<Resource[]>;
-  options?: Record<string, string>; // Pre-loaded options from backend
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-  helpText?: string;
-  className?: string;
-  placeholder?: string;
-}
+export const BelongsToManyFormField: React.FC<FormFieldProps> = ({
+  field,
+  name,
+  label,
+  value = [],
+  onChange,
+  onBlur,
+  error,
+  disabled = false,
+  required = false,
+  placeholder = 'Select resources...',
+  helpText,
+  container,
+  className,
+}) => {
+    // Props extraction
+    const searchFn = field.props?.searchFn as (query: string) => Promise<Resource[]>;
+    const optionsProp = field.props?.options as Record<string, string>;
+    const initialOptions = optionsProp || EMPTY_OPTIONS;
+    const resourceSlug = name; // Using name as slug based on previous implementation usage
 
-/**
- * BelongsToManyField Component
- * 
- * A multi-select combobox field for BelongsToMany relationships using Shadcn/Radix primitives.
- * Supports multiple selection with chips, search, and pre-loaded options.
- */
-export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToManyFieldProps>(
-  (
-    {
-      name,
-      label,
-      value = [],
-      onChange,
-      searchFn,
-      options: initialOptions = EMPTY_OPTIONS,
-      error,
-      disabled = false,
-      required = false,
-      helpText,
-      className,
-      placeholder = 'Select resources...',
-    },
-    ref
-  ) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [availableOptions, setAvailableOptions] = useState<Option[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -85,7 +68,7 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
 
     // Load initial options on mount if initialOptions is empty
     useEffect(() => {
-      if (Object.keys(initialOptions).length === 0) {
+      if (Object.keys(initialOptions).length === 0 && searchFn) {
         const loadInitialOptions = async () => {
           setIsLoading(true);
           try {
@@ -111,6 +94,8 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
     const handleSearch = useCallback(
       async (query: string) => {
         setSearchQuery(query);
+        if (!searchFn) return;
+
         if (query.length === 0) {
           // Reload initial options when search is cleared
           if (Object.keys(initialOptions).length === 0) {
@@ -163,58 +148,64 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
       return option?.name || id;
     }, [availableOptions, preloadedResources]);
 
-    return (
-      <div className={cn('flex flex-col gap-2', className)} ref={ref}>
-        <Label htmlFor={name} className="text-sm font-medium">
-          {label}
-          {required && <span className="text-destructive">*</span>}
-        </Label>
+    // Ensure value is an array
+    const currentValue = Array.isArray(value) ? value : [];
 
+    return (
+      <FieldLayout
+        name={name}
+        label={label}
+        error={error}
+        required={required}
+        helpText={helpText}
+        disabled={disabled}
+        className={className}
+      >
         <div className="flex gap-2">
           <div className="flex-1">
             <Combobox
-          multiple
-          autoHighlight
-          value={value}
-          onValueChange={(val) => {
-            onChange(val as string[]);
-            setSearchQuery('');
-          }}
-          disabled={disabled}
-        >
-          <ComboboxChips ref={anchor} className="w-full max-w-xs">
-            {value.map((val: string) => (
-              <ComboboxChip key={val} className="mr-1 mb-1">
-                {getDisplayValue(val)}
-              </ComboboxChip>
-            ))}
-            <ComboboxChipsInput 
-              placeholder={value.length === 0 ? placeholder : undefined}
-              value={searchQuery}
-              {...({ onValueChange: (val: string) => handleSearch(val) } as any)}
-            />
-          </ComboboxChips>
-          
-          <ComboboxContent anchor={anchor}>
-
-             {isLoading ? (
-              <div className="p-2 text-sm text-muted-foreground text-center">
-                Loading...
-              </div>
-            ) : (
-              <>
-                <ComboboxEmpty>No results found</ComboboxEmpty>
-                <ComboboxList>
-                  {availableOptions.map((option) => (
-                    <ComboboxItem key={option.id} value={String(option.id)}>
-                      {option.name || String(option.id)}
-                    </ComboboxItem>
-                  ))}
-                </ComboboxList>
-              </>
-            )}
-          </ComboboxContent>
-        </Combobox>
+              multiple
+              autoHighlight
+              value={currentValue}
+              onValueChange={(val) => {
+                onChange(val as string[]);
+                setSearchQuery('');
+              }}
+              disabled={disabled}
+            >
+              <ComboboxChips ref={anchor} className="w-full max-w-xs">
+                {currentValue.map((val: string) => (
+                  <ComboboxChip key={val} className="mr-1 mb-1">
+                    {getDisplayValue(val)}
+                  </ComboboxChip>
+                ))}
+                <ComboboxChipsInput 
+                  placeholder={currentValue.length === 0 ? placeholder : undefined}
+                  value={searchQuery}
+                  {...({ onValueChange: (val: string) => handleSearch(val) } as any)}
+                  onBlur={onBlur}
+                />
+              </ComboboxChips>
+              
+              <ComboboxContent anchor={anchor} container={container}>
+                {isLoading ? (
+                  <div className="p-2 text-sm text-muted-foreground text-center">
+                    Loading...
+                  </div>
+                ) : (
+                  <>
+                    <ComboboxEmpty>No results found</ComboboxEmpty>
+                    <ComboboxList>
+                      {availableOptions.map((option) => (
+                        <ComboboxItem key={option.id} value={String(option.id)}>
+                          {option.name || String(option.id)}
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxList>
+                  </>
+                )}
+              </ComboboxContent>
+            </Combobox>
           </div>
           <Button
             type="button"
@@ -228,20 +219,9 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
           </Button>
         </div>
 
-        {error && (
-          <p id={`${name}-error`} className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        {helpText && !error && (
-          <p id={`${name}-help`} className="text-sm text-muted-foreground">
-            {helpText}
-          </p>
-        )}
-
         {/* Quick Create Modal */}
         <QuickCreateModal
-          resourceSlug={name}
+          resourceSlug={resourceSlug}
           open={quickCreateOpen}
           onOpenChange={setQuickCreateOpen}
           onSuccess={(createdResource) => {
@@ -253,15 +233,14 @@ export const BelongsToManyField = React.forwardRef<HTMLDivElement, BelongsToMany
             setAvailableOptions([...availableOptions, newOption]);
 
             // Yeni kaydı value array'ine ekle
-            onChange([...value, String(newOption.id)]);
+            onChange([...currentValue, String(newOption.id)]);
 
             // Search query'yi temizle
             setSearchQuery('');
           }}
         />
-      </div>
+      </FieldLayout>
     );
-  }
-);
+};
 
-BelongsToManyField.displayName = 'BelongsToManyField';
+BelongsToManyFormField.displayName = 'BelongsToManyFormField';

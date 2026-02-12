@@ -6,7 +6,7 @@ import { WidgetRenderer } from "@/components/widget-renderer"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { BadgeField } from "@/components/fields/BadgeField"
+import { Badge } from "@/components/ui/badge"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { UniversalResourceForm } from "@/components/forms/UniversalResourceForm"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -392,10 +392,9 @@ export default function ResourceIndexPage() {
 
                     if (header.view === "badge-field") {
                         return (
-                            <BadgeField
-                                value={field.data}
-                                variant={field.props?.variant || 'default'}
-                            />
+                            <Badge variant={field.props?.variant || 'default'}>
+                                {field.data}
+                            </Badge>
                         )
                     }
 

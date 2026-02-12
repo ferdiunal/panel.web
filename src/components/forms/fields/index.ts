@@ -5,68 +5,67 @@
 import React from 'react';
 import { fieldRegistry } from '../FieldRegistry';
 
-// Import all field components
-import { ComboboxField } from '@/components/fields/ComboboxField';
-import { MorphToField } from '@/components/fields/MorphToField';
-import { RichTextField } from '@/components/fields/RichTextField';
-import { CodeField } from '@/components/fields/CodeField';
-import { ColorField } from '@/components/fields/ColorField';
-import { BooleanGroupField } from '@/components/fields/BooleanGroupField';
-import { PanelField } from '@/components/fields/PanelField';
-import { TextInput } from '@/components/fields/TextInput';
-import { EmailInput } from '@/components/fields/EmailInput';
-import { PasswordInput } from '@/components/fields/PasswordInput';
-import { NumberInput } from '@/components/fields/NumberInput';
-import { URLInput } from '@/components/fields/URLInput';
-import { TextareaField } from '@/components/fields/TextareaField';
-import { SelectField } from '@/components/fields/SelectField';
-import { SwitchField } from '@/components/fields/SwitchField';
-import { DateField } from '@/components/fields/DateField';
-import { DateTimeField } from '@/components/fields/DateTimeField';
-import { BelongsToField } from '@/components/fields/BelongsToField';
-import { HasOneField } from '@/components/fields/HasOneField';
-import { HasManyField } from '@/components/fields/HasManyField';
-import { BelongsToManyField } from '@/components/fields/BelongsToManyField';
-import { BadgeField } from '@/components/fields/BadgeField';
-import { DialogField } from '@/components/fields/DialogField';
+// Import FORM specific components for base types
+import { ComboboxFormField } from '@/components/fields/form/ComboboxField';
+import { MorphToFormField } from '@/components/fields/form/MorphToField';
+import { RichTextFormField } from '@/components/fields/form/RichTextField';
+import { CodeFormField } from '@/components/fields/form/CodeField';
+import { ColorFormField } from '@/components/fields/form/ColorField';
+import { BooleanGroupFormField } from '@/components/fields/form/BooleanGroupField';
+import { PanelFormField } from '@/components/fields/form/PanelField';
+import { BadgeFormField } from '@/components/fields/form/BadgeField';
+import { DialogFormField } from '@/components/fields/form/DialogField';
 
-// Import view-specific field components
-// Form views
 import { TextFormField } from '@/components/fields/form/TextInput';
+import { EmailFormField } from '@/components/fields/form/EmailInput';
+import { PasswordFormField } from '@/components/fields/form/PasswordInput';
+import { NumberFormField } from '@/components/fields/form/NumberInput';
+import { URLFormField } from '@/components/fields/form/URLInput';
+import { TextareaFormField } from '@/components/fields/form/TextareaField';
 import { SelectFormField } from '@/components/fields/form/SelectField';
+import { SwitchFormField } from '@/components/fields/form/SwitchField';
 import { DateFormField } from '@/components/fields/form/DateField';
+import { DateTimeFormField } from '@/components/fields/form/DateTimeField'; // Corrected
+import { BelongsToFormField } from '@/components/fields/form/BelongsToField';
+import { HasOneFormField } from '@/components/fields/form/HasOneField';
+import { HasManyFormField } from '@/components/fields/form/HasManyField';
+import { BelongsToManyFormField } from '@/components/fields/form/BelongsToManyField';
 import { TelFormField } from '@/components/fields/form/TelInput';
+import { AsyncComboboxFormField } from '@/components/fields/form/AsyncComboboxField';
+import { CheckboxFormField } from '@/components/fields/form/CheckboxField';
+import { RadioGroupFormField } from '@/components/fields/form/RadioGroupField';
+import { TimeFormField } from '@/components/fields/form/TimeField';
+import { MorphToManyFormField } from '@/components/fields/form/MorphToManyField';
 
-// Index views
+// Import Index/Detail specific components
 import { TextIndexField } from '@/components/fields/index/TextInput';
 import { SelectIndexField } from '@/components/fields/index/SelectField';
 import { DateIndexField } from '@/components/fields/index/DateField';
 import { TelIndexField } from '@/components/fields/index/TelInput';
 
-// Detail views
 import { TextDetailField } from '@/components/fields/detail/TextInput';
 import { SelectDetailField } from '@/components/fields/detail/SelectField';
 import { DateDetailField } from '@/components/fields/detail/DateField';
 import { TelDetailField } from '@/components/fields/detail/TelInput';
 
 // Memoize field components with custom comparison
-export const MemoizedComboboxField = React.memo(ComboboxField, (prev, next) => {
+export const MemoizedComboboxField = React.memo(ComboboxFormField, (prev, next) => {
   return (
     prev.value === next.value &&
-    prev.options === next.options &&
+    prev.field.props?.options === next.field.props?.options &&
     prev.placeholder === next.placeholder
   );
 });
 
-export const MemoizedMorphToField = React.memo(MorphToField, (prev, next) => {
+export const MemoizedMorphToField = React.memo(MorphToFormField, (prev, next) => {
   return (
     prev.value === next.value &&
-    prev.resourceTypes === next.resourceTypes &&
+    prev.field.props?.resourceTypes === next.field.props?.resourceTypes &&
     prev.disabled === next.disabled
   );
 });
 
-export const MemoizedRichTextField = React.memo(RichTextField, (prev, next) => {
+export const MemoizedRichTextField = React.memo(RichTextFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -74,34 +73,34 @@ export const MemoizedRichTextField = React.memo(RichTextField, (prev, next) => {
   );
 });
 
-export const MemoizedCodeField = React.memo(CodeField, (prev, next) => {
+export const MemoizedCodeField = React.memo(CodeFormField, (prev, next) => {
   return (
     prev.value === next.value &&
-    prev.language === next.language &&
-    prev.theme === next.theme &&
-    prev.readOnly === next.readOnly
+    prev.field.props?.language === next.field.props?.language &&
+    prev.field.props?.theme === next.field.props?.theme &&
+    prev.field.props?.readOnly === next.field.props?.readOnly
   );
 });
 
-export const MemoizedColorField = React.memo(ColorField, (prev, next) => {
+export const MemoizedColorField = React.memo(ColorFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled
   );
 });
 
-export const MemoizedBooleanGroupField = React.memo(BooleanGroupField, (prev, next) => {
+export const MemoizedBooleanGroupField = React.memo(BooleanGroupFormField, (prev, next) => {
   return (
     prev.value === next.value &&
-    prev.options === next.options &&
+    prev.field.props?.options === next.field.props?.options &&
     prev.disabled === next.disabled
   );
 });
 
-export const MemoizedPanelField = React.memo(PanelField);
+export const MemoizedPanelField = React.memo(PanelFormField);
 
-// Basic input fields
-export const MemoizedTextInput = React.memo(TextInput, (prev, next) => {
+// Basic input fields (Using Form Variants)
+export const MemoizedTextInput = React.memo(TextFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -111,7 +110,7 @@ export const MemoizedTextInput = React.memo(TextInput, (prev, next) => {
   );
 });
 
-export const MemoizedEmailInput = React.memo(EmailInput, (prev, next) => {
+export const MemoizedEmailInput = React.memo(EmailFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -121,7 +120,7 @@ export const MemoizedEmailInput = React.memo(EmailInput, (prev, next) => {
   );
 });
 
-export const MemoizedPasswordInput = React.memo(PasswordInput, (prev, next) => {
+export const MemoizedPasswordInput = React.memo(PasswordFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -131,7 +130,7 @@ export const MemoizedPasswordInput = React.memo(PasswordInput, (prev, next) => {
   );
 });
 
-export const MemoizedURLInput = React.memo(URLInput, (prev, next) => {
+export const MemoizedURLInput = React.memo(URLFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -141,7 +140,7 @@ export const MemoizedURLInput = React.memo(URLInput, (prev, next) => {
   );
 });
 
-export const MemoizedTextareaField = React.memo(TextareaField, (prev, next) => {
+export const MemoizedTextareaField = React.memo(TextareaFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -151,7 +150,7 @@ export const MemoizedTextareaField = React.memo(TextareaField, (prev, next) => {
   );
 });
 
-export const MemoizedNumberInput = React.memo(NumberInput, (prev, next) => {
+export const MemoizedNumberInput = React.memo(NumberFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -165,7 +164,7 @@ export const MemoizedNumberInput = React.memo(NumberInput, (prev, next) => {
 });
 
 // Selection fields
-export const MemoizedSelectField = React.memo(SelectField, (prev, next) => {
+export const MemoizedSelectField = React.memo(SelectFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -176,7 +175,7 @@ export const MemoizedSelectField = React.memo(SelectField, (prev, next) => {
   );
 });
 
-export const MemoizedSwitchField = React.memo(SwitchField, (prev, next) => {
+export const MemoizedSwitchField = React.memo(SwitchFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -186,7 +185,7 @@ export const MemoizedSwitchField = React.memo(SwitchField, (prev, next) => {
 });
 
 // Date/Time fields
-export const MemoizedDateField = React.memo(DateField, (prev, next) => {
+export const MemoizedDateField = React.memo(DateFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -196,7 +195,7 @@ export const MemoizedDateField = React.memo(DateField, (prev, next) => {
   );
 });
 
-export const MemoizedDateTimeField = React.memo(DateTimeField, (prev, next) => {
+export const MemoizedDateTimeField = React.memo(DateTimeFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
@@ -207,68 +206,64 @@ export const MemoizedDateTimeField = React.memo(DateTimeField, (prev, next) => {
 });
 
 // Relationship fields
-export const MemoizedBelongsToField = React.memo(BelongsToField, (prev, next) => {
+export const MemoizedBelongsToField = React.memo(BelongsToFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
-    prev.required === next.required &&
-    prev.resourceType === next.resourceType &&
-    prev.searchFn === next.searchFn
+    prev.required === next.required
   );
 });
 
-export const MemoizedHasOneField = React.memo(HasOneField, (prev, next) => {
+export const MemoizedHasOneField = React.memo(HasOneFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
-    prev.required === next.required &&
-    prev.resourceType === next.resourceType &&
-    prev.searchFn === next.searchFn
+    prev.required === next.required
   );
 });
 
-export const MemoizedHasManyField = React.memo(HasManyField, (prev, next) => {
+export const MemoizedHasManyField = React.memo(HasManyFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
-    prev.required === next.required &&
-    prev.resourceType === next.resourceType &&
-    prev.searchFn === next.searchFn
+    prev.required === next.required
   );
 });
 
-export const MemoizedBelongsToManyField = React.memo(BelongsToManyField, (prev, next) => {
+export const MemoizedBelongsToManyField = React.memo(BelongsToManyFormField, (prev, next) => {
   return (
     prev.value === next.value &&
     prev.disabled === next.disabled &&
-    prev.required === next.required &&
-    prev.searchFn === next.searchFn
+    prev.required === next.required
   );
 });
 
 // Display fields
-export const MemoizedBadgeField = React.memo(BadgeField, (prev, next) => {
+export const MemoizedBadgeField = React.memo(BadgeFormField, (prev, next) => {
   return (
     prev.value === next.value &&
-    prev.variant === next.variant
+    prev.field.props?.variant === next.field.props?.variant
   );
 });
 
 // Dialog field
-export const MemoizedDialogField = React.memo(DialogField, (prev, next) => {
+export const MemoizedDialogField = React.memo(DialogFormField, (prev, next) => {
   return (
     prev.value === next.value &&
-    prev.defaultOpen === next.defaultOpen &&
-    prev.disabled === next.disabled &&
-    prev.contentType === next.contentType &&
-    prev.fields === next.fields &&
-    prev.steps === next.steps
+    prev.field.props?.defaultOpen === next.field.props?.defaultOpen &&
+    prev.disabled === next.disabled
   );
 });
 
+export const MemoizedAsyncComboboxField = React.memo(AsyncComboboxFormField);
+export const MemoizedCheckboxField = React.memo(CheckboxFormField);
+export const MemoizedRadioGroupField = React.memo(RadioGroupFormField);
+export const MemoizedTimeField = React.memo(TimeFormField);
+export const MemoizedMorphToManyField = React.memo(MorphToManyFormField);
+
 // Register all field components with the registry
 export function registerAllFields() {
-  // Basic input fields
+  // Basic input fields (Mapped to Form Variants)
   fieldRegistry.register('text', MemoizedTextInput as any);
   fieldRegistry.register('text-field', MemoizedTextInput as any);
   fieldRegistry.register('email', MemoizedEmailInput as any);
@@ -291,12 +286,20 @@ export function registerAllFields() {
   fieldRegistry.register('switch-field', MemoizedSwitchField as any);
   fieldRegistry.register('combobox', MemoizedComboboxField as any);
   fieldRegistry.register('combobox-field', MemoizedComboboxField as any);
+  fieldRegistry.register('async-combobox', MemoizedAsyncComboboxField as any);
+  fieldRegistry.register('async-combobox-field', MemoizedAsyncComboboxField as any);
+  fieldRegistry.register('checkbox', MemoizedCheckboxField as any);
+  fieldRegistry.register('checkbox-field', MemoizedCheckboxField as any);
+  fieldRegistry.register('radio-group', MemoizedRadioGroupField as any);
+  fieldRegistry.register('radio-group-field', MemoizedRadioGroupField as any);
 
   // Date/Time fields
   fieldRegistry.register('date', MemoizedDateField as any);
   fieldRegistry.register('date-field', MemoizedDateField as any);
   fieldRegistry.register('datetime', MemoizedDateTimeField as any);
   fieldRegistry.register('datetime-field', MemoizedDateTimeField as any);
+  fieldRegistry.register('time', MemoizedTimeField as any);
+  fieldRegistry.register('time-field', MemoizedTimeField as any);
 
   // Relationship fields
   fieldRegistry.register('belongs-to', MemoizedBelongsToField as any);
@@ -309,6 +312,8 @@ export function registerAllFields() {
   fieldRegistry.register('belongs-to-many-field', MemoizedBelongsToManyField as any);
   fieldRegistry.register('morph-to', MemoizedMorphToField as any);
   fieldRegistry.register('morph-to-field', MemoizedMorphToField as any);
+  fieldRegistry.register('morph-to-many', MemoizedMorphToManyField as any);
+  fieldRegistry.register('morph-to-many-field', MemoizedMorphToManyField as any);
 
   // Special fields
   fieldRegistry.register('richtext', MemoizedRichTextField as any);
@@ -351,6 +356,34 @@ export function registerAllFields() {
   fieldRegistry.register('tel-field-form', TelFormField as any);
   fieldRegistry.register('tel-field-index', TelIndexField as any);
   fieldRegistry.register('tel-field-detail', TelDetailField as any);
+
+  // Relationship Fields - Form/Index/Detail Views
+  fieldRegistry.register('belongs-to-field-form', BelongsToFormField as any);
+  fieldRegistry.register('belongs-to-many-field-form', BelongsToManyFormField as any);
+  fieldRegistry.register('has-many-field-form', HasManyFormField as any);
+  fieldRegistry.register('has-one-field-form', HasOneFormField as any);
+  fieldRegistry.register('morph-to-field-form', MorphToFormField as any);
+  fieldRegistry.register('morph-to-many-field-form', MorphToManyFormField as any);
+
+  // Other Fields - Form View
+  fieldRegistry.register('combobox-field-form', ComboboxFormField as any);
+  fieldRegistry.register('async-combobox-field-form', AsyncComboboxFormField as any);
+  fieldRegistry.register('checkbox-field-form', CheckboxFormField as any);
+  fieldRegistry.register('radio-group-field-form', RadioGroupFormField as any);
+  fieldRegistry.register('switch-field-form', SwitchFormField as any);
+  fieldRegistry.register('color-field-form', ColorFormField as any);
+  fieldRegistry.register('code-field-form', CodeFormField as any);
+  fieldRegistry.register('richtext-field-form', RichTextFormField as any);
+  fieldRegistry.register('textarea-field-form', TextareaFormField as any);
+  fieldRegistry.register('number-field-form', NumberFormField as any);
+  fieldRegistry.register('password-field-form', PasswordFormField as any);
+  fieldRegistry.register('email-field-form', EmailFormField as any);
+  fieldRegistry.register('url-field-form', URLFormField as any);
+  fieldRegistry.register('time-field-form', TimeFormField as any);
+  fieldRegistry.register('dialog-field-form', DialogFormField as any);
+  fieldRegistry.register('badge-field-form', BadgeFormField as any);
+  fieldRegistry.register('panel-field-form', PanelFormField as any);
+  fieldRegistry.register('boolean-group-field-form', BooleanGroupFormField as any);
 }
 
 // Auto-register on module load

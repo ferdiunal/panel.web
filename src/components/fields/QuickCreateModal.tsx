@@ -34,6 +34,7 @@ export function QuickCreateModal({
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [resourceTitle, setResourceTitle] = useState('');
   const [ignoredFieldKey, setIgnoredFieldKey] = useState<string | null>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   const currentResource = location.pathname.split("/").filter(Boolean)[1]
 
@@ -120,6 +121,7 @@ export function QuickCreateModal({
         onOpenChange={onOpenChange}
         title={`Yeni ${resourceTitle} Oluştur`}
         description="Hızlı kayıt oluşturma formu"
+        ref={setContainer}
       >
         {loading ? (
           <div className="flex items-center justify-center py-8">
@@ -133,6 +135,7 @@ export function QuickCreateModal({
             fields={fields}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
+            container={container}
           />
         ) : (
           <p className="text-sm text-muted-foreground text-center py-4">

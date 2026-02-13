@@ -78,6 +78,7 @@ export const TextFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder,
   helpText,
+  type,
 }) => {
   // Input mask props (field.props'tan)
   const mask = field.props?.mask as string | undefined;
@@ -88,7 +89,7 @@ export const TextFormField: React.FC<FormFieldProps> = ({
   const inputProps = {
     id: name,
     name: name,
-    type: 'text' as const,
+    type: type || 'text' as const,
     value: value || '',
     disabled: disabled,
     placeholder: placeholder,

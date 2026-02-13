@@ -60,15 +60,15 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
     // Get field component from registry
     // Strategy: Prefer 'type' based lookup first, then 'view' based
     // Backend types: "text", "tel", "code" -> Registry keys: "text-field-form", "tel-field-form", "code-field-form"
-    
+
     const typeKey = `${enhancedField.type}-field-form`;
     const viewKey = `${enhancedField.view}-form`; // view usually includes "-field" suffix
-    
+
     let FieldComponent = fieldRegistry.get(typeKey) || fieldRegistry.get(viewKey);
 
     // Fallback to direct view/type lookup if form-specific not found
     if (!FieldComponent) {
-       FieldComponent = fieldRegistry.get(enhancedField.view) || fieldRegistry.get(enhancedField.type);
+      FieldComponent = fieldRegistry.get(enhancedField.view) || fieldRegistry.get(enhancedField.type);
     }
 
     if (!FieldComponent) {
@@ -85,8 +85,8 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
     // Relationship field kontrolü ve searchFn memoization
     // Bu değerleri Controller dışında hesaplıyoruz çünkü useCallback kullanacağız
     // Check original type or view for relationship identification
-    const isRelationshipField = ['belongs-to', 'has-one', 'has-many', 'belongs-to-many'].includes(enhancedField.type) || 
-                                ['belongs-to-field', 'has-one-field', 'has-many-field', 'belongs-to-many-field'].includes(enhancedField.view);
+    const isRelationshipField = ['belongs-to', 'has-one', 'has-many', 'belongs-to-many'].includes(enhancedField.type) ||
+      ['belongs-to-field', 'has-one-field', 'has-many-field', 'belongs-to-many-field'].includes(enhancedField.view);
     const relatedResource = enhancedField.props?.related_resource;
 
     // searchFn'i useCallback ile memoize et - sonsuz render döngüsünü önler
@@ -130,6 +130,7 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
             required: enhancedField.required,
             placeholder: enhancedField.placeholder,
             helpText: enhancedField.help_text,
+            type: enhancedField.type,
             container,
             // Relationship field'lar için memoized searchFn ve parentResourceId
             // En sonda olmalı — backend props tarafından override edilmemeli

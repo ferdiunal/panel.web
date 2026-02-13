@@ -24,49 +24,63 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            // React core - separate chunk for React ecosystem
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          manualChunks: (id) => {
+            // Node modules vendor chunks
+            if (id.includes('node_modules')) {
+              // React core + Router - keep together to avoid circular deps
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'react-vendor'
+              }
 
-            // UI libraries - icons, themes, notifications
-            'ui-vendor': [
-              '@base-ui/react',
-              'lucide-react',
-              'next-themes',
-              'sonner',
-              'vaul',
-              'cmdk',
-            ],
+              // UI libraries - icons, themes, notifications
+              if (
+                id.includes('@base-ui/react') ||
+                id.includes('lucide-react') ||
+                id.includes('next-themes') ||
+                id.includes('sonner') ||
+                id.includes('vaul') ||
+                id.includes('cmdk')
+              ) {
+                return 'ui-vendor'
+              }
 
-            // Form libraries - form handling and validation
-            'form-vendor': [
-              'react-hook-form',
-              '@hookform/resolvers',
-              'zod',
-            ],
+              // Form libraries - form handling and validation
+              if (
+                id.includes('react-hook-form') ||
+                id.includes('@hookform/resolvers') ||
+                id.includes('zod')
+              ) {
+                return 'form-vendor'
+              }
 
-            // Editor libraries - Monaco and TipTap
-            'editor-vendor': [
-              '@monaco-editor/react',
-              '@tiptap/react',
-              '@tiptap/starter-kit',
-              '@tiptap/extension-link',
-              '@tiptap/extension-placeholder',
-            ],
+              // Editor libraries - Monaco and TipTap
+              if (
+                id.includes('@monaco-editor') ||
+                id.includes('@tiptap')
+              ) {
+                return 'editor-vendor'
+              }
 
-            // Chart libraries
-            'chart-vendor': ['recharts'],
+              // Table libraries
+              if (id.includes('@tanstack/react-table')) {
+                return 'table-vendor'
+              }
 
-            // Table libraries
-            'table-vendor': ['@tanstack/react-table'],
+              // Query libraries
+              if (id.includes('@tanstack/react-query') || id.includes('axios')) {
+                return 'query-vendor'
+              }
+            }
 
-            // Query libraries
-            'query-vendor': ['@tanstack/react-query', 'axios'],
+            // Plugin chunks - plugin field'ları için
+            if (id.includes('/plugins/')) {
+              return 'plugin-vendor'
+            }
           },
         },
       },
-      // Increase chunk size warning limit to 1MB
-      chunkSizeWarningLimit: 1000,
+      // Increase chunk size warning limit to 2MB to avoid warnings
+      chunkSizeWarningLimit: 2000,
     },
     server: {
       proxy: {

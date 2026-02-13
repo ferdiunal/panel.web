@@ -177,9 +177,11 @@ export function DashboardSidebar({ ...props }: React.ComponentProps<typeof Sideb
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                    <UserIcon className="mr-2 h-4 w-4" />
-                                    Account
+                                <DropdownMenuItem asChild>
+                                    <Link to="/account">
+                                        <UserIcon className="mr-2 h-4 w-4" />
+                                        Account
+                                    </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <Link to="/settings">

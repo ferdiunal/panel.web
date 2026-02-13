@@ -13,6 +13,7 @@ import DashboardLayout from "@/layouts/dashboard-layout"
 import ResourceIndexPage, { loader as resourceLoader } from "@/pages/resource/index"
 import LensPage, { loader as lensLoader } from "@/pages/resource/lens"
 import SettingsPage, { loader as settingsLoader } from "@/pages/settings/index"
+import AccountPage, { loader as accountLoader } from "@/pages/account/index"
 import PageViewer, { loader as pageViewerLoader } from "@/pages/common/page-viewer"
 import { usePageTitle } from "@/hooks/use-page-title"
 import { GlobalLoader } from "@/components/global-loader"
@@ -192,6 +193,23 @@ const router = createBrowserRouter([
                                             return `Ayarlar | ${siteName}`
                                         } catch {
                                             return "Ayarlar | Panel"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                path: "/account",
+                                element: <AccountPage />,
+                                loader: accountLoader,
+                                errorElement: <ResourceErrorBoundary />,
+                                handle: {
+                                    title: () => {
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `Hesap | ${siteName}`
+                                        } catch {
+                                            return "Hesap | Panel"
                                         }
                                     }
                                 }

@@ -339,6 +339,16 @@ export function registerAllFields() {
   fieldRegistry.register('dialog', MemoizedDialogField as any);
   fieldRegistry.register('dialog-field', MemoizedDialogField as any);
 
+  // File field (temporary fallback to text input)
+  fieldRegistry.register('file', MemoizedTextInput as any);
+  fieldRegistry.register('file-field', MemoizedTextInput as any);
+  fieldRegistry.register('file-field-form', TextFormField as any);
+
+  // Image field (temporary fallback to text input)
+  fieldRegistry.register('image', MemoizedTextInput as any);
+  fieldRegistry.register('image-field', MemoizedTextInput as any);
+  fieldRegistry.register('image-field-form', TextFormField as any);
+
   // ============================================================================
   // View-Specific Field Components (Form/Index/Detail Pattern)
   // ============================================================================

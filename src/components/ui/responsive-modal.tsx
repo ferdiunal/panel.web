@@ -1,5 +1,8 @@
 import * as React from "react"
+import { Maximize2, Minimize2 } from "lucide-react"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
     Dialog,
     DialogContent,
@@ -35,6 +38,10 @@ interface ResponsiveModalProps {
     variant?: "dialog" | "sheet" | "drawer"
     side?: "top" | "bottom" | "left" | "right" // For sheet
     className?: string // For custom modal styling
+    defaultFullscreen?: boolean // Uncontrolled fullscreen mode
+    fullscreen?: boolean // Controlled fullscreen mode
+    onFullscreenChange?: (fullscreen: boolean) => void // Fullscreen change callback
+    showFullscreenButton?: boolean // Show fullscreen toggle button (default: true)
 }
 
 export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalProps>(({
@@ -47,20 +54,66 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
     variant = "dialog",
     side = "right",
     className,
+    defaultFullscreen = false,
+    fullscreen,
+    onFullscreenChange,
+    showFullscreenButton = true,
 }, ref) => {
     const isDesktop = useMediaQuery("(min-width: 768px)")
+
+    // Fullscreen state management (controlled vs uncontrolled)
+    const [internalFullscreen, setInternalFullscreen] = React.useState(defaultFullscreen)
+    const isFullscreen = fullscreen !== undefined ? fullscreen : internalFullscreen
+
+    const toggleFullscreen = () => {
+        const newValue = !isFullscreen
+        if (fullscreen === undefined) {
+            setInternalFullscreen(newValue)
+        }
+        onFullscreenChange?.(newValue)
+    }
+
+    // Fullscreen toggle button component
+    const FullscreenButton = () => (
+        <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleFullscreen}
+            className="absolute top-0 right-10"
+            type="button"
+        >
+            {isFullscreen ? (
+                <Minimize2 className="size-4" />
+            ) : (
+                <Maximize2 className="size-4" />
+            )}
+            <span className="sr-only">
+                {isFullscreen ? "Tam ekrandan çık" : "Tam ekran"}
+            </span>
+        </Button>
+    )
 
     if (isDesktop) {
         if (variant === "sheet") {
             return (
                 <Sheet open={open} onOpenChange={onOpenChange}>
                     {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-                    <SheetContent side={side} className={className}>
-                        <SheetHeader>
+                    <SheetContent
+                        side={side}
+                        className={cn(
+                            "transition-all duration-200 ease-in-out",
+                            isFullscreen
+                                ? "w-screen h-screen max-w-none"
+                                : "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-sm data-[side=left]:w-3/4 data-[side=left]:sm:max-w-sm",
+                            className
+                        )}
+                    >
+                        <SheetHeader className="relative">
+                            {showFullscreenButton && <FullscreenButton />}
                             {title && <SheetTitle>{title}</SheetTitle>}
                             {description && <SheetDescription>{description}</SheetDescription>}
                         </SheetHeader>
-                        <div className="px-4" ref={ref}>
+                        <div className={cn("px-4", isFullscreen && "overflow-auto flex-1")} ref={ref}>
                             {children}
                         </div>
                     </SheetContent>
@@ -71,12 +124,21 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
                 {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-                <DialogContent className={className}>
-                    <DialogHeader>
+                <DialogContent
+                    className={cn(
+                        "transition-all duration-200 ease-in-out",
+                        isFullscreen
+                            ? "w-screen h-screen max-w-none rounded-none"
+                            : "max-w-[calc(100%-2rem)] sm:max-w-md",
+                        className
+                    )}
+                >
+                    <DialogHeader className="relative">
+                        {showFullscreenButton && <FullscreenButton />}
                         {title && <DialogTitle>{title}</DialogTitle>}
                         {description && <DialogDescription>{description}</DialogDescription>}
                     </DialogHeader>
-                    <div ref={ref}>
+                    <div className={cn(isFullscreen && "overflow-auto flex-1")} ref={ref}>
                         {children}
                     </div>
                 </DialogContent>

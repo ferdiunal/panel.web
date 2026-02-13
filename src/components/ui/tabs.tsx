@@ -8,15 +8,31 @@ import { cn } from "@/lib/utils"
 
 function Tabs({
   className,
-  orientation = "horizontal",
+  orientation,
+  side,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Root>) {
+}: React.ComponentProps<typeof TabsPrimitive.Root> & {
+  side?: "top" | "bottom" | "left" | "right"
+}) {
+  // side prop'undan orientation türet, backward compatibility için orientation'ı da destekle
+  const derivedOrientation = side
+    ? (side === "top" || side === "bottom" ? "horizontal" : "vertical")
+    : orientation || "horizontal"
+
+  // side prop yoksa orientation'dan default side türet
+  const derivedSide = side || (orientation === "vertical" ? "left" : "top")
+
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
-      data-orientation={orientation}
+      data-orientation={derivedOrientation}
+      data-side={derivedSide}
       className={cn(
-        "gap-2 group/tabs flex data-[orientation=horizontal]:flex-col",
+        "gap-2 group/tabs flex",
+        derivedSide === "top" && "flex-col",
+        derivedSide === "bottom" && "flex-col-reverse",
+        derivedSide === "left" && "flex-row",
+        derivedSide === "right" && "flex-row-reverse",
         className
       )}
       {...props}
@@ -66,7 +82,12 @@ function TabsTrigger({
         "gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium group-data-[variant=default]/tabs-list:data-active:shadow-sm group-data-[variant=line]/tabs-list:data-active:shadow-none [&_svg:not([class*='size-'])]:size-4 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center whitespace-nowrap transition-all group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
         "data-active:bg-background dark:data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 data-active:text-foreground",
-        "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+        "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity",
+        "group-data-[side=top]/tabs:after:inset-x-0 group-data-[side=top]/tabs:after:bottom-[-5px] group-data-[side=top]/tabs:after:h-0.5",
+        "group-data-[side=bottom]/tabs:after:inset-x-0 group-data-[side=bottom]/tabs:after:top-[-5px] group-data-[side=bottom]/tabs:after:h-0.5",
+        "group-data-[side=left]/tabs:after:inset-y-0 group-data-[side=left]/tabs:after:-right-1 group-data-[side=left]/tabs:after:w-0.5",
+        "group-data-[side=right]/tabs:after:inset-y-0 group-data-[side=right]/tabs:after:-left-1 group-data-[side=right]/tabs:after:w-0.5",
+        "group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
         className
       )}
       {...props}

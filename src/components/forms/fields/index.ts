@@ -13,6 +13,7 @@ import { CodeFormField } from '@/components/fields/form/CodeField';
 import { ColorFormField } from '@/components/fields/form/ColorField';
 import { BooleanGroupFormField } from '@/components/fields/form/BooleanGroupField';
 import { PanelFormField } from '@/components/fields/form/PanelField';
+import { TabsFormField } from '@/components/fields/form/TabsField';
 import { BadgeFormField } from '@/components/fields/form/BadgeField';
 import { DialogFormField } from '@/components/fields/form/DialogField';
 
@@ -42,11 +43,13 @@ import { TextIndexField } from '@/components/fields/index/TextInput';
 import { SelectIndexField } from '@/components/fields/index/SelectField';
 import { DateIndexField } from '@/components/fields/index/DateField';
 import { TelIndexField } from '@/components/fields/index/TelInput';
+import { TabsIndexField } from '@/components/fields/index/TabsField';
 
 import { TextDetailField } from '@/components/fields/detail/TextInput';
 import { SelectDetailField } from '@/components/fields/detail/SelectField';
 import { DateDetailField } from '@/components/fields/detail/DateField';
 import { TelDetailField } from '@/components/fields/detail/TelInput';
+import { TabsDetailField } from '@/components/fields/detail/TabsField';
 
 // Memoize field components with custom comparison
 export const MemoizedComboboxField = React.memo(ComboboxFormField, (prev, next) => {
@@ -98,6 +101,7 @@ export const MemoizedBooleanGroupField = React.memo(BooleanGroupFormField, (prev
 });
 
 export const MemoizedPanelField = React.memo(PanelFormField);
+export const MemoizedTabsField = React.memo(TabsFormField);
 
 // Basic input fields (Using Form Variants)
 export const MemoizedTextInput = React.memo(TextFormField, (prev, next) => {
@@ -326,6 +330,8 @@ export function registerAllFields() {
   fieldRegistry.register('boolean-group-field', MemoizedBooleanGroupField as any);
   fieldRegistry.register('panel', MemoizedPanelField as any);
   fieldRegistry.register('panel-field', MemoizedPanelField as any);
+  fieldRegistry.register('tabs', MemoizedTabsField as any);
+  fieldRegistry.register('tabs-field', MemoizedTabsField as any);
   fieldRegistry.register('badge', MemoizedBadgeField as any);
   fieldRegistry.register('badge-field', MemoizedBadgeField as any);
 
@@ -383,6 +389,9 @@ export function registerAllFields() {
   fieldRegistry.register('dialog-field-form', DialogFormField as any);
   fieldRegistry.register('badge-field-form', BadgeFormField as any);
   fieldRegistry.register('panel-field-form', PanelFormField as any);
+  fieldRegistry.register('tabs-field-form', TabsFormField as any);
+  fieldRegistry.register('tabs-field-detail', TabsDetailField as any);
+  fieldRegistry.register('tabs-field-index', TabsIndexField as any);
   fieldRegistry.register('boolean-group-field-form', BooleanGroupFormField as any);
 }
 

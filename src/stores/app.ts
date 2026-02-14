@@ -12,21 +12,33 @@
  *
  * ### Loader'da init çağrısı:
  * ```ts
- * // İlk çağrıda API'ye gider, sonraki çağrılarda cache'ten döner.
- * // Uygulama ayarları oturum boyunca değişmez.
+ * // window.Init'ten veriyi okur, API çağrısı yapmaz.
  * await useAppStore.getState().init();
  * ```
  *
- * ### Önbellek davranışı:
+ * ### Veri kaynağı:
  * ```
- * İlk çağrı            → API isteği atar (/api/init), sonucu store'a yazar
- * Sonraki çağrılar      → API'ye gitmez, mevcut state'i döner (isInitialized = true)
- * init(true) ile çağrı  → Cache'i atlar, API'ye tekrar gider (zorla yenileme)
+ * Backend, index.html'e window.Init = {...} olarak init verisini inject eder.
+ * Bu store, window.Init'ten veriyi okur — ekstra API çağrısı gerekmez.
+ * init(true) ile çağrı → window.Init'i tekrar okur (zorla yenileme)
  * ```
  */
 import { create } from 'zustand';
-import api from '@/lib/axios';
 import type { I18nConfig } from '@/services/init';
+
+declare global {
+    interface Window {
+        Init?: {
+            features?: Record<string, boolean>;
+            oauth?: Record<string, boolean>;
+            i18n?: I18nConfig;
+            theme?: string;
+            version?: string;
+            settings?: Record<string, any>;
+            translations?: Record<string, string>;
+        };
+    }
+}
 
 interface AppState {
     settings: Record<string, any>;
@@ -34,15 +46,10 @@ interface AppState {
     i18n: I18nConfig | null;
     isLoading: boolean;
     /**
-     * Uygulama ayarlarını yükler.
+     * Uygulama ayarlarını window.Init'ten yükler.
      *
-     * @param forceRefresh - true ise cache'i atlayıp API'den tekrar çeker
+     * @param forceRefresh - true ise cache'i atlayıp tekrar okur
      * @returns Ayarlar, özellikler ve i18n objesi veya null (hata durumunda)
-     *
-     * Varsayılan davranış: İlk çağrıda API'ye gider,
-     * sonraki çağrılarda mevcut state'i döner.
-     * Oturum boyunca site ayarları değişmediği için
-     * tekrar tekrar API'ye gitmeye gerek yok.
      */
     init: (forceRefresh?: boolean) => Promise<{
         settings: Record<string, any>,
@@ -51,10 +58,6 @@ interface AppState {
     } | null>;
 }
 
-/**
- * Init edildi mi flag'i.
- * Store dışında tutulur — render'a etki etmemeli.
- */
 let isInitialized = false;
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -66,24 +69,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     i18n: null,
     isLoading: true,
     init: async (forceRefresh = false) => {
-        // Daha önce init edildiyse ve zorla yenileme istenmiyorsa
-        // API'ye gitme, mevcut state'i döndür
         if (isInitialized && !forceRefresh) {
             const { settings, features, i18n } = get();
             return { settings, features, i18n };
         }
 
         try {
-            const { data } = await api.get('/init');
+            const data = window.Init;
 
-            // Backend'den gelen features
+            if (!data) {
+                console.warn("window.Init bulunamadı, varsayılan değerler kullanılıyor.");
+                set({ isLoading: false });
+                return null;
+            }
+
             const backendFeatures = data.features || {};
 
             // Settings'i düz yapıya çevir
             const settingsObj = data.settings || {};
             const flatSettings: Record<string, any> = {};
 
-            // { key: { value: ... } } → { key: ... } dönüşümü
             Object.entries(settingsObj).forEach(([key, val]: [string, any]) => {
                 if (val && typeof val === 'object' && 'value' in val) {
                     flatSettings[key] = val.value;
@@ -92,7 +97,6 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }
             });
 
-            // i18n config
             const i18nConfig = data.i18n || null;
 
             const result = {
@@ -104,7 +108,6 @@ export const useAppStore = create<AppState>((set, get) => ({
                 i18n: i18nConfig,
             };
 
-            // Başarılı — state güncelle ve cache flag'ini set et
             isInitialized = true;
             set({
                 ...result,

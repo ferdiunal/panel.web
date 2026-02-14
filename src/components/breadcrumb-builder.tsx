@@ -134,7 +134,8 @@ export function BreadcrumbBuilder({
         return segments;
     }, [location.pathname, resourceTitle, pageTitle, customSegments]);
 
-    if (breadcrumbs.length === 0) {
+    // Dashboard sayfasında breadcrumb gösterme
+    if (breadcrumbs.length === 0 || location.pathname === '/dashboard') {
         return null;
     }
 

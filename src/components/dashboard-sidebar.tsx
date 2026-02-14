@@ -44,8 +44,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuthStore } from "@/stores/auth"
+import { useAppStore } from "@/stores/app"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Link, useLocation } from "react-router-dom"
+import { useTranslation } from "@/hooks/useTranslation"
 
 // Icon mapping
 const iconMap: Record<string, any> = {
@@ -67,8 +69,13 @@ const iconMap: Record<string, any> = {
 
 export function DashboardSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const { user, logout } = useAuthStore()
+    const { settings } = useAppStore()
+    const { t } = useTranslation()
     const [navItems, setNavItems] = useState<NavItem[]>([])
     const location = useLocation()
+
+    const siteName = settings?.site_name || "Panel.go"
+    const siteLogo = settings?.logo || null
 
     useEffect(() => {
         const fetchNav = async () => {
@@ -82,29 +89,40 @@ export function DashboardSidebar({ ...props }: React.ComponentProps<typeof Sideb
         fetchNav()
     }, [])
 
-    // Group items
-    const groupedItems = navItems.reduce((acc, item) => {
-        const group = item.group || "Genel";
-        if (!acc[group]) acc[group] = [];
-        acc[group].push(item);
-        return acc;
-    }, {} as Record<string, NavItem[]>);
+    // Group items — account ve settings'i sidebar içeriğinden ayır
+    const accountNav = navItems.find(item => item.slug === 'account')
+    const settingsNav = navItems.find(item => item.slug === 'settings')
+
+    const groupedItems = navItems
+        .filter(item => item.slug !== 'account' && item.slug !== 'settings')
+        .reduce((acc, item) => {
+            const group = item.group || "Genel";
+            if (!acc[group]) acc[group] = [];
+            acc[group].push(item);
+            return acc;
+        }, {} as Record<string, NavItem[]>);
 
     return (
         <Sidebar variant="inset" {...props}>
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <a href="#">
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                                    <Command className="size-4" />
-                                </div>
+                        <SidebarMenuButton size="lg" asChild className="px-0">
+                            <Link to="/dashboard">
+                                {siteLogo ? (
+                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
+                                        <img src={siteLogo} alt={siteName} className="size-8 object-contain" />
+                                    </div>
+                                ) : (
+                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                                        <Command className="size-4" />
+                                    </div>
+                                )}
                                 <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold">Panel Inc</span>
-                                    <span className="truncate text-xs">Enterprise</span>
+                                    <span className="truncate font-semibold">{siteName}</span>
+                                    <span className="truncate text-xs">by Panel.go</span>
                                 </div>
-                            </a>
+                            </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
@@ -177,22 +195,32 @@ export function DashboardSidebar({ ...props }: React.ComponentProps<typeof Sideb
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem asChild>
-                                    <Link to="/account">
-                                        <UserIcon className="mr-2 h-4 w-4" />
-                                        Account
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                    <Link to="/settings">
-                                        <Settings2 className="mr-2 h-4 w-4" />
-                                        Settings
-                                    </Link>
-                                </DropdownMenuItem>
+                                {accountNav && (() => {
+                                    const AccountIcon = iconMap[accountNav.icon] || UserIcon
+                                    return (
+                                        <DropdownMenuItem asChild>
+                                            <Link to={`/${accountNav.slug}`}>
+                                                <AccountIcon className="mr-2 h-4 w-4" />
+                                                {accountNav.title}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    )
+                                })()}
+                                {settingsNav && (() => {
+                                    const SettingsIcon = iconMap[settingsNav.icon] || Settings2
+                                    return (
+                                        <DropdownMenuItem asChild>
+                                            <Link to={`/${settingsNav.slug}`}>
+                                                <SettingsIcon className="mr-2 h-4 w-4" />
+                                                {settingsNav.title}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    )
+                                })()}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => logout()}>
                                     <LogOut className="mr-2 h-4 w-4" />
-                                    Log out
+                                    {t('navigation.logout')}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

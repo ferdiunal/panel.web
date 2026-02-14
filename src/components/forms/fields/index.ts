@@ -37,6 +37,7 @@ import { CheckboxFormField } from '@/components/fields/form/CheckboxField';
 import { RadioGroupFormField } from '@/components/fields/form/RadioGroupField';
 import { TimeFormField } from '@/components/fields/form/TimeField';
 import { MorphToManyFormField } from '@/components/fields/form/MorphToManyField';
+import { FileFormField } from '@/components/fields/form/FileInput';
 
 // Import Index/Detail specific components
 import { TextIndexField } from '@/components/fields/index/TextInput';
@@ -264,6 +265,14 @@ export const MemoizedCheckboxField = React.memo(CheckboxFormField);
 export const MemoizedRadioGroupField = React.memo(RadioGroupFormField);
 export const MemoizedTimeField = React.memo(TimeFormField);
 export const MemoizedMorphToManyField = React.memo(MorphToManyFormField);
+export const MemoizedFileInput = React.memo(FileFormField, (prev, next) => {
+  return (
+    prev.value === next.value &&
+    prev.disabled === next.disabled &&
+    prev.required === next.required &&
+    prev.error === next.error
+  );
+});
 
 // Register all field components with the registry
 export function registerAllFields() {
@@ -339,15 +348,15 @@ export function registerAllFields() {
   fieldRegistry.register('dialog', MemoizedDialogField as any);
   fieldRegistry.register('dialog-field', MemoizedDialogField as any);
 
-  // File field (temporary fallback to text input)
-  fieldRegistry.register('file', MemoizedTextInput as any);
-  fieldRegistry.register('file-field', MemoizedTextInput as any);
-  fieldRegistry.register('file-field-form', TextFormField as any);
+  // File field
+  fieldRegistry.register('file', MemoizedFileInput as any);
+  fieldRegistry.register('file-field', MemoizedFileInput as any);
+  fieldRegistry.register('file-field-form', FileFormField as any);
 
-  // Image field (temporary fallback to text input)
-  fieldRegistry.register('image', MemoizedTextInput as any);
-  fieldRegistry.register('image-field', MemoizedTextInput as any);
-  fieldRegistry.register('image-field-form', TextFormField as any);
+  // Image field (uses file input)
+  fieldRegistry.register('image', MemoizedFileInput as any);
+  fieldRegistry.register('image-field', MemoizedFileInput as any);
+  fieldRegistry.register('image-field-form', FileFormField as any);
 
   // ============================================================================
   // View-Specific Field Components (Form/Index/Detail Pattern)

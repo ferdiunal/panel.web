@@ -9,11 +9,12 @@ import { Link, redirect } from "react-router-dom"
 import { useAppStore } from "@/stores/app"
 import UniversalFormField from "@/components/form-field"
 import { Form } from "@/components/ui/form"
-import { GalleryVerticalEnd } from "lucide-react"
 import { useAuthStore } from "@/stores"
+import AuthLayout from "@/components/auth-layout"
+import { useTranslation, t as tFn } from "@/hooks/useTranslation"
 
 const formSchema = z.object({
-    email: z.string().email({ message: "Geçerli bir e-posta adresi giriniz." }),
+    email: z.string().email({ message: tFn("auth.forgotPassword.emailInvalid") }),
 })
 
 
@@ -22,13 +23,15 @@ export async function loader() {
         await useAppStore.getState().init()
         await useAuthStore.getState().checkSession()
         if (useAuthStore.getState().isAuthenticated) {
-          return redirect('/dashboard');
+            return redirect('/dashboard');
         }
     } catch {
     }
 }
 
 export default function ForgotPasswordPage() {
+    const { t } = useTranslation()
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -39,53 +42,42 @@ export default function ForgotPasswordPage() {
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
             await api.post("/auth/forgot-password", values)
-            toast.success("Sıfırlama bağlantısı e-posta adresinize gönderildi.")
+            toast.success(t("auth.forgotPassword.success"))
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "İşlem başarısız")
+            toast.error(error.response?.data?.error || t("auth.forgotPassword.failed"))
         }
     }
 
     return (
-        <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-            <div className="flex w-full max-w-sm flex-col gap-6">
-                <a href="#" className="flex items-center gap-2 self-center font-medium">
-                    <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-                        <GalleryVerticalEnd className="size-4" />
+        <AuthLayout>
+            <Card>
+                <CardHeader className="text-center">
+                    <CardTitle className="text-xl">{t("auth.forgotPassword.title")}</CardTitle>
+                    <CardDescription>
+                        {t("auth.forgotPassword.description")}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
+                            <UniversalFormField
+                                control={form.control}
+                                name="email"
+                                label={t("auth.forgotPassword.email")}
+                                placeholder={t("auth.forgotPassword.emailPlaceholder")}
+                            />
+                            <Button type="submit" className="w-full">
+                                {t("auth.forgotPassword.submit")}
+                            </Button>
+                        </form>
+                    </Form>
+                    <div className="mt-4 text-center text-sm">
+                        <Link to="/login" className="underline underline-offset-4">
+                            {t("auth.forgotPassword.backToLogin")}
+                        </Link>
                     </div>
-                    Panel Inc.
-                </a>
-                <Card>
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-xl">Şifremi Unuttum</CardTitle>
-                        <CardDescription>
-                            Şifrenizi sıfırlamak için e-posta adresinizi girin
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-                                <UniversalFormField
-                                    control={form.control}
-                                    name="email"
-                                    label="E-posta"
-                                    placeholder="m@example.com"
-                                />
-                                <Button type="submit" className="w-full">
-                                    Sıfırlama Bağlantısı Gönder
-                                </Button>
-                            </form>
-                        </Form>
-                        <div className="mt-4 text-center text-sm">
-                            <Link to="/login" className="underline underline-offset-4">
-                                Giriş ekranına dön
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
-                <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
-                    Devam ederek <a href="#">Hizmet Koşullarımızı</a> ve <a href="#">Gizlilik Politikamızı</a> kabul etmiş olursunuz.
-                </div>
-            </div>
-        </div>
+                </CardContent>
+            </Card>
+        </AuthLayout>
     )
 }

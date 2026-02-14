@@ -9,13 +9,14 @@ import api from "@/lib/axios"
 import { useNavigate, Link, redirect } from "react-router-dom"
 import { useAppStore } from "@/stores/app"
 import UniversalFormField from "@/components/form-field"
-import { GalleryVerticalEnd } from "lucide-react"
 import { useAuthStore } from "@/stores"
+import AuthLayout from "@/components/auth-layout"
+import { useTranslation, t as tFn } from "@/hooks/useTranslation"
 
 const formSchema = z.object({
-    name: z.string().min(2, "İsim en az 2 karakter olmalı"),
-    email: z.email("Geçerli bir e-posta adresi girin"),
-    password: z.string().min(6, "Şifre en az 6 karakter olmalı"),
+    name: z.string().min(2, tFn("auth.register.nameMinLength")),
+    email: z.email(tFn("auth.register.emailInvalid")),
+    password: z.string().min(6, tFn("auth.register.passwordMinLength")),
 })
 
 export async function loader() {
@@ -23,7 +24,7 @@ export async function loader() {
         await useAppStore.getState().init()
         await useAuthStore.getState().checkSession()
         if (useAuthStore.getState().isAuthenticated) {
-          return redirect('/dashboard');
+            return redirect('/dashboard');
         }
     } catch {
     }
@@ -31,6 +32,7 @@ export async function loader() {
 
 export default function RegisterPage() {
     const navigate = useNavigate()
+    const { t } = useTranslation()
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -49,67 +51,56 @@ export default function RegisterPage() {
                 password: values.password
             })
 
-            toast.success("Hesap oluşturuldu! Giriş yapabilirsiniz.")
+            toast.success(t("auth.register.success"))
             navigate("/login")
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Kayıt başarısız")
+            toast.error(error.response?.data?.error || t("auth.register.failed"))
         }
     }
 
     return (
-        <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-            <div className="flex w-full max-w-sm flex-col gap-6">
-                <a href="#" className="flex items-center gap-2 self-center font-medium">
-                    <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-                        <GalleryVerticalEnd className="size-4" />
+        <AuthLayout>
+            <Card>
+                <CardHeader className="text-center">
+                    <CardTitle className="text-xl">{t("auth.register.title")}</CardTitle>
+                    <CardDescription>
+                        {t("auth.register.description")}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
+                            <UniversalFormField
+                                control={form.control}
+                                name="name"
+                                label={t("auth.register.name")}
+                                placeholder={t("auth.register.namePlaceholder")}
+                            />
+                            <UniversalFormField
+                                control={form.control}
+                                name="email"
+                                label={t("auth.register.email")}
+                                placeholder={t("auth.register.emailPlaceholder")}
+                            />
+                            <UniversalFormField
+                                control={form.control}
+                                name="password"
+                                label={t("auth.register.password")}
+                                type="password"
+                            />
+                            <Button type="submit" className="w-full">
+                                {t("auth.register.submit")}
+                            </Button>
+                        </form>
+                    </Form>
+                    <div className="mt-4 text-center text-sm">
+                        {t("auth.register.hasAccount")}{" "}
+                        <Link to="/login" className="underline underline-offset-4">
+                            {t("auth.register.login")}
+                        </Link>
                     </div>
-                    Panel Inc.
-                </a>
-                <Card>
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-xl">Kayıt Ol</CardTitle>
-                        <CardDescription>
-                            Hesap oluşturmak için bilgilerinizi girin
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-                                <UniversalFormField
-                                    control={form.control}
-                                    name="name"
-                                    label="Ad Soyad"
-                                    placeholder="John Doe"
-                                />
-                                <UniversalFormField
-                                    control={form.control}
-                                    name="email"
-                                    label="E-posta"
-                                    placeholder="m@example.com"
-                                />
-                                <UniversalFormField
-                                    control={form.control}
-                                    name="password"
-                                    label="Şifre"
-                                    type="password"
-                                />
-                                <Button type="submit" className="w-full">
-                                    Hesap Oluştur
-                                </Button>
-                            </form>
-                        </Form>
-                        <div className="mt-4 text-center text-sm">
-                            Zaten hesabınız var mı?{" "}
-                            <Link to="/login" className="underline underline-offset-4">
-                                Giriş Yap
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
-                <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
-                    Devam ederek <a href="#">Hizmet Koşullarımızı</a> ve <a href="#">Gizlilik Politikamızı</a> kabul etmiş olursunuz.
-                </div>
-            </div>
-        </div>
+                </CardContent>
+            </Card>
+        </AuthLayout>
     )
 }

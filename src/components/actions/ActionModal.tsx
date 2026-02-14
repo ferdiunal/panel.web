@@ -157,7 +157,9 @@ export function ActionModal({ resource }: ActionModalProps) {
       title={selectedAction.name}
       description={
         selectedAction.confirmText ||
-        `Are you sure you want to run this action on ${selectedIds.length} item(s)?`
+        (selectedAction.standalone && selectedIds.length === 0
+          ? 'Are you sure you want to run this standalone action?'
+          : `Are you sure you want to run this action on ${selectedIds.length} item(s)?`)
       }
     >
       <div className="space-y-4">

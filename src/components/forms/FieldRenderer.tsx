@@ -85,8 +85,18 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
     // Relationship field kontrolü ve searchFn memoization
     // Bu değerleri Controller dışında hesaplıyoruz çünkü useCallback kullanacağız
     // Check original type or view for relationship identification
-    const isRelationshipField = ['belongs-to', 'has-one', 'has-many', 'belongs-to-many'].includes(enhancedField.type) ||
-      ['belongs-to-field', 'has-one-field', 'has-many-field', 'belongs-to-many-field'].includes(enhancedField.view);
+    const relationshipViews = [
+      'belongs-to-field',
+      'has-one-field',
+      'has-many-field',
+      'belongs-to-many-field',
+      'morph-to-field',
+      'morph-to-many-field',
+    ];
+    const viewName = enhancedField.view || '';
+    const isRelationshipField =
+      ['belongs-to', 'has-one', 'has-many', 'belongs-to-many', 'morph-to', 'morph-to-many', 'relationship'].includes(enhancedField.type) ||
+      relationshipViews.some((view) => viewName === view || viewName.startsWith(`${view}-`));
     const relatedResource = enhancedField.props?.related_resource;
 
     // searchFn'i useCallback ile memoize et - sonsuz render döngüsünü önler

@@ -79,7 +79,7 @@ export default function ResourceIndexPage() {
     const queryClient = useQueryClient()
     const [createContainer, setCreateContainer] = useState<HTMLDivElement | null>(null)
     const [editContainer, setEditContainer] = useState<HTMLDivElement | null>(null)
-    
+
     // Modal states
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
@@ -88,12 +88,12 @@ export default function ResourceIndexPage() {
     // Data states (Simple modals)
     const [editingItem, setEditingItem] = useState<ResourceItem | null>(null)
     const [deletingItem, setDeletingItem] = useState<ResourceItem | null>(null)
-    
+
     // Detail Stack for Nested Modals
     interface DetailStackItem {
         id: string // Unique ID for key
         resource: string
-        item: ResourceItem 
+        item: ResourceItem
     }
     const [detailStack, setDetailStack] = useState<DetailStackItem[]>([])
 
@@ -104,17 +104,17 @@ export default function ResourceIndexPage() {
     // Handle deep linking for detail modal (Initial load)
     useEffect(() => {
         if (detailId && detailStack.length === 0 && resource) {
-            const mockItem = { 
-                id: { 
+            const mockItem = {
+                id: {
                     data: detailId,
                     key: 'id',
                     name: 'ID',
                     label: 'ID',
                     type: 'id',
                     view: 'id-field'
-                } 
+                }
             } as any
-            
+
             setDetailStack([{
                 id: `${resource}-${detailId}-init`,
                 resource: resource,
@@ -158,6 +158,13 @@ export default function ResourceIndexPage() {
         updateSort(key)
     }, [updateSort])
 
+    // Update document title
+    useEffect(() => {
+        if (resourceData?.meta?.title) {
+            document.title = resourceData.meta.title
+        }
+    }, [resourceData?.meta?.title])
+
     // Create Fields Query
     const { data: createFields = [] } = useQuery({
         queryKey: ["resource", resource, "create-fields"],
@@ -185,7 +192,14 @@ export default function ResourceIndexPage() {
     // Process edit fields
     const editFields = useMemo(() => {
         return rawEditFields.map(field => {
-            if ((field.view === 'has-many-field' || field.view === 'belongs-to-many-field') && Array.isArray(field.data) && field.data.length > 0) {
+            const view = field.view || '';
+            const isManyRelationship =
+                view === 'has-many-field' ||
+                view === 'belongs-to-many-field' ||
+                view.startsWith('has-many-field-') ||
+                view.startsWith('belongs-to-many-field-');
+
+            if (isManyRelationship && Array.isArray(field.data) && field.data.length > 0) {
                 const firstItem = field.data[0];
                 if (firstItem && typeof firstItem === 'object' && 'id' in firstItem) {
                     const options: Record<string, string> = {};
@@ -213,7 +227,20 @@ export default function ResourceIndexPage() {
         if (!editFields || editFields.length === 0) return {}
         const initial: Record<string, any> = {}
         editFields.forEach(field => {
-            if (field.view === 'has-many-field' || field.view === 'belongs-to-many-field') {
+            const view = field.view || ''
+            const isManyRelationship =
+                view === 'has-many-field' ||
+                view === 'belongs-to-many-field' ||
+                view.startsWith('has-many-field-') ||
+                view.startsWith('belongs-to-many-field-')
+
+            const isSingleRelationship =
+                view === 'belongs-to-field' ||
+                view === 'has-one-field' ||
+                view.startsWith('belongs-to-field-') ||
+                view.startsWith('has-one-field-')
+
+            if (isManyRelationship) {
                 if (field.data === null || field.data === undefined) {
                     initial[field.key] = []
                 } else if (Array.isArray(field.data)) {
@@ -229,6 +256,13 @@ export default function ResourceIndexPage() {
                     })
                 } else {
                     initial[field.key] = []
+                }
+            } else if (isSingleRelationship && field.data && typeof field.data === 'object' && 'id' in (field.data as any)) {
+                const idField = (field.data as any).id
+                if (idField && typeof idField === 'object' && 'data' in idField) {
+                    initial[field.key] = String(idField.data)
+                } else {
+                    initial[field.key] = String(idField)
                 }
             } else {
                 initial[field.key] = field.data
@@ -327,7 +361,7 @@ export default function ResourceIndexPage() {
         const res = targetResource || resource || ''
         const idField = item['id'] as FieldData
         const id = idField ? String(idField.data) : 'unknown'
-        
+
         // Add new item to stack
         setDetailStack(prev => [...prev, {
             id: `${res}-${id}-${Date.now()}`,
@@ -339,7 +373,7 @@ export default function ResourceIndexPage() {
     const closeDetailModal = (stackIndex: number) => {
         // Remove this specific item from stack
         setDetailStack(prev => prev.filter((_, i) => i !== stackIndex))
-        
+
         // Clear URL param if we closed the last one
         if (detailStack.length <= 1 && searchParams.has("detail_id")) {
             const newParams = new URLSearchParams(searchParams)
@@ -349,15 +383,15 @@ export default function ResourceIndexPage() {
     }
 
     const handleResourceClick = (targetResource: string, id: string | number) => {
-        const mockItem = { 
-            id: { 
+        const mockItem = {
+            id: {
                 data: id,
                 key: 'id',
-                name: 'ID', 
+                name: 'ID',
                 label: 'ID',
                 type: 'id',
                 view: 'id-field'
-            } 
+            }
         } as any
         openDetailModal(mockItem, targetResource)
     }

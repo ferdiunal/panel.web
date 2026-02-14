@@ -44,6 +44,8 @@ export interface Action {
   onlyOnIndex: boolean;
   onlyOnDetail: boolean;
   showInline: boolean;
+  standalone?: boolean;
+  sole?: boolean;
   fields: ActionField[];
 }
 

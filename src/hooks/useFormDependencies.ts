@@ -11,7 +11,6 @@
 import { useCallback } from 'react';
 import { useFormStateStore, useDependencyLoading, useAllFieldUpdates } from '@/stores/form-state-store';
 import { useDebouncedCallback } from './useDebouncedCallback';
-import { getRelevantFields, pick } from '@/utils/form-helpers';
 import type { FieldDefinition } from '@/types/form';
 
 export interface UseFormDependenciesOptions {
@@ -36,7 +35,7 @@ export interface UseFormDependenciesReturn {
 export function useFormDependencies(
   options: UseFormDependenciesOptions
 ): UseFormDependenciesReturn {
-  const { formId, resourceType, mode, resourceId, fields, enabled = true } = options;
+  const { formId, resourceType, mode, resourceId, enabled = true } = options;
 
   // Subscribe to field updates and loading state
   const fieldUpdates = useAllFieldUpdates(formId);
@@ -51,9 +50,7 @@ export function useFormDependencies(
       store.setDependencyLoading(formId, true);
 
       try {
-        // Get only relevant fields (changed fields + their dependents)
-        const relevantFieldKeys = getRelevantFields(changedFields, fields);
-        const relevantData = pick(formData, relevantFieldKeys);
+        const dependencyContext = mode === 'edit' ? 'update' : 'create';
 
         // Call backend API to resolve dependencies
         const response = await fetch(
@@ -62,8 +59,8 @@ export function useFormDependencies(
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              formData: relevantData,
-              context: mode,
+              formData,
+              context: dependencyContext,
               changedFields,
               resourceId: resourceId || null,
             }),
@@ -94,17 +91,11 @@ export function useFormDependencies(
   // Handle field change with dependency resolution
   const handleFieldChange = useCallback(
     (fieldKey: string, value: any, formData: Record<string, any>) => {
-      // Check if this field has dependents
-      const hasDependents = fields.some((f) =>
-        f.props?.depends_on?.includes(fieldKey)
-      );
-
-      if (hasDependents && enabled) {
-        // Trigger dependency resolution
+      if (enabled) {
         resolveDependencies([fieldKey], { ...formData, [fieldKey]: value });
       }
     },
-    [fields, enabled, resolveDependencies]
+    [enabled, resolveDependencies]
   );
 
   return {

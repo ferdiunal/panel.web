@@ -68,7 +68,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
   });
 
   // Setup dependent fields
-  const { isResolving } = useFormDependencies({
+  const { isResolving, handleFieldChange } = useFormDependencies({
     formId,
     resourceType,
     mode,
@@ -122,6 +122,18 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
       form.reset(initialData);
     }
   }, [initialData, mode, form]);
+
+  useEffect(() => {
+    if (!enableDependentFields) return;
+
+    const subscription = form.watch((values, info) => {
+      const fieldKey = info.name;
+      if (!fieldKey) return;
+      handleFieldChange(fieldKey, (values as Record<string, any>)[fieldKey], values as Record<string, any>);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [form, enableDependentFields, handleFieldChange]);
 
   return (
     <FormProvider {...form}>

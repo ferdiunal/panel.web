@@ -79,7 +79,9 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
             variant="ghost"
             size="icon-sm"
             onClick={toggleFullscreen}
-            className="absolute top-0 right-10"
+            className={cn(
+                variant === "sheet" ? "absolute top-4 right-12" : "absolute -top-[0.5rem] right-8"
+            )}
             type="button"
         >
             {isFullscreen ? (
@@ -103,7 +105,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                         className={cn(
                             "transition-all duration-200 ease-in-out",
                             isFullscreen
-                                ? "w-screen h-screen max-w-none"
+                                ? "data-[side=left]:sm:max-w-none data-[side=right]:sm:max-w-none data-[side=left]:w-screen data-[side=right]:w-screen data-[side=left]:sm:h-full data-[ide=right]:sm:h-full"
                                 : "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-sm data-[side=left]:w-3/4 data-[side=left]:sm:max-w-sm",
                             className
                         )}
@@ -128,7 +130,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                     className={cn(
                         "transition-all duration-200 ease-in-out",
                         isFullscreen
-                            ? "w-screen h-screen max-w-none rounded-none"
+                            ? "sm:w-screen sm:h-screen sm:max-w-none rounded-none"
                             : "max-w-[calc(100%-2rem)] sm:max-w-md",
                         className
                     )}

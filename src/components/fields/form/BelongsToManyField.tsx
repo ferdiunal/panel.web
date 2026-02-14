@@ -50,7 +50,7 @@ export const BelongsToManyFormField: React.FC<FormFieldProps> = ({
     const searchFn = field.props?.searchFn as (query: string) => Promise<Resource[]>;
     const optionsProp = field.props?.options as Record<string, string>;
     const initialOptions = optionsProp || EMPTY_OPTIONS;
-    const resourceSlug = name; // Using name as slug based on previous implementation usage
+    const resourceSlug = field.props?.related_resource as string;
 
     const [searchQuery, setSearchQuery] = useState('');
     const [availableOptions, setAvailableOptions] = useState<Option[]>([]);
@@ -207,38 +207,42 @@ export const BelongsToManyFormField: React.FC<FormFieldProps> = ({
               </ComboboxContent>
             </Combobox>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => setQuickCreateOpen(true)}
-            disabled={disabled}
-            title="Hızlı oluştur"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+          {resourceSlug && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setQuickCreateOpen(true)}
+              disabled={disabled}
+              title="Hızlı oluştur"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         {/* Quick Create Modal */}
-        <QuickCreateModal
-          resourceSlug={resourceSlug}
-          open={quickCreateOpen}
-          onOpenChange={setQuickCreateOpen}
-          onSuccess={(createdResource) => {
-            // Yeni kaydı availableOptions'a ekle
-            const newOption: Option = {
-              id: String(createdResource.id?.data || createdResource.id),
-              name: createdResource.name?.data || createdResource.name || createdResource.title?.data || createdResource.title || `#${createdResource.id}`,
-            };
-            setAvailableOptions([...availableOptions, newOption]);
+        {resourceSlug && (
+          <QuickCreateModal
+            resourceSlug={resourceSlug}
+            open={quickCreateOpen}
+            onOpenChange={setQuickCreateOpen}
+            onSuccess={(createdResource) => {
+              // Yeni kaydı availableOptions'a ekle
+              const newOption: Option = {
+                id: String(createdResource.id?.data || createdResource.id),
+                name: createdResource.name?.data || createdResource.name || createdResource.title?.data || createdResource.title || `#${createdResource.id}`,
+              };
+              setAvailableOptions([...availableOptions, newOption]);
 
-            // Yeni kaydı value array'ine ekle
-            onChange([...currentValue, String(newOption.id)]);
+              // Yeni kaydı value array'ine ekle
+              onChange([...currentValue, String(newOption.id)]);
 
-            // Search query'yi temizle
-            setSearchQuery('');
-          }}
-        />
+              // Search query'yi temizle
+              setSearchQuery('');
+            }}
+          />
+        )}
       </FieldLayout>
     );
 };

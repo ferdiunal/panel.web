@@ -23,6 +23,10 @@ export function ActionButton({ actions, selectedIds }: ActionButtonProps) {
 
   if (indexActions.length === 0) return null;
 
+  const canOpenMenu = indexActions.some(
+    (a) => a.standalone || selectedIds.length > 0
+  );
+
   const handleActionClick = (action: Action) => {
     openActionModal(action, selectedIds);
   };
@@ -30,7 +34,7 @@ export function ActionButton({ actions, selectedIds }: ActionButtonProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={selectedIds.length === 0}>
+        <Button variant="outline" disabled={!canOpenMenu}>
           Actions
           <ChevronDown className="ml-2 h-4 w-4" />
         </Button>
@@ -39,6 +43,10 @@ export function ActionButton({ actions, selectedIds }: ActionButtonProps) {
         {indexActions.map((action) => (
           <DropdownMenuItem
             key={action.slug}
+            disabled={
+              (!action.standalone && selectedIds.length === 0) ||
+              (!!action.sole && selectedIds.length !== 1)
+            }
             onClick={() => handleActionClick(action)}
             className={action.destructive ? 'text-destructive' : ''}
           >

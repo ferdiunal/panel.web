@@ -5,6 +5,8 @@ import type { ResolveDependenciesRequest, ResolveDependenciesResponse } from "@/
 import type { LensData, LensResponse, LensQueryParams } from "@/types/lens";
 import qs from "qs";
 
+const FORM_NULL_SENTINEL = "__PANEL_NULL__";
+
 export const resourceService = {
     fetchResource: async (
         resource: string,
@@ -182,14 +184,23 @@ function toFormData(data: any): FormData {
     const formData = new FormData();
     Object.keys(data).forEach((key) => {
         const value = data[key];
-        if (value === undefined || value === null) return;
+        if (value === undefined) return;
+
+        if (value === null) {
+            formData.append(key, FORM_NULL_SENTINEL);
+            return;
+        }
 
         // If it's a File object (browser), append directly
         if (value instanceof File) {
             formData.append(key, value);
         } else if (Array.isArray(value)) {
             // Handle arrays if needed (e.g. key[])
-            value.forEach((v) => formData.append(`${key}[]`, v));
+            value.forEach((v) => {
+                if (v !== undefined && v !== null) {
+                    formData.append(`${key}[]`, v);
+                }
+            });
         } else if (typeof value === 'object' && !(value instanceof Date)) {
             // Handle nested objects if necessary, or just JSON stringify
             // For simple resource forms, usually flat.

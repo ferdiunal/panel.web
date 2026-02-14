@@ -8,21 +8,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { useAppStore, useAuthStore } from '@/stores';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export async function loader() {
-    try {
-        await useAppStore.getState().init()
-        await useAuthStore.getState().checkSession()
-        if (useAuthStore.getState().isAuthenticated) {
-          return redirect('/dashboard');
-        }
-    } catch {
+  try {
+    await useAppStore.getState().init()
+    await useAuthStore.getState().checkSession()
+    if (useAuthStore.getState().isAuthenticated) {
+      return redirect('/dashboard');
     }
+  } catch {
+  }
 }
 
 
 export default function UnauthorizedPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -31,28 +33,27 @@ export default function UnauthorizedPage() {
           <div className="flex items-center gap-2">
             <AlertCircle className="h-6 w-6 text-destructive" />
             <div>
-              <CardTitle>Access Denied</CardTitle>
-              <CardDescription>You don't have permission to access this resource</CardDescription>
+              <CardTitle>{t('auth.unauthorized.title')}</CardTitle>
+              <CardDescription>{t('auth.unauthorized.description')}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Your account doesn't have the required permissions to access this page.
-              Please contact an administrator if you believe this is a mistake.
+              {t('auth.unauthorized.message')}
             </p>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 onClick={() => navigate(-1)}
               >
-                Go Back
+                {t('auth.unauthorized.goBack')}
               </Button>
               <Button
                 onClick={() => navigate('/')}
               >
-                Go Home
+                {t('auth.unauthorized.goHome')}
               </Button>
             </div>
           </div>

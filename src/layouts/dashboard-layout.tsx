@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator"
 import { BreadcrumbBuilder } from "@/components/breadcrumb-builder"
 import { NotificationBell } from "@/components/layout/NotificationBell"
 import { ModeToggle } from "@/components/mode-toggle"
+import { LanguageSelector } from "@/components/layout/LanguageSelector"
 
 export default function DashboardLayout() {
     return (
@@ -18,6 +19,7 @@ export default function DashboardLayout() {
                         <BreadcrumbBuilder />
                     </div>
                     <div className="flex items-center gap-2 px-4">
+                        <LanguageSelector />
                         <ModeToggle />
                         <NotificationBell />
                     </div>

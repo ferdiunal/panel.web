@@ -7,6 +7,7 @@ export interface NavItem {
     group: string;
     type: "resource" | "page";
     order: number;
+    url: string;
 }
 
 export interface NavigationResponse {

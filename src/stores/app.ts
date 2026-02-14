@@ -7,7 +7,7 @@
  *
  * ### Ayarları okuma:
  * ```tsx
- * const { settings, features } = useAppStore();
+ * const { settings, features, i18n } = useAppStore();
  * ```
  *
  * ### Loader'da init çağrısı:
@@ -26,23 +26,29 @@
  */
 import { create } from 'zustand';
 import api from '@/lib/axios';
+import type { I18nConfig } from '@/services/init';
 
 interface AppState {
     settings: Record<string, any>;
     features: Record<string, boolean>;
+    i18n: I18nConfig | null;
     isLoading: boolean;
     /**
      * Uygulama ayarlarını yükler.
      *
      * @param forceRefresh - true ise cache'i atlayıp API'den tekrar çeker
-     * @returns Ayarlar ve özellikler objesi veya null (hata durumunda)
+     * @returns Ayarlar, özellikler ve i18n objesi veya null (hata durumunda)
      *
      * Varsayılan davranış: İlk çağrıda API'ye gider,
      * sonraki çağrılarda mevcut state'i döner.
      * Oturum boyunca site ayarları değişmediği için
      * tekrar tekrar API'ye gitmeye gerek yok.
      */
-    init: (forceRefresh?: boolean) => Promise<{ settings: Record<string, any>, features: Record<string, boolean> } | null>;
+    init: (forceRefresh?: boolean) => Promise<{
+        settings: Record<string, any>,
+        features: Record<string, boolean>,
+        i18n: I18nConfig | null
+    } | null>;
 }
 
 /**
@@ -57,25 +63,26 @@ export const useAppStore = create<AppState>((set, get) => ({
         register: true,
         forgot_password: false,
     },
+    i18n: null,
     isLoading: true,
     init: async (forceRefresh = false) => {
         // Daha önce init edildiyse ve zorla yenileme istenmiyorsa
         // API'ye gitme, mevcut state'i döndür
         if (isInitialized && !forceRefresh) {
-            const { settings, features } = get();
-            return { settings, features };
+            const { settings, features, i18n } = get();
+            return { settings, features, i18n };
         }
 
         try {
             const { data } = await api.get('/init');
-            
+
             // Backend'den gelen features
             const backendFeatures = data.features || {};
-            
+
             // Settings'i düz yapıya çevir
             const settingsObj = data.settings || {};
             const flatSettings: Record<string, any> = {};
-            
+
             // { key: { value: ... } } → { key: ... } dönüşümü
             Object.entries(settingsObj).forEach(([key, val]: [string, any]) => {
                 if (val && typeof val === 'object' && 'value' in val) {
@@ -84,15 +91,19 @@ export const useAppStore = create<AppState>((set, get) => ({
                     flatSettings[key] = val;
                 }
             });
-            
+
+            // i18n config
+            const i18nConfig = data.i18n || null;
+
             const result = {
                 settings: flatSettings,
                 features: {
                     register: backendFeatures.register !== undefined ? backendFeatures.register : true,
                     forgot_password: backendFeatures.forgot_password !== undefined ? backendFeatures.forgot_password : false,
                 },
+                i18n: i18nConfig,
             };
-            
+
             // Başarılı — state güncelle ve cache flag'ini set et
             isInitialized = true;
             set({

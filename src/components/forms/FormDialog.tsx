@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import { useFormDialog } from '@/hooks/useFormDialog';
 
 export interface FormDialogProps {
@@ -58,16 +58,16 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className={sizeClasses[size]}>
+      <DialogContent className={cn(sizeClasses[size], "flex flex-col max-h-[85vh] p-0 gap-0")}>
         {(title || description) && (
-          <DialogHeader>
+          <DialogHeader className="p-6 pb-2">
             {title && <DialogTitle>{title}</DialogTitle>}
             {description && <DialogDescription>{description}</DialogDescription>}
           </DialogHeader>
         )}
-        <ScrollArea className="max-h-[60vh] mt-4">
+        <div className="px-6 pb-6 flex-1 min-h-0">
           {children}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 /**
  * Custom hook for debouncing callbacks
@@ -8,14 +8,23 @@ import { useCallback, useEffect, useRef } from 'react';
  * @param options - Debounce options
  * @returns Debounced function
  */
-export function useDebouncedCallback<T extends (...args: any[]) => any>(
-  callback: T,
+export type DebouncedCallback<TArgs extends unknown[]> = (
+  ...args: TArgs
+) => void;
+
+export interface DebouncedCallbackControls<TArgs extends unknown[]> {
+  run: DebouncedCallback<TArgs>;
+  cancel: () => void;
+}
+
+export function useDebouncedCallback<TArgs extends unknown[], TResult>(
+  callback: (...args: TArgs) => TResult,
   delay: number,
   options: {
     leading?: boolean;
     trailing?: boolean;
   } = { leading: false, trailing: true }
-): (...args: Parameters<T>) => void {
+): DebouncedCallbackControls<TArgs> {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbackRef = useRef(callback);
   const lastCallTimeRef = useRef<number>(0);
@@ -28,14 +37,18 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
-  return useCallback(
-    (...args: Parameters<T>) => {
+  const cancel = useCallback(() => {
+    if (!timeoutRef.current) return;
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }, []);
+
+  const run = useCallback(
+    (...args: TArgs) => {
       const now = Date.now();
       const timeSinceLastCall = now - lastCallTimeRef.current;
 
@@ -46,7 +59,7 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
 
       // Clear existing timeout
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+        cancel();
       }
 
       // Leading edge execution
@@ -63,6 +76,14 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
         }, delay);
       }
     },
-    [delay, options.leading, options.trailing]
+    [cancel, delay, options.leading, options.trailing]
+  );
+
+  return useMemo(
+    () => ({
+      run,
+      cancel,
+    }),
+    [cancel, run]
   );
 }

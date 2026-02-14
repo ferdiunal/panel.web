@@ -161,7 +161,8 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
       prev.formId === next.formId &&
       prev.field.key === next.field.key &&
       prev.field.type === next.field.type &&
-      prev.container === next.container
+      prev.container === next.container &&
+      prev.parentResourceId === next.parentResourceId
     );
   }
 );

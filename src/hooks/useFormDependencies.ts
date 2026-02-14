@@ -8,10 +8,13 @@
  * - Loading state management
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useFormStateStore, useDependencyLoading, useAllFieldUpdates } from '@/stores/form-state-store';
 import { useDebouncedCallback } from './useDebouncedCallback';
 import type { FieldDefinition } from '@/types/form';
+import type { FieldUpdate } from '@/types/dependencies';
+
+type FormData = Record<string, unknown>;
 
 export interface UseFormDependenciesOptions {
   formId: string;
@@ -23,10 +26,10 @@ export interface UseFormDependenciesOptions {
 }
 
 export interface UseFormDependenciesReturn {
-  fieldUpdates: Record<string, any>;
+  fieldUpdates: Record<string, FieldUpdate>;
   isResolving: boolean;
-  resolveDependencies: (changedFields: string[], formData: Record<string, any>) => void;
-  handleFieldChange: (fieldKey: string, value: any, formData: Record<string, any>) => void;
+  resolveDependencies: (changedFields: string[], formData: FormData) => void;
+  handleFieldChange: (fieldKey: string, value: unknown, formData: FormData) => void;
 }
 
 /**
@@ -35,16 +38,48 @@ export interface UseFormDependenciesReturn {
 export function useFormDependencies(
   options: UseFormDependenciesOptions
 ): UseFormDependenciesReturn {
-  const { formId, resourceType, mode, resourceId, enabled = true } = options;
+  const { formId, resourceType, mode, resourceId, fields, enabled = true } = options;
 
   // Subscribe to field updates and loading state
   const fieldUpdates = useAllFieldUpdates(formId);
   const isResolving = useDependencyLoading(formId);
 
+  const dependencyTriggerFields = useMemo(() => {
+    const toStringArray = (value: unknown): string[] => {
+      if (!Array.isArray(value)) return [];
+      return value.filter(
+        (item): item is string => typeof item === 'string' && item.trim().length > 0
+      );
+    };
+
+    const triggerFields = new Set<string>();
+
+    fields.forEach((field) => {
+      const dependencyMeta = field as FieldDefinition & {
+        depends_on?: unknown;
+        dependsOn?: unknown;
+      };
+
+      const dependencies = [
+        ...toStringArray(dependencyMeta.depends_on),
+        ...toStringArray(dependencyMeta.dependsOn),
+        ...toStringArray(field.props?.depends_on),
+        ...toStringArray(field.props?.dependsOn),
+      ];
+
+      dependencies.forEach((dependency) => triggerFields.add(dependency));
+    });
+
+    return triggerFields;
+  }, [fields]);
+
+  const canResolveDependencies = enabled && dependencyTriggerFields.size > 0;
+
   // Debounced dependency resolution
-  const resolveDependencies = useDebouncedCallback(
-    async (changedFields: string[], formData: Record<string, any>) => {
-      if (!enabled) return;
+  const { run: resolveDependencies, cancel: cancelResolveDependencies } = useDebouncedCallback(
+    async (changedFields: string[], formData: FormData) => {
+      if (!canResolveDependencies) return;
+      if (!changedFields.some((fieldKey) => dependencyTriggerFields.has(fieldKey))) return;
 
       const store = useFormStateStore.getState();
       store.setDependencyLoading(formId, true);
@@ -62,7 +97,7 @@ export function useFormDependencies(
               formData,
               context: dependencyContext,
               changedFields,
-              resourceId: resourceId || null,
+              resourceId: resourceId ?? null,
             }),
           }
         );
@@ -71,7 +106,9 @@ export function useFormDependencies(
           throw new Error(`Dependency resolution failed: ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as {
+          fields?: Record<string, FieldUpdate>;
+        };
 
         // Update field updates in store
         if (data.fields) {
@@ -88,14 +125,26 @@ export function useFormDependencies(
     { leading: false, trailing: true }
   );
 
+  useEffect(() => {
+    if (canResolveDependencies) return;
+    cancelResolveDependencies();
+    useFormStateStore.getState().setDependencyLoading(formId, false);
+  }, [canResolveDependencies, cancelResolveDependencies, formId]);
+
+  useEffect(() => {
+    return () => {
+      cancelResolveDependencies();
+    };
+  }, [cancelResolveDependencies]);
+
   // Handle field change with dependency resolution
   const handleFieldChange = useCallback(
-    (fieldKey: string, value: any, formData: Record<string, any>) => {
-      if (enabled) {
-        resolveDependencies([fieldKey], { ...formData, [fieldKey]: value });
-      }
+    (fieldKey: string, value: unknown, formData: FormData) => {
+      if (!canResolveDependencies) return;
+      if (!dependencyTriggerFields.has(fieldKey)) return;
+      resolveDependencies([fieldKey], { ...formData, [fieldKey]: value });
     },
-    [enabled, resolveDependencies]
+    [canResolveDependencies, dependencyTriggerFields, resolveDependencies]
   );
 
   return {

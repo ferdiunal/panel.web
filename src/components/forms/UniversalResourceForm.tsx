@@ -19,6 +19,7 @@ import { FieldRenderer } from './FieldRenderer';
 import { FormActions } from './FormActions';
 import type { FieldDefinition } from '@/types/form';
 import { generateFormId } from '@/utils/form-helpers';
+import { cn } from '@/lib/utils';
 
 export interface UniversalResourceFormProps {
   formId?: string;
@@ -138,30 +139,30 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
   return (
     <FormProvider {...form}>
       <form
-        className={className}
+        className={cn('flex min-h-0 flex-col', className)}
         noValidate
         name={formId}
         id={formId}
       >
         {/* Form fields */}
-        <div className="space-y-4">
-          {fields.filter(
-            (field) => {
-              if(ignoreResourceField && field.props['related_resource'] === ignoreResourceField) {
+        <div className="space-y-4 pl-1 pr-4 overflow-y-auto max-h-[80vh]">
+          {fields
+            .filter((field) => {
+              if (ignoreResourceField && field.props['related_resource'] === ignoreResourceField) {
                 return false;
               }
 
-              return true
-            }
-          ).map((field) => (
-            <FieldRenderer
-              key={field.key}
-              formId={formId}
-              field={field}
-              container={container}
-              parentResourceId={resourceId}
-            />
-          ))}
+              return true;
+            })
+            .map((field) => (
+              <FieldRenderer
+                key={field.key}
+                formId={formId}
+                field={field}
+                container={container}
+                parentResourceId={resourceId}
+              />
+            ))}
         </div>
 
         {/* Form actions */}

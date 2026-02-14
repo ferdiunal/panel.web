@@ -109,6 +109,7 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
             onClick={handleDecrement}
             disabled={disabled || (min !== undefined && (typeof value === 'number' ? value : parseFloat(value as string) || 0) <= min)}
             className="shrink-0"
+            tabIndex={-1}
           >
             <Minus className="h-4 w-4" />
           </Button>
@@ -139,6 +140,7 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
             onClick={handleIncrement}
             disabled={disabled || (max !== undefined && (typeof value === 'number' ? value : parseFloat(value as string) || 0) >= max)}
             className="shrink-0"
+            tabIndex={-1}
           >
             <Plus className="h-4 w-4" />
           </Button>

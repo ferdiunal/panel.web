@@ -49,6 +49,9 @@ export interface ResourceResponse {
         dialog_type: "dialog" | "sheet" | "drawer";
         dialog_size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
         row_click_action?: "edit" | "detail";
+        pagination?: {
+            type: "links" | "simple" | "load_more";
+        };
         reorder?: {
             enabled: boolean;
             column: string;

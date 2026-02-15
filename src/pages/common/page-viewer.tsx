@@ -7,6 +7,7 @@ import { WidgetRenderer } from "@/components/widget-renderer"
 import { useAppStore, useAuthStore } from "@/stores"
 import { UniversalResourceForm } from "@/components/forms/UniversalResourceForm"
 import { toast } from "sonner"
+import { getCardGridSpan } from "@/lib/card-grid"
 
 interface PageData {
     slug: string
@@ -89,9 +90,9 @@ export default function PageViewer() {
             </div>
 
             {pageData.meta?.cards && pageData.meta.cards.length > 0 && (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-12">
                     {pageData.meta.cards.map((card: Card, index: number) => (
-                        <div key={index} className="col-span-1">
+                        <div key={index} className={getCardGridSpan(card.width)}>
                             <WidgetRenderer card={card} />
                         </div>
                     ))}

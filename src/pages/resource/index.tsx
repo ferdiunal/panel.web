@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { useAppStore, useAuthStore } from "@/stores"
 import { IndexView, type IndexViewColumn, type IndexViewRowClickAction } from "@/components/views/IndexView"
+import { Pagination, type PaginationMode } from "@/components/views/Pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LensSelector } from "@/components/LensSelector"
 import {
@@ -37,6 +38,7 @@ import { formatTemporalFieldValue } from "@/lib/date-display"
 import { formatMoneyFieldValue } from "@/lib/money-display"
 import { extractRecordIdFromItem, extractRecordTitleFromFields, extractRecordTitleFromItem, extractRecordTitleFromMeta, formatRecordReference } from "@/lib/record-reference"
 import type { ResourceFieldResponse } from "@/services/resource"
+import { getCardGridSpan } from "@/lib/card-grid"
 
 interface LoaderData {
     data: any
@@ -236,6 +238,8 @@ export default function ResourceIndexPage() {
         localSearch,
         setLocalSearch,
         updateSort,
+        updatePage,
+        updatePerPage,
         isSearchPending,
     } = useResourceParams({
         resource: resource || '',
@@ -366,6 +370,70 @@ export default function ResourceIndexPage() {
         if (!reorder?.enabled) return ""
         return typeof reorder.column === "string" ? reorder.column.trim() : ""
     }, [resourceData?.meta?.reorder])
+
+    const paginationMode = useMemo<PaginationMode>(() => {
+        const mode = resourceData?.meta?.pagination?.type
+        if (mode === "simple" || mode === "load_more") {
+            return mode
+        }
+        return "links"
+    }, [resourceData?.meta?.pagination?.type])
+
+    const loadMoreSignature = useMemo(() => {
+        return JSON.stringify({
+            resource,
+            search: params.search || "",
+            sortColumn: params.sort?.column || "",
+            sortDirection: params.sort?.direction || "",
+            filters: params.filters || {},
+            perPage: params.per_page,
+        })
+    }, [params.filters, params.per_page, params.search, params.sort?.column, params.sort?.direction, resource])
+
+    const [loadMorePages, setLoadMorePages] = useState<Record<number, ResourceItem[]>>({})
+    const [loadMoreStateSignature, setLoadMoreStateSignature] = useState("")
+
+    useEffect(() => {
+        if (paginationMode !== "load_more" || !resourceData) return
+
+        const currentPage = Number(resourceData.meta.current_page || params.page || 1)
+        const currentItems = resourceData.data || []
+
+        if (loadMoreStateSignature !== loadMoreSignature) {
+            setLoadMoreStateSignature(loadMoreSignature)
+            setLoadMorePages({ [currentPage]: currentItems })
+            return
+        }
+
+        setLoadMorePages((prev) => ({
+            ...prev,
+            [currentPage]: currentItems,
+        }))
+    }, [loadMoreSignature, loadMoreStateSignature, paginationMode, params.page, resourceData])
+
+    const displayedResources = useMemo(() => {
+        if (paginationMode !== "load_more") {
+            return resourceData?.data || []
+        }
+
+        const entries = Object.entries(loadMorePages)
+            .map(([pageKey, items]) => ({ page: Number(pageKey), items }))
+            .sort((a, b) => a.page - b.page)
+
+        return entries.flatMap((entry) => entry.items)
+    }, [loadMorePages, paginationMode, resourceData?.data])
+
+    const handleLoadMore = useCallback(() => {
+        const currentPage = Number(resourceData?.meta?.current_page || params.page || 1)
+        const total = Number(resourceData?.meta?.total || 0)
+        const totalPages = Math.max(1, Math.ceil(total / params.per_page))
+
+        if (currentPage >= totalPages) {
+            return
+        }
+
+        updatePage(currentPage + 1)
+    }, [params.page, params.per_page, resourceData?.meta?.current_page, resourceData?.meta?.total, updatePage])
 
     // Prepare initial data for edit form
     const editInitialData = useMemo(() => {
@@ -790,7 +858,7 @@ export default function ResourceIndexPage() {
         <div className="flex flex-col gap-4 p-4 md:p-8 pt-0">
             {/* Cards */}
             {isCardsLoading ? (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-12">
                     {[1, 2, 3, 4].map((i) => (
                         <Skeleton key={i} className="h-32" />
                     ))}
@@ -800,9 +868,9 @@ export default function ResourceIndexPage() {
                     Failed to load cards: {cardsError.message}
                 </div>
             ) : cards?.length > 0 ? (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-12">
                     {cards.map((card: CardType, index: number) => (
-                        <div key={index} className="col-span-1">
+                        <div key={index} className={getCardGridSpan(card.width)}>
                             <WidgetRenderer card={card} />
                         </div>
                     ))}
@@ -859,10 +927,10 @@ export default function ResourceIndexPage() {
 
             {/* IndexView */}
             <IndexView
-                resources={resourceData.data}
+                resources={displayedResources}
                 columns={columns}
                 isLoading={isLoading || isSearchPending}
-                isEmpty={resourceData.data.length === 0}
+                isEmpty={displayedResources.length === 0}
                 searchQuery={localSearch}
                 onSearchChange={handleSearchChange}
                 sortBy={params.sort?.column}
@@ -884,6 +952,20 @@ export default function ResourceIndexPage() {
                 enableRowReorder={!!reorderColumn}
                 onRowReorder={reorderColumn ? handleRowReorder : undefined}
             />
+
+            {resourceData.meta.total > 0 && (
+                <Pagination
+                    mode={paginationMode}
+                    page={resourceData.meta.current_page}
+                    pageSize={resourceData.meta.per_page}
+                    total={resourceData.meta.total}
+                    visibleCount={paginationMode === "load_more" ? displayedResources.length : undefined}
+                    onPageChange={updatePage}
+                    onPageSizeChange={updatePerPage}
+                    onLoadMore={paginationMode === "load_more" ? handleLoadMore : undefined}
+                    disabled={isLoading || isSearchPending}
+                />
+            )}
 
             {/* Action Modal */}
             {resource && <ActionModal resource={resource} />}

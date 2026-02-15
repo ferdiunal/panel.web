@@ -41,6 +41,7 @@ import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
 import { renderDisplayComponent } from '@/lib/display-components';
 import { formatTemporalFieldValue } from '@/lib/date-display';
 import { formatMoneyFieldValue } from '@/lib/money-display';
+import { getCardGridSpan } from '@/lib/card-grid';
 
 /**
  * LensView Component
@@ -324,9 +325,9 @@ export function LensView({
     <div className="flex flex-col gap-4 p-4 md:p-8 pt-0">
       {/* Cards */}
       {cards && cards.length > 0 && (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-12">
           {cards.map((card: CardType, index: number) => (
-            <div key={index} className="col-span-1">
+            <div key={index} className={getCardGridSpan(card.width)}>
               <WidgetRenderer card={card} />
             </div>
           ))}

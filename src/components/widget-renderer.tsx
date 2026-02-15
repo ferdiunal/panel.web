@@ -12,16 +12,12 @@ export function WidgetRenderer({ card }: { card: CardType }) {
         case "partition-metric":
             return <PartitionMetric
                 title={card.title}
-                data={card.data?.data || {}}
-                colors={card.data?.colors}
-                format={card.data?.format}
+                payload={card.data}
             />
         case "progress-metric":
             return <ProgressMetric
                 title={card.title}
-                current={card.data?.current || 0}
-                target={card.data?.target || 0}
-                format={card.data?.format}
+                payload={card.data}
             />
         case "table-metric":
             return <TableMetric

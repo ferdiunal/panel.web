@@ -71,17 +71,21 @@ export interface ValueCardData {
 }
 
 export interface TrendCardData {
+    chartData?: Array<{ month: string; desktop: number; mobile: number; date?: string }>;
     data?: Array<{ date: string; value: number }>;
     title?: string;
 }
 
 export interface PartitionCardData {
+    chartData?: Array<{ month: string; label?: string; desktop: number; fill?: string }>;
+    chartColors?: Record<string, string>;
     data?: Record<string, number>;
     colors?: string[];
     format?: string;
 }
 
 export interface ProgressCardData {
+    chartData?: Array<{ date: string; desktop: number; mobile: number }>;
     current?: number;
     target?: number;
     format?: string;

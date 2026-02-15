@@ -17,7 +17,7 @@ export interface ResourceParams {
 
 export const DEFAULT_RESOURCE_PARAMS: ResourceParams = {
     page: 1,
-    per_page: 15,
+    per_page: 10,
 }
 
 /**
@@ -26,7 +26,7 @@ export const DEFAULT_RESOURCE_PARAMS: ResourceParams = {
  * @example
  * // URL: ?users[search]=Ferdi&users[page]=2
  * parseResourceParams('?users[search]=Ferdi&users[page]=2', 'users')
- * // Returns: { search: 'Ferdi', page: 2, per_page: 15 }
+ * // Returns: { search: 'Ferdi', page: 2, per_page: 10 }
  */
 export function parseResourceParams(queryString: string, resource: string): ResourceParams {
     const parsed = qs.parse(queryString, {
@@ -101,8 +101,8 @@ export function parseResourceParams(queryString: string, resource: string): Reso
  * Convert ResourceParams to URL query string for a specific resource
  * 
  * @example
- * stringifyResourceParams({ search: 'Ferdi', page: 2, per_page: 15 }, 'users')
- * // Returns: 'users[search]=Ferdi&users[page]=2&users[per_page]=15'
+ * stringifyResourceParams({ search: 'Ferdi', page: 2, per_page: 10 }, 'users')
+ * // Returns: 'users[search]=Ferdi&users[page]=2&users[per_page]=10'
  */
 export function stringifyResourceParams(
     params: Partial<ResourceParams>,

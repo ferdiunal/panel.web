@@ -74,6 +74,12 @@ export interface ValueCardData {
 }
 
 export interface TrendCardData {
+    subtitle?: string;
+    description?: string;
+    series?: {
+      desktop?: { label?: string; color?: string; enabled?: boolean };
+      mobile?: { label?: string; color?: string; enabled?: boolean };
+    };
     chartData?: Array<{ month: string; desktop: number; mobile: number; date?: string }>;
     data?: Array<{ date: string; value: number }>;
     title?: string;
@@ -88,7 +94,14 @@ export interface PartitionCardData {
 }
 
 export interface ProgressCardData {
-    chartData?: Array<{ date: string; desktop: number; mobile: number }>;
+    subtitle?: string;
+    description?: string;
+    activeSeries?: string;
+    series?: {
+      desktop?: { key?: string; label?: string; color?: string; enabled?: boolean };
+      mobile?: { key?: string; label?: string; color?: string; enabled?: boolean };
+    };
+    chartData?: Array<{ date: string; [seriesKey: string]: string | number }>;
     current?: number;
     target?: number;
     format?: string;

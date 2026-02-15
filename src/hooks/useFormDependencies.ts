@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useFormStateStore, useDependencyLoading, useAllFieldUpdates } from '@/stores/form-state-store';
 import { useDebouncedCallback } from './useDebouncedCallback';
+import { resourceService } from '@/services/resource';
 import type { FieldDefinition } from '@/types/form';
 import type { FieldUpdate } from '@/types/dependencies';
 
@@ -87,28 +88,13 @@ export function useFormDependencies(
       try {
         const dependencyContext = mode === 'edit' ? 'update' : 'create';
 
-        // Call backend API to resolve dependencies
-        const response = await fetch(
-          `/api/resource/${resourceType}/fields/resolve-dependencies`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              formData,
-              context: dependencyContext,
-              changedFields,
-              resourceId: resourceId ?? null,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Dependency resolution failed: ${response.statusText}`);
-        }
-
-        const data = (await response.json()) as {
-          fields?: Record<string, FieldUpdate>;
-        };
+        // Use axios-backed service so CSRF/session handling is consistent.
+        const data = await resourceService.resolveDependencies(resourceType, {
+          formData,
+          context: dependencyContext,
+          changedFields,
+          resourceId: resourceId ?? null,
+        });
 
         // Update field updates in store
         if (data.fields) {

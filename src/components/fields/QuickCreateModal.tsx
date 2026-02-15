@@ -59,7 +59,16 @@ export function QuickCreateModal({
     const fetchFields = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`/resource/${resourceSlug}/create`);
+        const queryParams = new URLSearchParams();
+        if (currentResource) {
+          queryParams.set('viaResource', currentResource);
+        }
+
+        const createUrl = queryParams.toString()
+          ? `/resource/${resourceSlug}/create?${queryParams.toString()}`
+          : `/resource/${resourceSlug}/create`;
+
+        const response = await axios.get(createUrl);
         const data = response.data.data || response.data;
 
         console.log('QuickCreate - API Response:', data);
@@ -95,7 +104,7 @@ export function QuickCreateModal({
     };
 
     fetchFields();
-  }, [open, resourceSlug, onOpenChange]);
+  }, [open, resourceSlug, onOpenChange, currentResource]);
 
   // Form submit handler
   const handleSubmit = async (data: Record<string, any>) => {

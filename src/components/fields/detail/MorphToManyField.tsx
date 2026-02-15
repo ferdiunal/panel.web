@@ -20,7 +20,7 @@ import React from 'react';
 import type { DetailFieldProps } from '@/types';
 import { RelationshipTable } from '@/components/RelationshipTable';
 
-export const MorphToManyDetailField: React.FC<DetailFieldProps> = ({ field, record }) => {
+export const MorphToManyDetailField: React.FC<DetailFieldProps> = ({ field, record, resourceName }) => {
   // İlişkili resource slug'ını al
   const relatedResource = field.props?.related_resource as string;
 
@@ -35,7 +35,7 @@ export const MorphToManyDetailField: React.FC<DetailFieldProps> = ({ field, reco
   return (
     <RelationshipTable
       resourceType={relatedResource}
-      viaResource={field.props?.via_resource as string || 'unknown'}
+      viaResource={(field.props?.via_resource as string)?.trim() && (field.props?.via_resource as string).toLowerCase() !== 'unknown' ? (field.props?.via_resource as string) : (resourceName || 'unknown')}
       viaResourceId={recordId}
       viaRelationship={field.key}
       relationshipType="morphToMany"

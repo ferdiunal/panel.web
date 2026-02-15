@@ -52,6 +52,8 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
   placeholder,
   helpText,
 }) => {
+  const fieldType = (field as any).type as string | undefined;
+  const fieldView = (field as any).view as string | undefined;
   const min = field.props?.min as number | undefined;
   const max = field.props?.max as number | undefined;
   const step = (field.props?.step as number) || 1;
@@ -61,7 +63,7 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
   const alwaysShowMask = (field.props?.alwaysShowMask as boolean) || false;
   const showCurrency = (field.props?.showCurrency as boolean | undefined) ?? true;
   const currency = ((field.props?.currency as string | undefined) || 'USD').toUpperCase();
-  const isMoneyField = field.type === 'money' || field.view.includes('money-field');
+  const isMoneyField = fieldType === 'money' || (fieldView || '').includes('money-field');
 
   const handleIncrement = () => {
     const currentValue = typeof value === 'number' ? value : parseFloat(value as string) || 0;

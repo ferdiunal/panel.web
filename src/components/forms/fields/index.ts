@@ -41,6 +41,7 @@ import { FileFormField } from '@/components/fields/form/FileInput';
 
 // Import Index/Detail specific components
 import { TextIndexField } from '@/components/fields/index/TextInput';
+import { NumberIndexField } from '@/components/fields/index/NumberInput';
 import { SelectIndexField } from '@/components/fields/index/SelectField';
 import { DateIndexField } from '@/components/fields/index/DateField';
 import { DateTimeIndexField } from '@/components/fields/index/DateTimeField';
@@ -48,6 +49,7 @@ import { TelIndexField } from '@/components/fields/index/TelInput';
 import { TabsIndexField } from '@/components/fields/index/TabsField';
 
 import { TextDetailField } from '@/components/fields/detail/TextInput';
+import { NumberDetailField } from '@/components/fields/detail/NumberInput';
 import { SelectDetailField } from '@/components/fields/detail/SelectField';
 import { DateDetailField } from '@/components/fields/detail/DateField';
 import { DateTimeDetailField } from '@/components/fields/detail/DateTimeField';

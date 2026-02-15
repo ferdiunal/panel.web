@@ -1,14 +1,9 @@
-import type { FieldData } from "@/types";
+import type { DetailFieldProps } from "@/types";
 import { RelationshipTable } from "@/components/RelationshipTable";
 
 /**
  * BelongsToManyDetailFieldProps - BelongsToMany field için detail sayfası props
  */
-interface BelongsToManyDetailFieldProps {
-    field: FieldData;
-    record: Record<string, any>;
-}
-
 /**
  * BelongsToManyDetailField - BelongsToMany field için detail sayfası component'ı
  *
@@ -42,7 +37,7 @@ interface BelongsToManyDetailFieldProps {
  * />
  * ```
  */
-export function BelongsToManyDetailField({ field, record }: BelongsToManyDetailFieldProps) {
+export function BelongsToManyDetailField({ field, record, resourceName }: DetailFieldProps) {
     // İlişkili resource slug'ını al
     const relatedResource = field.props?.related_resource as string;
 
@@ -57,7 +52,7 @@ export function BelongsToManyDetailField({ field, record }: BelongsToManyDetailF
     return (
         <RelationshipTable
             resourceType={relatedResource}
-            viaResource={field.props?.via_resource as string || 'unknown'}
+            viaResource={(field.props?.via_resource as string)?.trim() && (field.props?.via_resource as string).toLowerCase() !== 'unknown' ? (field.props?.via_resource as string) : (resourceName || 'unknown')}
             viaResourceId={recordId}
             viaRelationship={field.key}
             relationshipType="belongsToMany"

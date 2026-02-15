@@ -54,6 +54,7 @@ export function ActionModal({ resource }: ActionModalProps) {
       case 'text-field':
       case 'email-field':
       case 'number-field':
+      case 'money-field':
         return (
           <div key={field.key} className="space-y-2">
             <Label htmlFor={field.key}>

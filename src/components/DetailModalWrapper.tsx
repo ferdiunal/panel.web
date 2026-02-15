@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query"
 import { resourceService } from "@/services/resource"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { ResourceDetail } from "@/components/resource-detail"
+import { Button } from "@/components/ui/button"
 import type { ResourceItem, FieldData } from "@/types"
 import { useMemo } from "react"
+import { Pencil } from "lucide-react"
 import { extractRecordTitleFromFields, extractRecordTitleFromItem, extractRecordTitleFromMeta, formatRecordReference } from "@/lib/record-reference"
 import type { ResourceFieldResponse } from "@/services/resource"
 
@@ -18,10 +20,11 @@ interface DetailModalWrapperProps {
     isOpen: boolean
     onClose: () => void
     onResourceClick: (resource: string, id: string | number) => void
+    onEdit?: (item: ResourceItem) => void
     isTopMost: boolean
 }
 
-export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick }: Omit<DetailModalWrapperProps, 'index' | 'isTopMost'>) {
+export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick, onEdit }: Omit<DetailModalWrapperProps, 'index' | 'isTopMost'>) {
     const { resource, item } = stackItem
     const idField = item['id'] as FieldData
     const id = idField ? idField.data : null
@@ -69,12 +72,29 @@ export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick
         return formatted || `${resource} Detayı`
     }, [detailFields, detailMeta, id, item, resource])
 
+    const modalTitle = (
+        <div className="flex items-center gap-3 pr-12">
+            <span>{detailModalTitle}</span>
+            {onEdit && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(item)}
+                >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Duzenle
+                </Button>
+            )}
+        </div>
+    )
+
     // If it's not the top-most modal, we might want to hide it or keep it in background
     // Radix UI handles stacking automatically.
 
     return (
         <ResponsiveModal
-            title={detailModalTitle}
+            title={modalTitle}
             description="Kayit detaylari asagidadir."
             open={isOpen}
             variant="sheet" // Default to sheet for details, or get from meta if available

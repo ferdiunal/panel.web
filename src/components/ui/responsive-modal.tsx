@@ -66,8 +66,8 @@ const SHEET_SIZE_CLASSES: Record<ResponsiveModalSize, string> = {
 interface ResponsiveModalProps {
     children?: React.ReactNode
     trigger?: React.ReactNode
-    title?: string
-    description?: string
+    title?: React.ReactNode
+    description?: React.ReactNode
     open?: boolean
     onOpenChange?: (open: boolean) => void
     variant?: "dialog" | "sheet" | "drawer"

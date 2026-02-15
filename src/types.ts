@@ -48,6 +48,11 @@ export interface ResourceResponse {
         headers: FieldData[];
         dialog_type: "dialog" | "sheet" | "drawer";
         dialog_size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
+        row_click_action?: "edit" | "detail";
+        reorder?: {
+            enabled: boolean;
+            column: string;
+        };
         create_fields?: FieldData[];
         update_fields?: FieldData[];
         policy: {

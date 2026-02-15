@@ -13,6 +13,7 @@ import DashboardLayout from "@/layouts/dashboard-layout"
 import ResourceIndexPage, { loader as resourceLoader } from "@/pages/resource/index"
 import LensPage, { loader as lensLoader } from "@/pages/resource/lens"
 import SettingsPage, { loader as settingsLoader } from "@/pages/settings/index"
+import APISettingsPage, { loader as apiSettingsLoader } from "@/pages/api-settings"
 import AccountPage, { loader as accountLoader } from "@/pages/account/index"
 import PageViewer, { loader as pageViewerLoader } from "@/pages/common/page-viewer"
 import { usePageTitle } from "@/hooks/use-page-title"
@@ -295,6 +296,23 @@ const router = createBrowserRouter([
                                             return `${capitalize(params.resource || "")} - ${capitalize(params.lens || "")} | ${siteName}`
                                         } catch {
                                             return `${capitalize(params.resource || "")} - ${capitalize(params.lens || "")} | Panel`
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                path: "/api-settings",
+                                element: <APISettingsPage />,
+                                loader: apiSettingsLoader,
+                                errorElement: <ResourceErrorBoundary />,
+                                handle: {
+                                    title: () => {
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `API Settings | ${siteName}`
+                                        } catch {
+                                            return "API Settings | Panel"
                                         }
                                     }
                                 }

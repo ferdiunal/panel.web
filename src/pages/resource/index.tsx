@@ -4,7 +4,7 @@ import { resourceService } from "@/services/resource"
 import type { ResourceItem, FieldData, Card as CardType } from "@/types"
 import { WidgetRenderer } from "@/components/widget-renderer"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog"
 import { useAppStore, useAuthStore } from "@/stores"
-import { IndexView, type IndexViewColumn } from "@/components/views/IndexView"
+import { IndexView, type IndexViewColumn, type IndexViewRowClickAction } from "@/components/views/IndexView"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LensSelector } from "@/components/LensSelector"
 import {
@@ -356,6 +356,17 @@ export default function ResourceIndexPage() {
         return parseResponsiveModalSize(resourceData?.meta?.dialog_size, "md")
     }, [resourceData?.meta?.dialog_size])
 
+    const rowClickAction = useMemo<IndexViewRowClickAction>(() => {
+        const action = resourceData?.meta?.row_click_action
+        return action === "detail" ? "detail" : "edit"
+    }, [resourceData?.meta?.row_click_action])
+
+    const reorderColumn = useMemo(() => {
+        const reorder = resourceData?.meta?.reorder
+        if (!reorder?.enabled) return ""
+        return typeof reorder.column === "string" ? reorder.column.trim() : ""
+    }, [resourceData?.meta?.reorder])
+
     // Prepare initial data for edit form
     const editInitialData = useMemo(() => {
         if (!editFields || editFields.length === 0) return {}
@@ -507,6 +518,28 @@ export default function ResourceIndexPage() {
         }
     })
 
+    const reorderMutation = useMutation({
+        mutationFn: async (orderedItems: ResourceItem[]) => {
+            if (!resource) throw new Error("No resource")
+            if (!reorderColumn) throw new Error("Reorder is not enabled for this resource")
+
+            const ids = orderedItems.map((item) => {
+                const idField = item['id'] as FieldData | undefined
+                const id = idField ? idField.data : undefined
+                if (id === undefined || id === null) {
+                    throw new Error("Invalid row id for reorder")
+                }
+                return id
+            })
+
+            return resourceService.reorderResource(resource, ids)
+        },
+        onError: (error) => {
+            console.error(error)
+            toast.error("Siralama guncellenirken hata olustu")
+        }
+    })
+
     const handleDeleteConfirm = async () => {
         if (!deletingItem) return
         const idField = deletingItem['id'] as FieldData
@@ -517,6 +550,12 @@ export default function ResourceIndexPage() {
         }
         await deleteMutation.mutateAsync(id)
     }
+
+    const handleRowReorder = useCallback(async (orderedItems: ResourceItem[]) => {
+        if (!resource || !reorderColumn) return
+        await reorderMutation.mutateAsync(orderedItems)
+        await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
+    }, [queryClient, reorderColumn, reorderMutation, resource])
 
     const openEditModal = (item: ResourceItem) => {
         setEditingItem(item)
@@ -544,6 +583,12 @@ export default function ResourceIndexPage() {
         if (!targetResource && id !== null && id !== undefined) {
             navigateToShowPath(id)
         }
+    }
+
+    const openDetailFromEditModal = () => {
+        if (!editingItem) return
+        closeEditModal(false)
+        openDetailModal(editingItem)
     }
 
     const closeDetailModal = (stackIndex: number) => {
@@ -814,8 +859,8 @@ export default function ResourceIndexPage() {
 
             {/* IndexView */}
             <IndexView
-                resources={resourceData.data as any}
-                columns={columns as any}
+                resources={resourceData.data}
+                columns={columns}
                 isLoading={isLoading || isSearchPending}
                 isEmpty={resourceData.data.length === 0}
                 searchQuery={localSearch}
@@ -823,18 +868,21 @@ export default function ResourceIndexPage() {
                 sortBy={params.sort?.column}
                 sortOrder={params.sort?.direction || 'asc'}
                 onSort={handleSort}
-                onView={(item: any) => {
+                onView={(item) => {
                     if (item.policy?.view) openDetailModal(item)
                 }}
-                onEdit={(item: any) => {
+                onEdit={(item) => {
                     if (item.policy?.update) openEditModal(item)
                 }}
-                onDelete={(item: any) => {
+                onDelete={(item) => {
                     if (item.policy?.delete) openDeleteDialog(item)
                 }}
                 enableSelection={actions.length > 0}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
+                rowClickAction={rowClickAction}
+                enableRowReorder={!!reorderColumn}
+                onRowReorder={reorderColumn ? handleRowReorder : undefined}
             />
 
             {/* Action Modal */}
@@ -842,7 +890,21 @@ export default function ResourceIndexPage() {
 
             {/* Edit Modal */}
             <ResponsiveModal
-                title={editModalTitle}
+                title={(
+                    <div className="flex items-center gap-3 pr-12">
+                        <span>{editModalTitle}</span>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={openDetailFromEditModal}
+                            disabled={!editingItem}
+                        >
+                            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                            Detaya Don
+                        </Button>
+                    </div>
+                )}
                 description="Asagidaki bilgileri guncelleyiniz."
                 open={isEditOpen}
                 variant={resourceData.meta.dialog_type}
@@ -879,6 +941,7 @@ export default function ResourceIndexPage() {
                     isOpen={true} // Always true, controlled by stack presence
                     onClose={() => closeDetailModal(index)}
                     onResourceClick={handleResourceClick}
+                    onEdit={stackItem.resource === resource ? openEditModal : undefined}
                 />
             ))}
 

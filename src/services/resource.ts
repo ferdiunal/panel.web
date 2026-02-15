@@ -100,6 +100,11 @@ export const resourceService = {
         return response.data;
     },
 
+    reorderResource: async (resource: string, ids: Array<string | number>) => {
+        const { data } = await api.post(`/resource/${resource}/reorder`, { ids });
+        return data;
+    },
+
     getCards: async (resource: string) => {
         const { data } = await api.get<{ data: any[] }>(`/resource/${resource}/cards`);
         return data.data;

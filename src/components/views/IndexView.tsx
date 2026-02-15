@@ -54,6 +54,8 @@ export interface IndexViewColumn<T = any> {
   render?: (value: any, resource: T) => React.ReactNode;
 }
 
+export type IndexViewRowClickAction = 'edit' | 'detail' | 'none';
+
 // Column Filter Component
 interface ColumnFilterProps<T> {
   column: Column<T, unknown>;
@@ -173,6 +175,9 @@ export interface IndexViewProps<T extends Resource = Resource> {
   enableSelection?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  rowClickAction?: IndexViewRowClickAction;
+  enableRowReorder?: boolean;
+  onRowReorder?: (orderedResources: T[]) => Promise<void> | void;
 }
 
 /**
@@ -183,7 +188,7 @@ export interface IndexViewProps<T extends Resource = Resource> {
  *
  * Validates: Requirements 1.1, 1.2, 1.3, 1.8
  */
-export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
+export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
   (
     {
       resources,
@@ -204,11 +209,30 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       enableSelection = false,
       selectedIds = [],
       onSelectionChange,
+      rowClickAction = 'edit',
+      enableRowReorder = false,
+      onRowReorder,
     },
     ref
   ) => {
     const showActions = !!(onEdit || onDelete || onView);
     const { t } = useTranslation();
+    const [tableData, setTableData] = React.useState(resources);
+    const [draggingRowId, setDraggingRowId] = React.useState<string | null>(null);
+    const [dragOverRowId, setDragOverRowId] = React.useState<string | null>(null);
+    const [isReordering, setIsReordering] = React.useState(false);
+
+    const getResourceId = React.useCallback((resource: any) => {
+      const idField = resource?.['id'] as any;
+      if (idField && typeof idField === 'object' && 'data' in idField) {
+        return String(idField.data);
+      }
+      return String(idField ?? '');
+    }, []);
+
+    const canTriggerRowClick =
+      rowClickAction !== 'none' &&
+      ((rowClickAction === 'edit' && !!onEdit) || (rowClickAction === 'detail' && !!onView));
 
     // Sorting state
     const [sorting, setSorting] = React.useState<SortingState>(() => {
@@ -235,6 +259,10 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
     React.useEffect(() => {
       setGlobalFilter(searchQuery);
     }, [searchQuery]);
+
+    React.useEffect(() => {
+      setTableData(resources);
+    }, [resources]);
 
     // Convert IndexViewColumn to TanStack Table ColumnDef
     const tanstackColumns = useMemo<ColumnDef<any>[]>(() => {
@@ -361,26 +389,100 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       return cols;
     }, [columns, enableSelection, showActions, onView, onEdit, onDelete, t]);
 
+    const handleRowClick = React.useCallback(
+      (event: React.MouseEvent<HTMLTableRowElement>, resource: any) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('button, a, input, select, textarea, [role="menuitem"], [data-prevent-row-click="true"]')) {
+          return;
+        }
+
+        if (rowClickAction === 'detail') {
+          if (onView && (resource.policy?.view ?? true)) {
+            onView(resource);
+          }
+          return;
+        }
+
+        if (rowClickAction === 'edit') {
+          if (onEdit && (resource.policy?.update ?? true)) {
+            onEdit(resource);
+          }
+        }
+      },
+      [onEdit, onView, rowClickAction]
+    );
+
+    const handleRowDragStart = React.useCallback(
+      (event: React.DragEvent<HTMLTableRowElement>, rowId: string) => {
+        if (!enableRowReorder || isReordering) return;
+        setDraggingRowId(rowId);
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', rowId);
+      },
+      [enableRowReorder, isReordering]
+    );
+
+    const handleRowDragOver = React.useCallback(
+      (event: React.DragEvent<HTMLTableRowElement>, rowId: string) => {
+        if (!enableRowReorder || isReordering || !draggingRowId) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        setDragOverRowId(rowId);
+      },
+      [draggingRowId, enableRowReorder, isReordering]
+    );
+
+    const handleRowDragEnd = React.useCallback(() => {
+      setDraggingRowId(null);
+      setDragOverRowId(null);
+    }, []);
+
+    const handleRowDrop = React.useCallback(
+      async (event: React.DragEvent<HTMLTableRowElement>, targetRowId: string) => {
+        if (!enableRowReorder || isReordering) return;
+        event.preventDefault();
+
+        const sourceRowId = draggingRowId || event.dataTransfer.getData('text/plain');
+        setDragOverRowId(null);
+        setDraggingRowId(null);
+
+        if (!sourceRowId || sourceRowId === targetRowId) return;
+
+        const sourceIndex = tableData.findIndex((item) => getResourceId(item) === sourceRowId);
+        const targetIndex = tableData.findIndex((item) => getResourceId(item) === targetRowId);
+
+        if (sourceIndex < 0 || targetIndex < 0) return;
+
+        const nextData = [...tableData];
+        const [movedItem] = nextData.splice(sourceIndex, 1);
+        nextData.splice(targetIndex, 0, movedItem);
+
+        const previousData = tableData;
+        setTableData(nextData);
+
+        if (onRowReorder) {
+          setIsReordering(true);
+          try {
+            await onRowReorder(nextData);
+          } catch {
+            setTableData(previousData);
+          } finally {
+            setIsReordering(false);
+          }
+        }
+      },
+      [draggingRowId, enableRowReorder, getResourceId, isReordering, onRowReorder, tableData]
+    );
+
     // Create table instance
     const table = useReactTable({
-      data: resources,
+      data: tableData,
       columns: tanstackColumns,
       getCoreRowModel: getCoreRowModel(),
       getSortedRowModel: getSortedRowModel(),
       getFilteredRowModel: getFilteredRowModel(),
       // Extract gerçek ID'yi her row için (row index yerine)
-      getRowId: (row) => {
-        const idField = row['id'] as any;
-        console.log('🔍 getRowId called:', { idField, row });
-
-        if (idField && typeof idField === 'object' && 'data' in idField) {
-          console.log('✅ Using nested data:', idField.data);
-          return String(idField.data);
-        }
-
-        console.log('⚠️ Using direct value:', idField);
-        return String(idField);
-      },
+      getRowId: (row) => getResourceId(row),
       state: {
         sorting,
         columnFilters,
@@ -551,7 +653,25 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
                   </TableRow>
                 ) : (
                   table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
+                    <TableRow
+                      key={row.id}
+                      draggable={enableRowReorder && !isLoading && !isReordering}
+                      onDragStart={(event) => handleRowDragStart(event, row.id)}
+                      onDragOver={(event) => handleRowDragOver(event, row.id)}
+                      onDrop={(event) => void handleRowDrop(event, row.id)}
+                      onDragEnd={handleRowDragEnd}
+                      onClick={(event) => {
+                        if (canTriggerRowClick) {
+                          handleRowClick(event, row.original);
+                        }
+                      }}
+                      className={cn(
+                        canTriggerRowClick && 'cursor-pointer',
+                        enableRowReorder && !isLoading && 'select-none',
+                        draggingRowId === row.id && 'opacity-50',
+                        dragOverRowId === row.id && 'bg-muted/50'
+                      )}
+                    >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -84,6 +84,7 @@ export function ResourceDetail({ resourceName, resourceId, fields, onClose, onRe
             case 'boolean-group-field':
                 return <BooleanGroupDetailField {...props} />
             case 'number-field':
+            case 'money-field':
                 return <NumberDetailField {...props} />
             case 'password-field':
                 return <PasswordDetailField {...props} />

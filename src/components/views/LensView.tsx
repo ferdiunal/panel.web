@@ -38,7 +38,9 @@ import { Badge } from '@/components/ui/badge';
 import type { LensViewProps } from '@/types/lens';
 import type { ResourceItem, FieldData, Card as CardType } from '@/types';
 import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
+import { renderDisplayComponent } from '@/lib/display-components';
 import { formatTemporalFieldValue } from '@/lib/date-display';
+import { formatMoneyFieldValue } from '@/lib/money-display';
 
 /**
  * LensView Component
@@ -136,6 +138,11 @@ export function LensView({
             return relationshipContent;
           }
 
+          const displayComponent = renderDisplayComponent(field.data);
+          if (displayComponent !== null) {
+            return displayComponent;
+          }
+
           // Object field rendering (relations)
           if (typeof field.data === 'object' && field.data !== null) {
             const data = field.data as any;
@@ -191,6 +198,11 @@ export function LensView({
           const formattedTemporalValue = formatTemporalFieldValue(field);
           if (formattedTemporalValue !== null) {
             return formattedTemporalValue;
+          }
+
+          const formattedMoneyValue = formatMoneyFieldValue(field);
+          if (formattedMoneyValue !== null) {
+            return formattedMoneyValue;
           }
 
           return field.data;

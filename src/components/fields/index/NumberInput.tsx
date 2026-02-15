@@ -9,6 +9,7 @@ import React from 'react';
 import { FieldLayout } from '../FieldLayout';
 import { cn } from '@/lib/utils';
 import type { IndexFieldProps } from '@/types';
+import { formatMoneyFieldValue } from '@/lib/money-display';
 
 /**
  * NumberIndexField Component
@@ -38,6 +39,26 @@ import type { IndexFieldProps } from '@/types';
 export const NumberIndexField: React.FC<IndexFieldProps> = ({ field, record }) => {
   // Value'yu extract et
   const rawValue = record[field.key]?.data || record[field.key];
+  const formattedMoneyValue = formatMoneyFieldValue({
+    data: rawValue,
+    type: field.type,
+    view: field.view,
+    props: field.props,
+  });
+  if (formattedMoneyValue !== null) {
+    return (
+      <FieldLayout
+        name={field.key}
+        label={field.name || field.label}
+        helpText={field.help_text}
+        hideLabel={true}
+      >
+        <span className={cn('text-sm', field.text_align === 'left' ? 'text-left' : field.text_align === 'center' ? 'text-center' : 'text-right')}>
+          {formattedMoneyValue}
+        </span>
+      </FieldLayout>
+    );
+  }
 
   // Number'a çevir
   const value = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);

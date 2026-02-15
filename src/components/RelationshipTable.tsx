@@ -27,6 +27,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useDebounce } from '@/hooks/useDebounce';
 import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
+import { renderDisplayComponent } from '@/lib/display-components';
+import { formatMoneyFieldValue } from '@/lib/money-display';
 
 export interface RelationshipTableProps {
   /** İlişkili resource tipi (örn: "posts", "comments") */
@@ -188,6 +190,11 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
                 return relationshipContent;
             }
 
+            const displayComponent = renderDisplayComponent(field.data);
+            if (displayComponent !== null) {
+                return displayComponent;
+            }
+
             // Handle objects (like relations)
             if (typeof field.data === 'object' && field.data !== null) {
                 const data = field.data as any
@@ -232,6 +239,11 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
                     const valStr = String(field.data)
                     if (options[valStr]) return options[valStr]
                 }
+            }
+
+            const formattedMoneyValue = formatMoneyFieldValue(field);
+            if (formattedMoneyValue !== null) {
+              return formattedMoneyValue;
             }
 
             return field.data

@@ -287,6 +287,8 @@ export function registerAllFields() {
   fieldRegistry.register('password-field', MemoizedPasswordInput as any);
   fieldRegistry.register('number', MemoizedNumberInput as any);
   fieldRegistry.register('number-field', MemoizedNumberInput as any);
+  fieldRegistry.register('money', MemoizedNumberInput as any);
+  fieldRegistry.register('money-field', MemoizedNumberInput as any);
   fieldRegistry.register('url', MemoizedURLInput as any);
   fieldRegistry.register('url-field', MemoizedURLInput as any);
   fieldRegistry.register('tel', TelFormField as any);
@@ -408,6 +410,11 @@ export function registerAllFields() {
   fieldRegistry.register('richtext-field-form', RichTextFormField as any);
   fieldRegistry.register('textarea-field-form', TextareaFormField as any);
   fieldRegistry.register('number-field-form', NumberFormField as any);
+  fieldRegistry.register('number-field-index', NumberIndexField as any);
+  fieldRegistry.register('number-field-detail', NumberDetailField as any);
+  fieldRegistry.register('money-field-form', NumberFormField as any);
+  fieldRegistry.register('money-field-index', NumberIndexField as any);
+  fieldRegistry.register('money-field-detail', NumberDetailField as any);
   fieldRegistry.register('password-field-form', PasswordFormField as any);
   fieldRegistry.register('email-field-form', EmailFormField as any);
   fieldRegistry.register('url-field-form', URLFormField as any);

@@ -8,6 +8,7 @@
 import React from 'react';
 import { FieldLayout } from '../FieldLayout';
 import type { DetailFieldProps } from '@/types';
+import { renderDisplayComponent } from '@/lib/display-components';
 
 /**
  * TextDetailField Component
@@ -37,6 +38,7 @@ import type { DetailFieldProps } from '@/types';
 export const TextDetailField: React.FC<DetailFieldProps> = ({ field, record }) => {
   // Value'yu extract et
   let value = record[field.key]?.data || record[field.key] || '';
+  const displayComponent = renderDisplayComponent(value);
 
   // Format değerini al (opsiyonel)
   const format = field.props?.format as string | undefined;
@@ -62,9 +64,13 @@ export const TextDetailField: React.FC<DetailFieldProps> = ({ field, record }) =
       label={field.name || field.label}
       helpText={field.help_text}
     >
-      <p className="text-sm text-foreground">
-        {value || '—'}
-      </p>
+      {displayComponent !== null ? (
+        displayComponent
+      ) : (
+        <p className="text-sm text-foreground">
+          {value || '—'}
+        </p>
+      )}
     </FieldLayout>
   );
 };

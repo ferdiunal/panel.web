@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import InputMask from 'react-input-mask';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -55,6 +56,12 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
   const max = field.props?.max as number | undefined;
   const step = (field.props?.step as number) || 1;
   const native = field.props?.native as boolean | undefined;
+  const mask = field.props?.mask as string | undefined;
+  const maskChar = (field.props?.maskChar as string) || '_';
+  const alwaysShowMask = (field.props?.alwaysShowMask as boolean) || false;
+  const showCurrency = (field.props?.showCurrency as boolean | undefined) ?? true;
+  const currency = ((field.props?.currency as string | undefined) || 'USD').toUpperCase();
+  const isMoneyField = field.type === 'money' || field.view.includes('money-field');
 
   const handleIncrement = () => {
     const currentValue = typeof value === 'number' ? value : parseFloat(value as string) || 0;
@@ -81,25 +88,60 @@ export const NumberFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      {native ? (
-        <Input
-          id={name}
-          name={name}
-          type="number"
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value ? parseFloat(e.target.value) : '')}
-          onBlur={onBlur}
-          disabled={disabled}
-          placeholder={placeholder}
-          min={min}
-          max={max}
-          step={step}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
-          className={cn(
-            error && 'border-destructive focus-visible:ring-destructive/20'
+      {native || isMoneyField ? (
+        <div className="flex items-center gap-2">
+          {showCurrency && (
+            <span className="text-xs font-medium text-muted-foreground shrink-0">
+              {currency}
+            </span>
           )}
-        />
+          {mask ? (
+            <InputMask
+              mask={mask}
+              value={value || ''}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+              onBlur={onBlur}
+              maskChar={maskChar}
+              alwaysShowMask={alwaysShowMask}
+              disabled={disabled}
+            >
+              {(inputMaskProps: any) => (
+                <Input
+                  {...inputMaskProps}
+                  id={name}
+                  name={name}
+                  type="text"
+                  disabled={disabled}
+                  placeholder={placeholder}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+                  className={cn(error && 'border-destructive focus-visible:ring-destructive/20')}
+                />
+              )}
+            </InputMask>
+          ) : (
+            <Input
+              id={name}
+              name={name}
+              type={isMoneyField ? 'text' : 'number'}
+              value={value || ''}
+              onChange={(e) => onChange(
+                isMoneyField
+                  ? e.target.value
+                  : (e.target.value ? parseFloat(e.target.value) : '')
+              )}
+              onBlur={onBlur}
+              disabled={disabled}
+              placeholder={placeholder}
+              min={min}
+              max={max}
+              step={step}
+              aria-invalid={!!error}
+              aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+              className={cn(error && 'border-destructive focus-visible:ring-destructive/20')}
+            />
+          )}
+        </div>
       ) : (
         <div className="flex gap-2">
           <Button

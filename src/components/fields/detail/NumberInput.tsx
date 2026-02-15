@@ -8,6 +8,7 @@
 import React from 'react';
 import { FieldLayout } from '../FieldLayout';
 import type { DetailFieldProps } from '@/types';
+import { formatMoneyFieldValue } from '@/lib/money-display';
 
 /**
  * NumberDetailField Component
@@ -36,6 +37,25 @@ import type { DetailFieldProps } from '@/types';
 export const NumberDetailField: React.FC<DetailFieldProps> = ({ field, record }) => {
   // Value'yu extract et
   const rawValue = record[field.key]?.data || record[field.key];
+  const formattedMoneyValue = formatMoneyFieldValue({
+    data: rawValue,
+    type: field.type,
+    view: field.view,
+    props: field.props,
+  });
+  if (formattedMoneyValue !== null) {
+    return (
+      <FieldLayout
+        name={field.key}
+        label={field.name || field.label}
+        helpText={field.help_text}
+      >
+        <p className="text-sm text-foreground">
+          {formattedMoneyValue}
+        </p>
+      </FieldLayout>
+    );
+  }
 
   // Number'a çevir
   const value = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);

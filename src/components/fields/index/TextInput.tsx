@@ -41,6 +41,7 @@ import React from 'react';
 import { FieldLayout } from '../FieldLayout';
 import { cn } from '@/lib/utils';
 import type { IndexFieldProps } from '@/types';
+import { renderDisplayComponent } from '@/lib/display-components';
 
 /**
  * TextIndexField Component
@@ -64,6 +65,7 @@ import type { IndexFieldProps } from '@/types';
 export const TextIndexField: React.FC<IndexFieldProps> = ({ field, record }) => {
   // Value'yu extract et
   const value = record[field.key]?.data || record[field.key] || '';
+  const displayComponent = renderDisplayComponent(value);
 
   // Props'tan truncate değerini al
   const truncate = field.props?.truncate as boolean | undefined;
@@ -90,9 +92,13 @@ export const TextIndexField: React.FC<IndexFieldProps> = ({ field, record }) => 
       helpText={field.help_text}
       hideLabel={true}
     >
-      <span className={cn('text-sm', alignmentClass)}>
-        {displayValue || '—'}
-      </span>
+      {displayComponent !== null ? (
+        displayComponent
+      ) : (
+        <span className={cn('text-sm', alignmentClass)}>
+          {displayValue || '—'}
+        </span>
+      )}
     </FieldLayout>
   );
 };

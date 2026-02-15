@@ -31,7 +31,9 @@ import { ActionButton, ActionModal } from "@/components/actions"
 import { useActionStore } from "@/stores/action-store"
 import { DetailModalWrapper } from "@/components/DetailModalWrapper"
 import { renderRelationshipFieldValue } from "@/lib/relation-field-links"
+import { renderDisplayComponent } from "@/lib/display-components"
 import { formatTemporalFieldValue } from "@/lib/date-display"
+import { formatMoneyFieldValue } from "@/lib/money-display"
 import { extractRecordIdFromItem, extractRecordTitleFromFields, extractRecordTitleFromItem, extractRecordTitleFromMeta, formatRecordReference } from "@/lib/record-reference"
 import type { ResourceFieldResponse } from "@/services/resource"
 
@@ -583,6 +585,11 @@ export default function ResourceIndexPage() {
                         return relationshipContent
                     }
 
+                    const displayComponent = renderDisplayComponent(field.data)
+                    if (displayComponent !== null) {
+                        return displayComponent
+                    }
+
                     if (typeof field.data === 'object' && field.data !== null) {
                         const data = field.data as any
                         if (Array.isArray(data)) {
@@ -628,6 +635,11 @@ export default function ResourceIndexPage() {
                     const formattedTemporalValue = formatTemporalFieldValue(field)
                     if (formattedTemporalValue !== null) {
                         return formattedTemporalValue
+                    }
+
+                    const formattedMoneyValue = formatMoneyFieldValue(field)
+                    if (formattedMoneyValue !== null) {
+                        return formattedMoneyValue
                     }
 
                     return field.data

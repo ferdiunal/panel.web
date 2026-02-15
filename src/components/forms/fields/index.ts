@@ -38,6 +38,7 @@ import { RadioGroupFormField } from '@/components/fields/form/RadioGroupField';
 import { TimeFormField } from '@/components/fields/form/TimeField';
 import { MorphToManyFormField } from '@/components/fields/form/MorphToManyField';
 import { FileFormField } from '@/components/fields/form/FileInput';
+import { MatrixFormField } from '@/components/fields/form/MatrixField';
 
 // Import Index/Detail specific components
 import { TextIndexField } from '@/components/fields/index/TextInput';
@@ -277,6 +278,7 @@ export const MemoizedFileInput = React.memo(FileFormField, (prev, next) => {
     prev.error === next.error
   );
 });
+export const MemoizedMatrixField = React.memo(MatrixFormField);
 
 // Register all field components with the registry
 export function registerAllFields() {
@@ -358,6 +360,14 @@ export function registerAllFields() {
   fieldRegistry.register('file', MemoizedFileInput as any);
   fieldRegistry.register('file-field', MemoizedFileInput as any);
   fieldRegistry.register('file-field-form', FileFormField as any);
+
+  // Matrix / KeyValue field
+  fieldRegistry.register('matrix', MemoizedMatrixField as any);
+  fieldRegistry.register('matrix-field', MemoizedMatrixField as any);
+  fieldRegistry.register('matrix-field-form', MatrixFormField as any);
+  fieldRegistry.register('key_value', MemoizedMatrixField as any);
+  fieldRegistry.register('key-value-field', MemoizedMatrixField as any);
+  fieldRegistry.register('key-value-field-form', MatrixFormField as any);
 
   // Image field (uses file input)
   fieldRegistry.register('image', MemoizedFileInput as any);

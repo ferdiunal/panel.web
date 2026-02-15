@@ -28,6 +28,41 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet"
 
+export type ResponsiveModalSize =
+    | "sm"
+    | "md"
+    | "lg"
+    | "xl"
+    | "2xl"
+    | "3xl"
+    | "4xl"
+    | "5xl"
+    | "full"
+
+const DIALOG_SIZE_CLASSES: Record<ResponsiveModalSize, string> = {
+    sm: "sm:max-w-sm",
+    md: "sm:max-w-md",
+    lg: "sm:max-w-lg",
+    xl: "sm:max-w-xl",
+    "2xl": "sm:max-w-2xl",
+    "3xl": "sm:max-w-3xl",
+    "4xl": "sm:max-w-4xl",
+    "5xl": "sm:max-w-5xl",
+    full: "sm:w-[calc(100%-2rem)] sm:max-w-[calc(100%-2rem)]",
+}
+
+const SHEET_SIZE_CLASSES: Record<ResponsiveModalSize, string> = {
+    sm: "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-sm data-[side=left]:w-3/4 data-[side=left]:sm:max-w-sm",
+    md: "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-md data-[side=left]:w-3/4 data-[side=left]:sm:max-w-md",
+    lg: "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-lg data-[side=left]:w-3/4 data-[side=left]:sm:max-w-lg",
+    xl: "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-xl data-[side=left]:w-3/4 data-[side=left]:sm:max-w-xl",
+    "2xl": "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-2xl data-[side=left]:w-3/4 data-[side=left]:sm:max-w-2xl",
+    "3xl": "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-3xl data-[side=left]:w-3/4 data-[side=left]:sm:max-w-3xl",
+    "4xl": "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-4xl data-[side=left]:w-3/4 data-[side=left]:sm:max-w-4xl",
+    "5xl": "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-5xl data-[side=left]:w-3/4 data-[side=left]:sm:max-w-5xl",
+    full: "data-[side=right]:w-screen data-[side=right]:sm:max-w-none data-[side=left]:w-screen data-[side=left]:sm:max-w-none",
+}
+
 interface ResponsiveModalProps {
     children?: React.ReactNode
     trigger?: React.ReactNode
@@ -37,6 +72,8 @@ interface ResponsiveModalProps {
     onOpenChange?: (open: boolean) => void
     variant?: "dialog" | "sheet" | "drawer"
     side?: "top" | "bottom" | "left" | "right" // For sheet
+    size?: ResponsiveModalSize // Dialog width on desktop
+    sheetSize?: ResponsiveModalSize // Sheet width on desktop
     className?: string // For custom modal styling
     defaultFullscreen?: boolean // Uncontrolled fullscreen mode
     fullscreen?: boolean // Controlled fullscreen mode
@@ -53,6 +90,8 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
     onOpenChange,
     variant = "dialog",
     side = "right",
+    size = "md",
+    sheetSize = "sm",
     className,
     defaultFullscreen = false,
     fullscreen,
@@ -142,7 +181,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                             "transition-all duration-200 ease-in-out",
                             isFullscreen
                                 ? "data-[side=left]:sm:max-w-none data-[side=right]:sm:max-w-none data-[side=left]:w-screen data-[side=right]:w-screen data-[side=left]:sm:h-full data-[side=right]:sm:h-full"
-                                : "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-sm data-[side=left]:w-3/4 data-[side=left]:sm:max-w-sm",
+                                : SHEET_SIZE_CLASSES[sheetSize],
                             className
                         )}
                     >
@@ -171,7 +210,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                         "transition-all duration-200 ease-in-out flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden",
                         isFullscreen
                             ? "sm:w-screen sm:h-screen sm:max-w-none sm:max-h-[100dvh] rounded-none"
-                            : "max-w-[calc(100%-2rem)] sm:max-w-md",
+                            : cn("max-w-[calc(100%-2rem)]", DIALOG_SIZE_CLASSES[size]),
                         className
                     )}
                 >

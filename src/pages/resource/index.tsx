@@ -8,6 +8,7 @@ import { Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
+import type { ResponsiveModalSize } from "@/components/ui/responsive-modal"
 import { UniversalResourceForm } from "@/components/forms/UniversalResourceForm"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -40,6 +41,28 @@ import type { ResourceFieldResponse } from "@/services/resource"
 interface LoaderData {
     data: any
     params: ResourceParams
+}
+
+const RESPONSIVE_MODAL_SIZES: ReadonlySet<ResponsiveModalSize> = new Set([
+    "sm",
+    "md",
+    "lg",
+    "xl",
+    "2xl",
+    "3xl",
+    "4xl",
+    "5xl",
+    "full",
+])
+
+function parseResponsiveModalSize(
+    value: unknown,
+    fallback: ResponsiveModalSize = "md"
+): ResponsiveModalSize {
+    if (typeof value !== "string") return fallback
+    return RESPONSIVE_MODAL_SIZES.has(value as ResponsiveModalSize)
+        ? (value as ResponsiveModalSize)
+        : fallback
 }
 
 export const loader = async ({ params, request }: LoaderFunctionArgs): Promise<LoaderData | Response> => {
@@ -328,6 +351,10 @@ export default function ResourceIndexPage() {
         const formatted = formatRecordReference(recordId, recordTitle)
         return formatted || fallbackTitle
     }, [editMeta, editingItem, rawEditFields, resourceData.meta.title, routeRecordId])
+
+    const resourceModalSize = useMemo<ResponsiveModalSize>(() => {
+        return parseResponsiveModalSize(resourceData?.meta?.dialog_size, "md")
+    }, [resourceData?.meta?.dialog_size])
 
     // Prepare initial data for edit form
     const editInitialData = useMemo(() => {
@@ -756,6 +783,8 @@ export default function ResourceIndexPage() {
                             description="Asagidaki bilgileri doldurunuz."
                             open={isCreateOpen}
                             variant={resourceData.meta.dialog_type}
+                            size={resourceModalSize}
+                            sheetSize={resourceModalSize}
                             onOpenChange={(open) => {
                                 if (!open) {
                                     closeCreateModal(true)
@@ -817,6 +846,8 @@ export default function ResourceIndexPage() {
                 description="Asagidaki bilgileri guncelleyiniz."
                 open={isEditOpen}
                 variant={resourceData.meta.dialog_type}
+                size={resourceModalSize}
+                sheetSize={resourceModalSize}
                 onOpenChange={(open) => {
                     if (!open) {
                         closeEditModal(true)

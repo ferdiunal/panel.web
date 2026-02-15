@@ -17,7 +17,8 @@ import {
     Server,
     CreditCard,
     Bell,
-    Lock
+    Lock,
+    Code2
 } from "lucide-react"
 
 import { useEffect, useState } from "react"
@@ -62,6 +63,7 @@ const iconMap: Record<string, any> = {
     "credit-card": CreditCard,
     "bell": Bell,
     "lock": Lock,
+    "code": Code2,
     "bot": Bot,
     "book-open": BookOpen,
     "square-terminal": SquareTerminal,

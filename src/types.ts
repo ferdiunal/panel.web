@@ -47,6 +47,7 @@ export interface ResourceResponse {
         title: string;
         headers: FieldData[];
         dialog_type: "dialog" | "sheet" | "drawer";
+        dialog_size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
         create_fields?: FieldData[];
         update_fields?: FieldData[];
         policy: {

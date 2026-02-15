@@ -71,8 +71,12 @@ export function ResourceDetail({ resourceName, resourceId, fields, onClose, onRe
             case 'select-field':
                 return <SelectDetailField {...props} />
             case 'date-field':
+            case 'date-field-detail':
+            case 'date-field-index':
                 return <DateDetailField {...props} />
             case 'datetime-field':
+            case 'datetime-field-detail':
+            case 'datetime-field-index':
                 return <DateTimeDetailField {...props} />
             case 'boolean-field':
                 // Boolean field için Switch veya Checkbox kullanılabilir

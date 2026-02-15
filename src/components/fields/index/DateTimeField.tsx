@@ -6,20 +6,10 @@
  */
 
 import React, { useMemo } from 'react';
-import { format } from 'date-fns';
 import { FieldLayout } from '../FieldLayout';
 import { cn } from '@/lib/utils';
+import { formatDateTimeForDisplay } from '@/lib/date-display';
 import type { IndexFieldProps } from '@/types';
-
-/**
- * Preset format map
- */
-const PRESET_FORMATS: Record<string, string> = {
-  short: 'MM/dd/yyyy HH:mm',
-  medium: 'MMM d, yyyy HH:mm',
-  long: 'MMMM d, yyyy HH:mm:ss',
-  full: 'EEEE, MMMM d, yyyy HH:mm:ss',
-};
 
 /**
  * DateTimeIndexField Component
@@ -51,30 +41,11 @@ export const DateTimeIndexField: React.FC<IndexFieldProps> = ({ field, record })
   // Value'yu extract et
   const rawValue = record[field.key]?.data || record[field.key];
 
-  // Value'yu normalize et (Date object'e çevir)
-  const normalizedValue = useMemo((): Date | undefined => {
-    if (!rawValue) return undefined;
-    if (rawValue instanceof Date) return rawValue;
-    if (typeof rawValue === 'string') {
-      const date = new Date(rawValue);
-      return isNaN(date.getTime()) ? undefined : date;
-    }
-    return undefined;
-  }, [rawValue]);
-
   // Datetime formatla
   const formattedValue = useMemo((): string => {
-    if (!normalizedValue) return '—';
-
-    try {
-      const formatStr = (field.props?.format as string) || 'short';
-      const dateFormat = PRESET_FORMATS[formatStr] || formatStr;
-      return format(normalizedValue, dateFormat);
-    } catch (error) {
-      console.error('Datetime formatlama hatası:', error);
-      return '—';
-    }
-  }, [normalizedValue, field.props?.format]);
+    const formatKey = typeof field.props?.format === 'string' ? field.props.format : undefined;
+    return formatDateTimeForDisplay(rawValue, formatKey, 'short');
+  }, [rawValue, field.props?.format]);
 
   // Text alignment class'ı
   const textAlign = field.text_align || 'left';

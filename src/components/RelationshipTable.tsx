@@ -26,6 +26,7 @@ import type { FieldData } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useDebounce } from '@/hooks/useDebounce';
+import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
 
 export interface RelationshipTableProps {
   /** İlişkili resource tipi (örn: "posts", "comments") */
@@ -180,6 +181,11 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
                         {field.data}
                     </Badge>
                 )
+            }
+
+            const relationshipContent = renderRelationshipFieldValue(field, resource as Record<string, unknown>);
+            if (relationshipContent !== null) {
+                return relationshipContent;
             }
 
             // Handle objects (like relations)

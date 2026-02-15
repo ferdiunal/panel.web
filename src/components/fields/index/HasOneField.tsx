@@ -88,11 +88,11 @@ export function HasOneIndexField({ field, record }: HasOneIndexFieldProps) {
 
     // Link element'i oluştur
     const linkElement = relatedData ? (
-        <Link
-            to={`/resources/${relatedResource}/${relatedId}`}
-            className="text-sm text-primary hover:underline"
-            onClick={(e) => e.stopPropagation()}
-        >
+            <Link
+                to={`/resource/${relatedResource}/${relatedId}/show`}
+                className="text-sm text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+            >
             {finalLabel}
         </Link>
     ) : (

@@ -114,7 +114,7 @@ export function BelongsToIndexField({ field, record }: BelongsToIndexFieldProps)
     // Link element'i oluştur
     const linkElement = relatedId ? (
         <Link
-            to={`/resources/${relatedResource}/${relatedId}`}
+            to={`/resource/${relatedResource}/${relatedId}/show`}
             className="text-sm text-primary hover:underline"
             onClick={(e) => e.stopPropagation()}
         >

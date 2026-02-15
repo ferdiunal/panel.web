@@ -60,15 +60,12 @@ export function BelongsToManyIndexField({ field, record }: BelongsToManyIndexFie
         }
     }
 
-    // Ana kaydın ID'sini al
-    const recordId = record.id?.data || record.id;
-
     // Link element'i oluştur
     const content = count === 0 ? (
         <span className="text-muted-foreground text-sm">—</span>
     ) : (
         <Link
-            to={`/resources/${relatedResource}?filter[${field.key}]=${recordId}`}
+            to={`/resource/${relatedResource}`}
             className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
             onClick={(e) => e.stopPropagation()}
         >

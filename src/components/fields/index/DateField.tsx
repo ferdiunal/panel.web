@@ -7,7 +7,7 @@
  * # Özellikler
  *
  * - **Minimal Design**: Tablo hücresi için optimize edilmiş minimal görünüm
- * - **Date Formatting**: date-fns ile tarih formatlaması
+ * - **Date Formatting**: Intl.DateTimeFormat ile tarih formatlaması
  * - **Format Customization**: field.props.format ile format özelleştirme
  * - **Text Alignment**: field.text_align property'sine göre hizalama
  * - **Copyable Desteği**: field.props.copyable ile kopyalama özelliği
@@ -24,7 +24,7 @@
  *   label: 'Oluşturulma Tarihi',
  *   text_align: 'left',
  *   props: {
- *     format: 'short', // veya 'medium', 'long', 'full', 'dd/MM/yyyy'
+ *     format: 'short', // veya 'medium', 'long', 'full'
  *     copyable: true,
  *   },
  * }
@@ -40,12 +40,6 @@
  * - `long`: January 1, 2024
  * - `full`: Monday, January 1, 2024
  *
- * **Custom Formats:**
- * - `dd/MM/yyyy`: 01/01/2024
- * - `yyyy-MM-dd`: 2024-01-01
- * - `MMM d, yyyy`: Jan 1, 2024
- * - `EEEE, MMMM d, yyyy`: Monday, January 1, 2024
- *
  * # Value Format
  *
  * Backend'den gelen value farklı format'larda olabilir:
@@ -59,20 +53,8 @@
 import React, { useMemo } from 'react';
 import { FieldLayout } from '../FieldLayout';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { formatDateForDisplay } from '@/lib/date-display';
 import type { IndexFieldProps } from '@/types';
-
-/**
- * Preset format map
- *
- * Kullanıcı dostu format isimleri → date-fns format string'leri
- */
-const PRESET_FORMATS: Record<string, string> = {
-  short: 'MM/dd/yyyy',
-  medium: 'MMM d, yyyy',
-  long: 'MMMM d, yyyy',
-  full: 'EEEE, MMMM d, yyyy',
-};
 
 /**
  * DateIndexField Component
@@ -91,12 +73,12 @@ const PRESET_FORMATS: Record<string, string> = {
  * # Date Formatting
  *
  * 1. Value'yu normalize et (Date object'e çevir)
- * 2. Format string'i belirle (preset veya custom)
- * 3. date-fns format fonksiyonu ile formatla
+ * 2. Format preset'ini belirle (short/medium/long/full)
+ * 3. Intl.DateTimeFormat ile tarayıcı locale'ine göre formatla
  *
  * # Props (field.props)
  *
- * - **format**: Tarih format'ı (preset veya custom, varsayılan: 'medium')
+ * - **format**: Tarih format'ı (preset, varsayılan: 'medium')
  * - **copyable**: Kopyalama özelliği aktif mi? (varsayılan: false)
  */
 export const DateIndexField: React.FC<IndexFieldProps> = ({ field, record }) => {
@@ -104,47 +86,15 @@ export const DateIndexField: React.FC<IndexFieldProps> = ({ field, record }) => 
   const rawValue = record[field.key]?.data || record[field.key];
 
   /**
-   * Value'yu normalize et (Date object'e çevir)
-   *
-   * Backend'den gelen value farklı format'larda olabilir:
-   * - Date object → direkt kullan
-   * - ISO string → Date'e çevir
-   * - Date string → Date'e çevir
-   * - undefined/null → undefined
-   */
-  const normalizedValue = useMemo((): Date | undefined => {
-    if (!rawValue) return undefined;
-    if (rawValue instanceof Date) return rawValue;
-    if (typeof rawValue === 'string') {
-      const date = new Date(rawValue);
-      return isNaN(date.getTime()) ? undefined : date;
-    }
-    return undefined;
-  }, [rawValue]);
-
-  /**
    * Tarih formatla
    *
-   * 1. Format string'i belirle (preset veya custom)
-   * 2. date-fns format fonksiyonu ile formatla
+   * 1. Format preset'ini belirle
+   * 2. Intl.DateTimeFormat ile formatla
    */
   const formattedValue = useMemo((): string => {
-    if (!normalizedValue) return '—';
-
-    try {
-      // Format string'i al (field.props.format veya varsayılan 'medium')
-      const formatStr = (field.props?.format as string) || 'medium';
-
-      // Preset format mı yoksa custom format mı?
-      const dateFormat = PRESET_FORMATS[formatStr] || formatStr;
-
-      // Formatla
-      return format(normalizedValue, dateFormat);
-    } catch (error) {
-      console.error('Tarih formatlama hatası:', error);
-      return '—';
-    }
-  }, [normalizedValue, field.props?.format]);
+    const formatKey = typeof field.props?.format === 'string' ? field.props.format : undefined;
+    return formatDateForDisplay(rawValue, formatKey, 'medium');
+  }, [rawValue, field.props?.format]);
 
   // Text alignment class'ı
   const textAlign = field.text_align || 'left';

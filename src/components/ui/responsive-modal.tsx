@@ -60,10 +60,46 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
     showFullscreenButton = true,
 }, ref) => {
     const isDesktop = useMediaQuery("(min-width: 768px)")
+    const [headerElement, setHeaderElement] = React.useState<HTMLDivElement | null>(null)
+    const [headerHeight, setHeaderHeight] = React.useState(0)
 
     // Fullscreen state management (controlled vs uncontrolled)
     const [internalFullscreen, setInternalFullscreen] = React.useState(defaultFullscreen)
     const isFullscreen = fullscreen !== undefined ? fullscreen : internalFullscreen
+
+    React.useEffect(() => {
+        if (!headerElement) {
+            setHeaderHeight(0)
+            return
+        }
+
+        const measure = () => {
+            setHeaderHeight(Math.ceil(headerElement.getBoundingClientRect().height))
+        }
+
+        measure()
+
+        window.addEventListener("resize", measure)
+
+        if (typeof ResizeObserver === "undefined") {
+            return () => {
+                window.removeEventListener("resize", measure)
+            }
+        }
+
+        const observer = new ResizeObserver(() => measure())
+        observer.observe(headerElement)
+
+        return () => {
+            observer.disconnect()
+            window.removeEventListener("resize", measure)
+        }
+    }, [headerElement, open, title, description, isDesktop, variant])
+
+    const contentMaxHeightStyle = React.useMemo(() => {
+        if (headerHeight <= 0) return undefined
+        return { maxHeight: `calc(100dvh - ${headerHeight}px)` }
+    }, [headerHeight])
 
     const toggleFullscreen = () => {
         const newValue = !isFullscreen
@@ -105,17 +141,21 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                         className={cn(
                             "transition-all duration-200 ease-in-out",
                             isFullscreen
-                                ? "data-[side=left]:sm:max-w-none data-[side=right]:sm:max-w-none data-[side=left]:w-screen data-[side=right]:w-screen data-[side=left]:sm:h-full data-[ide=right]:sm:h-full"
+                                ? "data-[side=left]:sm:max-w-none data-[side=right]:sm:max-w-none data-[side=left]:w-screen data-[side=right]:w-screen data-[side=left]:sm:h-full data-[side=right]:sm:h-full"
                                 : "data-[side=right]:w-3/4 data-[side=right]:sm:max-w-sm data-[side=left]:w-3/4 data-[side=left]:sm:max-w-sm",
                             className
                         )}
                     >
-                        <SheetHeader className="relative">
+                        <SheetHeader className="relative" ref={setHeaderElement}>
                             {showFullscreenButton && <FullscreenButton />}
                             {title && <SheetTitle>{title}</SheetTitle>}
                             {description && <SheetDescription>{description}</SheetDescription>}
                         </SheetHeader>
-                        <div className={cn("px-4", isFullscreen && "overflow-auto flex-1")} ref={ref}>
+                        <div
+                            className={cn("px-4 min-h-0 overflow-y-auto", isFullscreen && "flex-1")}
+                            style={contentMaxHeightStyle}
+                            ref={ref}
+                        >
                             {children}
                         </div>
                     </SheetContent>
@@ -128,19 +168,23 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                 {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
                 <DialogContent
                     className={cn(
-                        "transition-all duration-200 ease-in-out",
+                        "transition-all duration-200 ease-in-out flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden",
                         isFullscreen
-                            ? "sm:w-screen sm:h-screen sm:max-w-none rounded-none"
+                            ? "sm:w-screen sm:h-screen sm:max-w-none sm:max-h-[100dvh] rounded-none"
                             : "max-w-[calc(100%-2rem)] sm:max-w-md",
                         className
                     )}
                 >
-                    <DialogHeader className="relative">
+                    <DialogHeader className="relative" ref={setHeaderElement}>
                         {showFullscreenButton && <FullscreenButton />}
                         {title && <DialogTitle>{title}</DialogTitle>}
                         {description && <DialogDescription>{description}</DialogDescription>}
                     </DialogHeader>
-                    <div className={cn(isFullscreen && "overflow-auto flex-1")} ref={ref}>
+                    <div
+                        className={cn("min-h-0 overflow-y-auto", isFullscreen && "flex-1")}
+                        style={contentMaxHeightStyle}
+                        ref={ref}
+                    >
                         {children}
                     </div>
                 </DialogContent>
@@ -152,11 +196,11 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
         <Drawer open={open} onOpenChange={onOpenChange}>
             {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
             <DrawerContent>
-                <DrawerHeader className="text-left">
+                <DrawerHeader className="text-left" ref={setHeaderElement}>
                     {title && <DrawerTitle>{title}</DrawerTitle>}
                     {description && <DrawerDescription>{description}</DrawerDescription>}
                 </DrawerHeader>
-                <div className="px-4" ref={ref}>
+                <div className="px-4 min-h-0 overflow-y-auto" style={contentMaxHeightStyle} ref={ref}>
                     {children}
                 </div>
             </DrawerContent>

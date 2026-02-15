@@ -7,6 +7,12 @@ import qs from "qs";
 
 const FORM_NULL_SENTINEL = "__PANEL_NULL__";
 
+export interface ResourceFieldResponse {
+    fields: FieldData[];
+    meta?: Record<string, any>;
+    [key: string]: any;
+}
+
 export const resourceService = {
     fetchResource: async (
         resource: string,
@@ -62,13 +68,13 @@ export const resourceService = {
     },
 
     getEditFields: async (resource: string, id: string | number) => {
-        const { data } = await api.get<{ fields: FieldData[] }>(`/resource/${resource}/${id}/edit`);
-        return data.fields;
+        const { data } = await api.get<ResourceFieldResponse>(`/resource/${resource}/${id}/edit`);
+        return data;
     },
 
     getDetailFields: async (resource: string, id: string | number) => {
-        const { data } = await api.get<{ fields: FieldData[] }>(`/resource/${resource}/${id}/detail`);
-        return data.fields;
+        const { data } = await api.get<ResourceFieldResponse>(`/resource/${resource}/${id}/detail`);
+        return data;
     },
 
     createResource: async (resource: string, data: any) => {

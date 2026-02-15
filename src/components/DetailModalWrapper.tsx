@@ -5,6 +5,8 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { ResourceDetail } from "@/components/resource-detail"
 import type { ResourceItem, FieldData } from "@/types"
 import { useMemo } from "react"
+import { extractRecordTitleFromFields, extractRecordTitleFromItem, extractRecordTitleFromMeta, formatRecordReference } from "@/lib/record-reference"
+import type { ResourceFieldResponse } from "@/services/resource"
 
 interface DetailModalWrapperProps {
     stackItem: {
@@ -25,14 +27,28 @@ export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick
     const id = idField ? idField.data : null
 
     // Each modal needs its own query for fields
-    const { data: detailFields = [], isLoading } = useQuery({
+    const { data: detailResponse, isLoading } = useQuery<ResourceFieldResponse>({
         queryKey: ["resource", resource, "detail-fields", id],
         queryFn: async () => {
-            if (!resource || !id) return []
+            if (!resource || !id) return { fields: [] }
             return resourceService.getDetailFields(resource, id)
         },
         enabled: !!resource && !!id,
     })
+
+    const detailFields = useMemo(() => {
+        if (!detailResponse) {
+            return []
+        }
+        return detailResponse.fields || []
+    }, [detailResponse])
+
+    const detailMeta = useMemo(() => {
+        if (!detailResponse) {
+            return undefined
+        }
+        return detailResponse.meta
+    }, [detailResponse])
 
     // Check if detail fields have relationships for modal width
     const hasDetailRelationships = useMemo(() => {
@@ -43,12 +59,22 @@ export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick
         )
     }, [detailFields])
 
+    const detailModalTitle = useMemo(() => {
+        const recordTitle =
+            extractRecordTitleFromItem(item as unknown as Record<string, unknown>) ||
+            extractRecordTitleFromFields(detailFields) ||
+            extractRecordTitleFromMeta(detailMeta as Record<string, unknown> | undefined)
+
+        const formatted = formatRecordReference(id ?? undefined, recordTitle)
+        return formatted || `${resource} Detayı`
+    }, [detailFields, detailMeta, id, item, resource])
+
     // If it's not the top-most modal, we might want to hide it or keep it in background
     // Radix UI handles stacking automatically.
 
     return (
         <ResponsiveModal
-            title={`${resource} Detayı`}
+            title={detailModalTitle}
             description="Kayit detaylari asagidadir."
             open={isOpen}
             variant="sheet" // Default to sheet for details, or get from meta if available

@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useActionStore, type Action } from '@/stores/action-store';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ interface ActionButtonProps {
 
 export function ActionButton({ actions, selectedIds }: ActionButtonProps) {
   const { openActionModal } = useActionStore();
+  const { t } = useTranslation();
 
   if (actions.length === 0) return null;
 
@@ -35,7 +37,7 @@ export function ActionButton({ actions, selectedIds }: ActionButtonProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" disabled={!canOpenMenu}>
-          Actions
+          {t('indexView.actions', 'Actions')}
           <ChevronDown className="ml-2 h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>

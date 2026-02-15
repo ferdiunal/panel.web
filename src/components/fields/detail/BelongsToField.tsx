@@ -152,7 +152,7 @@ export function BelongsToDetailField({ field, record, onResourceClick }: DetailF
             </button>
         ) : (
             <Link
-                to={`/resource/${relatedResource}?detail_id=${relatedId}`}
+                to={`/resource/${relatedResource}/${relatedId}/show`}
                 className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
             >
                 {finalLabel}

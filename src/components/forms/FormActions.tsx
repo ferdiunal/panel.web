@@ -10,6 +10,7 @@
 import React, { useCallback } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface FormActionsProps {
   isSubmitting: boolean;
@@ -17,6 +18,7 @@ export interface FormActionsProps {
   mode: 'create' | 'edit';
   onSubmit?: () => Promise<void>;
   onCreateAndContinue?: () => Promise<void>;
+  onUpdateAndContinue?: () => Promise<void>;
   onCancel?: () => void;
   submitLabel?: string;
   cancelLabel?: string;
@@ -32,13 +34,19 @@ export const FormActions: React.FC<FormActionsProps> = ({
   mode,
   onSubmit,
   onCreateAndContinue,
+  onUpdateAndContinue,
   onCancel,
   submitLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel,
   className,
 }) => {
+  const { t } = useTranslation();
   const { formState } = useFormContext();
   const { isDirty } = formState;
+  const finalCancelLabel = cancelLabel || t('button.cancel', 'Cancel');
+  const submittingLabel = t('button.submitting', 'Submitting...');
+  const createAndContinueLabel = t('button.createAndContinue', 'Create and Continue');
+  const updateAndContinueLabel = t('button.updateAndContinue', 'Update and Continue');
 
   // Handle cancel with confirmation if form is dirty
   const handleCancel = useCallback(() => {
@@ -46,16 +54,18 @@ export const FormActions: React.FC<FormActionsProps> = ({
 
     if (isDirty) {
       const confirmed = window.confirm(
-        'You have unsaved changes. Are you sure you want to cancel?'
+        t('confirm.unsavedChanges', 'You have unsaved changes. Are you sure you want to leave?')
       );
       if (!confirmed) return;
     }
 
     onCancel();
-  }, [onCancel, isDirty]);
+  }, [onCancel, isDirty, t]);
 
   // Determine submit button label
-  const defaultSubmitLabel = mode === 'create' ? 'Create' : 'Update';
+  const defaultSubmitLabel = mode === 'create'
+    ? t('button.create', 'Create')
+    : t('button.update', 'Update');
   const finalSubmitLabel = submitLabel || defaultSubmitLabel;
 
   return (
@@ -67,7 +77,7 @@ export const FormActions: React.FC<FormActionsProps> = ({
           onClick={handleCancel}
           disabled={isSubmitting}
         >
-          {cancelLabel}
+          {finalCancelLabel}
         </Button>
       )}
       {mode === 'create' && onCreateAndContinue && (
@@ -77,7 +87,17 @@ export const FormActions: React.FC<FormActionsProps> = ({
           onClick={onCreateAndContinue}
           disabled={isSubmitting || isResolving}
         >
-          {isSubmitting ? 'Submitting...' : 'Create & Continue'}
+          {isSubmitting ? submittingLabel : createAndContinueLabel}
+        </Button>
+      )}
+      {mode === 'edit' && onUpdateAndContinue && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onUpdateAndContinue}
+          disabled={isSubmitting || isResolving}
+        >
+          {isSubmitting ? submittingLabel : updateAndContinueLabel}
         </Button>
       )}
       <Button
@@ -85,7 +105,7 @@ export const FormActions: React.FC<FormActionsProps> = ({
         onClick={onSubmit}
         disabled={isSubmitting || isResolving}
       >
-        {isSubmitting ? 'Submitting...' : finalSubmitLabel}
+        {isSubmitting ? submittingLabel : finalSubmitLabel}
       </Button>
     </div>
   );

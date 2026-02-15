@@ -168,7 +168,7 @@ function isMorphToField(field: FieldData): boolean {
 }
 
 function detailPath(resource: string, id: IdValue): string {
-  return `/resource/${resource}?detail_id=${id}`;
+  return `/resource/${resource}/${id}/show`;
 }
 
 function renderSingleRelationLink(resource: string, id: IdValue, label: string): ReactNode {

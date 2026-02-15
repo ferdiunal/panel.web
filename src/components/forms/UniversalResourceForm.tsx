@@ -32,6 +32,7 @@ export interface UniversalResourceFormProps {
   schema?: z.ZodSchema;
   onSubmit: (data: Record<string, any>) => Promise<void>;
   onCreateAndContinue?: (data: Record<string, any>) => Promise<void>;
+  onUpdateAndContinue?: (data: Record<string, any>) => Promise<void>;
   onCancel?: () => void;
   enableDependentFields?: boolean;
   container?: HTMLElement | null;
@@ -52,6 +53,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
   schema,
   onSubmit,
   onCreateAndContinue,
+  onUpdateAndContinue,
   onCancel,
   enableDependentFields = true,
   container,
@@ -117,6 +119,25 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
     [formId, onCreateAndContinue]
   );
 
+  // Handle update and continue submission
+  const handleUpdateAndContinue = useCallback(
+    async (data: Record<string, any>) => {
+      if (!onUpdateAndContinue) return;
+
+      const store = useFormStateStore.getState();
+      store.setSubmitting(formId, true);
+
+      try {
+        await onUpdateAndContinue(data);
+      } catch (error) {
+        console.error('Form submission failed:', error);
+      } finally {
+        store.setSubmitting(formId, false);
+      }
+    },
+    [formId, onUpdateAndContinue]
+  );
+
   // Reset form when initialData changes (for edit mode)
   useEffect(() => {
     if (mode === 'edit' && initialData && Object.keys(initialData).length > 0) {
@@ -172,6 +193,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
           mode={mode}
           onSubmit={form.handleSubmit(handleSubmit as any)}
           onCreateAndContinue={onCreateAndContinue ? form.handleSubmit(handleCreateAndContinue as any) : undefined}
+          onUpdateAndContinue={onUpdateAndContinue ? form.handleSubmit(handleUpdateAndContinue as any) : undefined}
           onCancel={onCancel}
           className="mt-6"
         />

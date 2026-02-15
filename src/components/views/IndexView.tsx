@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash, Filter, Database, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -207,6 +208,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
     ref
   ) => {
     const showActions = !!(onEdit || onDelete || onView);
+    const { t } = useTranslation();
 
     // Sorting state
     const [sorting, setSorting] = React.useState<SortingState>(() => {
@@ -305,7 +307,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       if (showActions) {
         cols.push({
           id: 'actions',
-          header: 'Actions',
+          header: t('indexView.actions', 'Actions'),
           cell: ({ row }) => {
             const resource = row.original;
             const hasAnyAction =
@@ -357,7 +359,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       }
 
       return cols;
-    }, [columns, enableSelection, showActions, onView, onEdit, onDelete]);
+    }, [columns, enableSelection, showActions, onView, onEdit, onDelete, t]);
 
     // Create table instance
     const table = useReactTable({
@@ -462,7 +464,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps>(
       <div className={cn('flex flex-col gap-4', className)} ref={ref}>
         {onSearchChange && (
           <Input
-            placeholder="Search resources..."
+            placeholder={t('indexView.searchPlaceholder', 'Search resources...')}
             value={globalFilter}
             onChange={(e) => table.setGlobalFilter(e.target.value)}
             className="max-w-sm"

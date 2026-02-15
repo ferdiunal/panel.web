@@ -112,7 +112,7 @@ export function MorphToDetailField({ field, record, onResourceClick }: DetailFie
             </button>
         ) : (
             <Link
-                to={`/resource/${slug}?detail_id=${idValue}`}
+                to={`/resource/${slug}/${idValue}/show`}
                 className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
             >
                 {displayLabel}

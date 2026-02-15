@@ -232,6 +232,57 @@ const router = createBrowserRouter([
                                 }
                             },
                             {
+                                path: "/resource/:resource/create",
+                                element: <ResourceIndexPage />,
+                                loader: resourceLoader,
+                                errorElement: <ResourceErrorBoundary />,
+                                handle: {
+                                    title: (params: any) => {
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `${capitalize(params.resource || "")} | ${siteName}`
+                                        } catch {
+                                            return `${capitalize(params.resource || "")} | Panel`
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                path: "/resource/:resource/:id/show",
+                                element: <ResourceIndexPage />,
+                                loader: resourceLoader,
+                                errorElement: <ResourceErrorBoundary />,
+                                handle: {
+                                    title: (params: any) => {
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `${capitalize(params.resource || "")} | ${siteName}`
+                                        } catch {
+                                            return `${capitalize(params.resource || "")} | Panel`
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                path: "/resource/:resource/:id/edit",
+                                element: <ResourceIndexPage />,
+                                loader: resourceLoader,
+                                errorElement: <ResourceErrorBoundary />,
+                                handle: {
+                                    title: (params: any) => {
+                                        try {
+                                            const { settings } = useAppStore.getState()
+                                            const siteName = settings.site_name || "Panel"
+                                            return `${capitalize(params.resource || "")} | ${siteName}`
+                                        } catch {
+                                            return `${capitalize(params.resource || "")} | Panel`
+                                        }
+                                    }
+                                }
+                            },
+                            {
                                 path: "/resource/:resource/lens/:lens",
                                 element: <LensPage />,
                                 loader: lensLoader,

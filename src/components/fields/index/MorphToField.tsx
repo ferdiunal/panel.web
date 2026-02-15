@@ -103,7 +103,7 @@ export function MorphToIndexField({ field, record }: MorphToIndexFieldProps) {
     // Link element'i oluştur
     const linkElement = typeValue && idValue && slug ? (
         <Link
-            to={`/resources/${slug}/${idValue}`}
+            to={`/resource/${slug}/${idValue}/show`}
             className="text-sm text-primary hover:underline"
             onClick={(e) => e.stopPropagation()}
         >

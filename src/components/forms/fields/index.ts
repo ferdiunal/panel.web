@@ -43,12 +43,14 @@ import { FileFormField } from '@/components/fields/form/FileInput';
 import { TextIndexField } from '@/components/fields/index/TextInput';
 import { SelectIndexField } from '@/components/fields/index/SelectField';
 import { DateIndexField } from '@/components/fields/index/DateField';
+import { DateTimeIndexField } from '@/components/fields/index/DateTimeField';
 import { TelIndexField } from '@/components/fields/index/TelInput';
 import { TabsIndexField } from '@/components/fields/index/TabsField';
 
 import { TextDetailField } from '@/components/fields/detail/TextInput';
 import { SelectDetailField } from '@/components/fields/detail/SelectField';
 import { DateDetailField } from '@/components/fields/detail/DateField';
+import { DateTimeDetailField } from '@/components/fields/detail/DateTimeField';
 import { TelDetailField } from '@/components/fields/detail/TelInput';
 import { TabsDetailField } from '@/components/fields/detail/TabsField';
 
@@ -376,6 +378,11 @@ export function registerAllFields() {
   fieldRegistry.register('date-field-form', DateFormField as any);
   fieldRegistry.register('date-field-index', DateIndexField as any);
   fieldRegistry.register('date-field-detail', DateDetailField as any);
+
+  // DateTime Field - Form/Index/Detail Views
+  fieldRegistry.register('datetime-field-form', DateTimeFormField as any);
+  fieldRegistry.register('datetime-field-index', DateTimeIndexField as any);
+  fieldRegistry.register('datetime-field-detail', DateTimeDetailField as any);
 
   // Tel Field - Form/Index/Detail Views
   fieldRegistry.register('tel-field-form', TelFormField as any);

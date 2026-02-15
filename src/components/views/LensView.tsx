@@ -37,6 +37,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import type { LensViewProps } from '@/types/lens';
 import type { ResourceItem, FieldData, Card as CardType } from '@/types';
+import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
+import { formatTemporalFieldValue } from '@/lib/date-display';
 
 /**
  * LensView Component
@@ -129,6 +131,11 @@ export function LensView({
             );
           }
 
+          const relationshipContent = renderRelationshipFieldValue(field, resource as Record<string, unknown>);
+          if (relationshipContent !== null) {
+            return relationshipContent;
+          }
+
           // Object field rendering (relations)
           if (typeof field.data === 'object' && field.data !== null) {
             const data = field.data as any;
@@ -179,6 +186,11 @@ export function LensView({
             if (options[valStr]) {
               return options[valStr];
             }
+          }
+
+          const formattedTemporalValue = formatTemporalFieldValue(field);
+          if (formattedTemporalValue !== null) {
+            return formattedTemporalValue;
           }
 
           return field.data;

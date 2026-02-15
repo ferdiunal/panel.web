@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
-import { useParams, useLoaderData, type LoaderFunctionArgs, redirect, useSearchParams } from "react-router-dom"
+import { useParams, useLoaderData, type LoaderFunctionArgs, redirect, useSearchParams, useNavigate, useLocation } from "react-router-dom"
 import { resourceService } from "@/services/resource"
 import type { ResourceItem, FieldData, Card as CardType } from "@/types"
 import { WidgetRenderer } from "@/components/widget-renderer"
@@ -30,6 +30,10 @@ import { useResourceParams } from "@/hooks/useResourceParams"
 import { ActionButton, ActionModal } from "@/components/actions"
 import { useActionStore } from "@/stores/action-store"
 import { DetailModalWrapper } from "@/components/DetailModalWrapper"
+import { renderRelationshipFieldValue } from "@/lib/relation-field-links"
+import { formatTemporalFieldValue } from "@/lib/date-display"
+import { extractRecordIdFromItem, extractRecordTitleFromFields, extractRecordTitleFromItem, extractRecordTitleFromMeta, formatRecordReference } from "@/lib/record-reference"
+import type { ResourceFieldResponse } from "@/services/resource"
 
 interface LoaderData {
     data: any
@@ -74,7 +78,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs): Promise<L
 }
 
 export default function ResourceIndexPage() {
-    const { resource } = useParams<{ resource: string }>()
+    const { resource, id: routeRecordId } = useParams<{ resource: string; id?: string }>()
+    const navigate = useNavigate()
+    const location = useLocation()
     const loaderData = useLoaderData() as LoaderData
     const queryClient = useQueryClient()
     const [createContainer, setCreateContainer] = useState<HTMLDivElement | null>(null)
@@ -97,31 +103,107 @@ export default function ResourceIndexPage() {
     }
     const [detailStack, setDetailStack] = useState<DetailStackItem[]>([])
 
-    // URL Search Params handling for deep linking
+    // URL Search Params
     const [searchParams, setSearchParams] = useSearchParams()
-    const detailId = searchParams.get("detail_id")
 
-    // Handle deep linking for detail modal (Initial load)
-    useEffect(() => {
-        if (detailId && detailStack.length === 0 && resource) {
-            const mockItem = {
-                id: {
-                    data: detailId,
-                    key: 'id',
-                    name: 'ID',
-                    label: 'ID',
-                    type: 'id',
-                    view: 'id-field'
-                }
-            } as any
+    const isCreateRoute = !!resource && location.pathname === `/resource/${resource}/create`
+    const isShowRoute = !!resource && !!routeRecordId && location.pathname === `/resource/${resource}/${routeRecordId}/show`
+    const isEditRoute = !!resource && !!routeRecordId && location.pathname === `/resource/${resource}/${routeRecordId}/edit`
 
-            setDetailStack([{
-                id: `${resource}-${detailId}-init`,
-                resource: resource,
-                item: mockItem
-            }])
+    const buildPathWithCurrentQuery = useCallback((path: string, removeLegacyDetailId = false) => {
+        const nextParams = new URLSearchParams(searchParams)
+        if (removeLegacyDetailId) {
+            nextParams.delete("detail_id")
         }
-    }, [detailId, resource]) // Only run when detailId or resource changes
+        const queryString = nextParams.toString()
+        return queryString ? `${path}?${queryString}` : path
+    }, [searchParams])
+
+    const buildMockResourceItem = useCallback((id: string | number): ResourceItem => {
+        return {
+            id: {
+                data: id,
+                key: 'id',
+                name: 'ID',
+                label: 'ID',
+                type: 'id',
+                view: 'id-field'
+            } as FieldData
+        }
+    }, [])
+
+    const navigateToIndexPath = useCallback((replace = false) => {
+        if (!resource) return
+        navigate(buildPathWithCurrentQuery(`/resource/${resource}`, true), { replace })
+    }, [buildPathWithCurrentQuery, navigate, resource])
+
+    const navigateToCreatePath = useCallback(() => {
+        if (!resource) return
+        navigate(buildPathWithCurrentQuery(`/resource/${resource}/create`, true))
+    }, [buildPathWithCurrentQuery, navigate, resource])
+
+    const navigateToShowPath = useCallback((id: string | number) => {
+        if (!resource) return
+        navigate(buildPathWithCurrentQuery(`/resource/${resource}/${id}/show`, true))
+    }, [buildPathWithCurrentQuery, navigate, resource])
+
+    const navigateToEditPath = useCallback((id: string | number) => {
+        if (!resource) return
+        navigate(buildPathWithCurrentQuery(`/resource/${resource}/${id}/edit`, true))
+    }, [buildPathWithCurrentQuery, navigate, resource])
+
+    // Sync URL -> modal states (create)
+    useEffect(() => {
+        setIsCreateOpen(isCreateRoute)
+    }, [isCreateRoute])
+
+    // Sync URL -> modal states (edit)
+    useEffect(() => {
+        if (!isEditRoute || !routeRecordId) {
+            setIsEditOpen(false)
+            setEditingItem(null)
+            return
+        }
+
+        setIsEditOpen(true)
+        setEditingItem((prev) => {
+            const prevIdField = prev?.id as FieldData | undefined
+            const prevId = prevIdField ? String(prevIdField.data) : ""
+            if (prev && prevId === String(routeRecordId)) {
+                return prev
+            }
+            return buildMockResourceItem(routeRecordId)
+        })
+    }, [buildMockResourceItem, isEditRoute, routeRecordId])
+
+    // Sync URL -> modal states (show)
+    useEffect(() => {
+        if (!resource) return
+
+        const legacyDetailId = searchParams.get("detail_id")
+        const activeDetailId = isShowRoute ? routeRecordId : legacyDetailId
+
+        if (!activeDetailId) {
+            setDetailStack((prev) => (prev.length === 0 ? prev : []))
+            return
+        }
+
+        setDetailStack((prev) => {
+            const root = prev[0]
+            const rootIdField = root?.item?.id as FieldData | undefined
+            const rootId = rootIdField ? String(rootIdField.data) : ""
+
+            if (root && root.resource === resource && rootId === String(activeDetailId)) {
+                return prev
+            }
+
+            return [{
+                id: `${resource}-${activeDetailId}-init`,
+                resource,
+                item: buildMockResourceItem(activeDetailId)
+            }]
+        })
+    }, [buildMockResourceItem, isShowRoute, resource, routeRecordId, searchParams])
 
     // Use the custom hook for URL params management
     const {
@@ -158,13 +240,6 @@ export default function ResourceIndexPage() {
         updateSort(key)
     }, [updateSort])
 
-    // Update document title
-    useEffect(() => {
-        if (resourceData?.meta?.title) {
-            document.title = resourceData.meta.title
-        }
-    }, [resourceData?.meta?.title])
-
     // Create Fields Query
     const { data: createFields = [] } = useQuery({
         queryKey: ["resource", resource, "create-fields"],
@@ -177,17 +252,31 @@ export default function ResourceIndexPage() {
     })
 
     // Edit Fields Query
-    const { data: rawEditFields = [] } = useQuery({
+    const { data: editFieldsResponse } = useQuery<ResourceFieldResponse>({
         queryKey: ["resource", resource, "edit-fields", (editingItem?.id as FieldData)?.data],
         queryFn: async () => {
-            if (!resource || !editingItem) return []
+            if (!resource || !editingItem) return { fields: [] }
             const idField = editingItem['id'] as FieldData
             const id = idField ? idField.data : null
-            if (!id) return []
+            if (!id) return { fields: [] }
             return resourceService.getEditFields(resource, id)
         },
         enabled: !!resource && isEditOpen && !!editingItem,
     })
+
+    const rawEditFields = useMemo(() => {
+        if (!editFieldsResponse) {
+            return []
+        }
+        return editFieldsResponse.fields || []
+    }, [editFieldsResponse])
+
+    const editMeta = useMemo(() => {
+        if (!editFieldsResponse) {
+            return undefined
+        }
+        return editFieldsResponse.meta
+    }, [editFieldsResponse])
 
     // Process edit fields
     const editFields = useMemo(() => {
@@ -221,6 +310,22 @@ export default function ResourceIndexPage() {
             return field;
         });
     }, [rawEditFields])
+
+    const editModalTitle = useMemo(() => {
+        const fallbackTitle = `${resourceData.meta.title} Duzenle`
+
+        const recordId =
+            extractRecordIdFromItem((editingItem as unknown as Record<string, unknown>) || undefined) ||
+            (routeRecordId ? routeRecordId : undefined)
+
+        const recordTitle =
+            extractRecordTitleFromItem((editingItem as unknown as Record<string, unknown>) || undefined) ||
+            extractRecordTitleFromFields(rawEditFields) ||
+            extractRecordTitleFromMeta(editMeta as Record<string, unknown> | undefined)
+
+        const formatted = formatRecordReference(recordId, recordTitle)
+        return formatted || fallbackTitle
+    }, [editMeta, editingItem, rawEditFields, resourceData.meta.title, routeRecordId])
 
     // Prepare initial data for edit form
     const editInitialData = useMemo(() => {
@@ -272,12 +377,27 @@ export default function ResourceIndexPage() {
     }, [editFields])
 
     // Handlers
+    const closeCreateModal = useCallback((navigateBack = true) => {
+        setIsCreateOpen(false)
+        if (navigateBack && isCreateRoute) {
+            navigateToIndexPath(true)
+        }
+    }, [isCreateRoute, navigateToIndexPath])
+
+    const closeEditModal = useCallback((navigateBack = true) => {
+        setIsEditOpen(false)
+        setEditingItem(null)
+        if (navigateBack && isEditRoute) {
+            navigateToIndexPath(true)
+        }
+    }, [isEditRoute, navigateToIndexPath])
+
     const handleCreateSubmit = async (formData: any) => {
         if (!resource) return
         try {
             await resourceService.createResource(resource, formData)
             toast.success("Kayit olusturuldu")
-            setIsCreateOpen(false)
+            closeCreateModal(true)
             await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         } catch (error) {
             console.error(error)
@@ -292,9 +412,8 @@ export default function ResourceIndexPage() {
             const response = await resourceService.createResource(resource, formData)
             toast.success("Kayit olusturuldu")
             const createdResource = response.data
-            setIsCreateOpen(false)
-            setEditingItem(createdResource)
-            setIsEditOpen(true)
+            closeCreateModal(false)
+            openEditModal(createdResource)
             await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         } catch (error) {
             console.error(error)
@@ -314,8 +433,26 @@ export default function ResourceIndexPage() {
         try {
             await resourceService.updateResource(resource, id, formData)
             toast.success("Kayit guncellendi")
-            setIsEditOpen(false)
-            setEditingItem(null)
+            closeEditModal(true)
+            await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
+        } catch (error) {
+            console.error(error)
+            toast.error("Guncellenirken hata olustu")
+            throw error
+        }
+    }
+
+    const handleUpdateAndContinue = async (formData: any) => {
+        if (!editingItem || !resource) return
+        const idField = editingItem['id'] as FieldData
+        const id = idField ? idField.data : null
+        if (!id) {
+            toast.error("ID bulunamadi")
+            return
+        }
+        try {
+            await resourceService.updateResource(resource, id, formData)
+            toast.success("Kayit guncellendi")
             await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         } catch (error) {
             console.error(error)
@@ -355,45 +492,54 @@ export default function ResourceIndexPage() {
     const openEditModal = (item: ResourceItem) => {
         setEditingItem(item)
         setIsEditOpen(true)
+        const idField = item['id'] as FieldData | undefined
+        const id = idField ? idField.data : null
+        if (id !== null && id !== undefined) {
+            navigateToEditPath(id)
+        }
     }
 
     const openDetailModal = (item: ResourceItem, targetResource?: string) => {
         const res = targetResource || resource || ''
         const idField = item['id'] as FieldData
-        const id = idField ? String(idField.data) : 'unknown'
+        const id = idField ? idField.data : null
 
         // Add new item to stack
         setDetailStack(prev => [...prev, {
-            id: `${res}-${id}-${Date.now()}`,
+            id: `${res}-${id || 'unknown'}-${Date.now()}`,
             resource: res,
             item: item
         }])
-    }
 
-    const closeDetailModal = (stackIndex: number) => {
-        // Remove this specific item from stack
-        setDetailStack(prev => prev.filter((_, i) => i !== stackIndex))
-
-        // Clear URL param if we closed the last one
-        if (detailStack.length <= 1 && searchParams.has("detail_id")) {
-            const newParams = new URLSearchParams(searchParams)
-            newParams.delete("detail_id")
-            setSearchParams(newParams)
+        // Root resource detay açılışında URL route'unu güncelle
+        if (!targetResource && id !== null && id !== undefined) {
+            navigateToShowPath(id)
         }
     }
 
-    const handleResourceClick = (targetResource: string, id: string | number) => {
-        const mockItem = {
-            id: {
-                data: id,
-                key: 'id',
-                name: 'ID',
-                label: 'ID',
-                type: 'id',
-                view: 'id-field'
+    const closeDetailModal = (stackIndex: number) => {
+        if (stackIndex === 0) {
+            setDetailStack([])
+
+            if (isShowRoute) {
+                navigateToIndexPath(true)
+                return
             }
-        } as any
-        openDetailModal(mockItem, targetResource)
+
+            if (searchParams.has("detail_id")) {
+                const newParams = new URLSearchParams(searchParams)
+                newParams.delete("detail_id")
+                setSearchParams(newParams)
+            }
+            return
+        }
+
+        // Remove this specific item from stack
+        setDetailStack(prev => prev.filter((_, i) => i !== stackIndex))
+    }
+
+    const handleResourceClick = (targetResource: string, id: string | number) => {
+        openDetailModal(buildMockResourceItem(id), targetResource)
     }
 
     const openDeleteDialog = (item: ResourceItem) => {
@@ -411,8 +557,8 @@ export default function ResourceIndexPage() {
                 key,
                 label: header.label || header.name || key,
                 sortable: header.sortable,
-                render: (_: any, resource: ResourceItem) => {
-                    const field: FieldData = resource[key] as FieldData
+                render: (_: any, record: ResourceItem) => {
+                    const field: FieldData = record[key] as FieldData
                     if (!field) return null
 
                     if (header.key === "image" || header.view === "image-field") {
@@ -430,6 +576,11 @@ export default function ResourceIndexPage() {
                                 {field.data}
                             </Badge>
                         )
+                    }
+
+                    const relationshipContent = renderRelationshipFieldValue(field, record as Record<string, unknown>)
+                    if (relationshipContent !== null) {
+                        return relationshipContent
                     }
 
                     if (typeof field.data === 'object' && field.data !== null) {
@@ -472,6 +623,11 @@ export default function ResourceIndexPage() {
                             const valStr = String(field.data)
                             if (options[valStr]) return options[valStr]
                         }
+                    }
+
+                    const formattedTemporalValue = formatTemporalFieldValue(field)
+                    if (formattedTemporalValue !== null) {
+                        return formattedTemporalValue
                     }
 
                     return field.data
@@ -588,10 +744,14 @@ export default function ResourceIndexPage() {
                             description="Asagidaki bilgileri doldurunuz."
                             open={isCreateOpen}
                             variant={resourceData.meta.dialog_type}
-                            onOpenChange={setIsCreateOpen}
+                            onOpenChange={(open) => {
+                                if (!open) {
+                                    closeCreateModal(true)
+                                }
+                            }}
                             ref={setCreateContainer}
                             trigger={
-                                <Button onClick={() => setIsCreateOpen(true)}>
+                                <Button onClick={navigateToCreatePath}>
                                     <Plus className="mr-2 h-4 w-4" />
                                     Yeni Ekle
                                 </Button>
@@ -603,7 +763,7 @@ export default function ResourceIndexPage() {
                                 fields={createFields as any}
                                 onSubmit={handleCreateSubmit}
                                 onCreateAndContinue={handleCreateAndContinue}
-                                onCancel={() => setIsCreateOpen(false)}
+                                onCancel={() => closeCreateModal(true)}
                                 container={createContainer}
                             />
                         </ResponsiveModal>
@@ -641,13 +801,14 @@ export default function ResourceIndexPage() {
 
             {/* Edit Modal */}
             <ResponsiveModal
-                title={`${resourceData.meta.title} Duzenle`}
+                title={editModalTitle}
                 description="Asagidaki bilgileri guncelleyiniz."
                 open={isEditOpen}
                 variant={resourceData.meta.dialog_type}
                 onOpenChange={(open) => {
-                    setIsEditOpen(open)
-                    if (!open) setEditingItem(null)
+                    if (!open) {
+                        closeEditModal(true)
+                    }
                 }}
                 ref={setEditContainer}
             >
@@ -659,9 +820,9 @@ export default function ResourceIndexPage() {
                     fields={editFields as any}
                     initialData={editInitialData}
                     onSubmit={handleUpdateSubmit}
+                    onUpdateAndContinue={handleUpdateAndContinue}
                     onCancel={() => {
-                        setIsEditOpen(false)
-                        setEditingItem(null)
+                        closeEditModal(true)
                     }}
                     container={editContainer}
                 />

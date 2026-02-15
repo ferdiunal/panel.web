@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import axios from '@/lib/axios';
 import { ResponsiveModal } from '@/components/ui/responsive-modal';
@@ -6,6 +6,7 @@ import { UniversalResourceForm } from '@/components/forms/UniversalResourceForm'
 import { toast } from 'sonner';
 import type { FieldDefinition } from '@/types/form';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface QuickCreateModalProps {
   resourceSlug: string;
@@ -30,6 +31,7 @@ export function QuickCreateModal({
   parentResourceId,
 }: QuickCreateModalProps) {
   const location = useLocation()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false);
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [resourceTitle, setResourceTitle] = useState('');
@@ -37,6 +39,17 @@ export function QuickCreateModal({
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   const currentResource = location.pathname.split("/").filter(Boolean)[1]
+
+  const localizedResourceTitle = useMemo(() => {
+    const keyFromSlug = t(`resources.${resourceSlug}.title`, '')
+    if (keyFromSlug) return keyFromSlug
+
+    const normalizedSlug = resourceSlug.replace(/-/g, '_')
+    const keyFromNormalizedSlug = t(`resources.${normalizedSlug}.title`, '')
+    if (keyFromNormalizedSlug) return keyFromNormalizedSlug
+
+    return resourceTitle || resourceSlug
+  }, [resourceSlug, resourceTitle, t])
 
   // Create endpoint'inden field'ları fetch et
   useEffect(() => {
@@ -51,8 +64,8 @@ export function QuickCreateModal({
 
         console.log('QuickCreate - API Response:', data);
 
-        // Resource title'ı al
-        setResourceTitle(data.title || resourceSlug);
+        // Resource title'ı al (API dönerse fallback olarak kullanılır)
+        setResourceTitle(data.title || data?.meta?.title || '');
 
         // Ignore edilen field'ın key'ini bul (parent resource için)
         const ignoredField = (data.fields || []).find((field: any) =>
@@ -119,7 +132,7 @@ export function QuickCreateModal({
       <ResponsiveModal
         open={open}
         onOpenChange={onOpenChange}
-        title={`Yeni ${resourceTitle} Oluştur`}
+        title={`Yeni ${localizedResourceTitle} Oluştur`}
         description="Hızlı kayıt oluşturma formu"
         ref={setContainer}
       >

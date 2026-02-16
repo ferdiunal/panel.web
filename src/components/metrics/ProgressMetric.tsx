@@ -27,11 +27,11 @@ type ProgressRow = {
   [key: string]: string | number
 }
 
-type ProgressSeriesConfig = {
-  key: string
-  label: string
-  color: string
-  enabled: boolean
+type ProgressSeriesInput = {
+  key?: string
+  label?: string
+  color?: string
+  enabled?: boolean
 }
 
 type ProgressPayload = {
@@ -41,26 +41,34 @@ type ProgressPayload = {
   current?: unknown
   target?: unknown
   activeSeries?: string
-  series?: Record<string, Partial<ProgressSeriesConfig>>
+  seriesOrder?: string[]
+  series?: Record<string, ProgressSeriesInput>
 }
 
-const SERIES_ORDER = ["desktop", "mobile"] as const
-type SeriesAlias = (typeof SERIES_ORDER)[number]
+type ResolvedSeries = {
+  id: string
+  key: string
+  label: string
+  color: string
+  enabled: boolean
+}
 
-const DEFAULT_SERIES: Record<SeriesAlias, ProgressSeriesConfig> = {
-  desktop: {
+const DEFAULT_SERIES: ResolvedSeries[] = [
+  {
+    id: "desktop",
     key: "desktop",
     label: "Desktop",
     color: "var(--chart-1)",
     enabled: true,
   },
-  mobile: {
+  {
+    id: "mobile",
     key: "mobile",
     label: "Mobile",
     color: "var(--chart-2)",
     enabled: true,
   },
-}
+]
 
 const parseNumber = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) return value
@@ -76,6 +84,123 @@ const toNumber = (value: unknown): number => {
   return parseNumber(value) ?? 0
 }
 
+const defaultColor = (index: number) => `var(--chart-${(index % 5) + 1})`
+
+const normalizeSeriesId = (value: string, fallback: string): string => {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+
+  return normalized || fallback
+}
+
+const defaultSeriesLabel = (
+  id: string,
+  t: (key: string, fallback?: string) => string
+): string => {
+  if (id === "desktop") return t("widgets.chart.desktop_label", "Desktop")
+  if (id === "mobile") return t("widgets.chart.mobile_label", "Mobile")
+
+  return id
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
+const resolveSeries = (
+  payload: ProgressPayload,
+  t: (key: string, fallback?: string) => string
+): ResolvedSeries[] => {
+  const input = payload.series ?? {}
+  const sourceEntries = Object.entries(input)
+
+  let series: ResolvedSeries[] = sourceEntries.map(([rawId, rawConfig], index) => {
+    const normalizedId = normalizeSeriesId(rawId, `series-${index + 1}`)
+    const normalizedKey = normalizeSeriesId(rawConfig.key ?? normalizedId, normalizedId)
+
+    return {
+      id: normalizedId,
+      key: normalizedKey,
+      label: rawConfig.label || defaultSeriesLabel(normalizedId, t),
+      color: rawConfig.color || defaultColor(index),
+      enabled: rawConfig.enabled ?? true,
+    }
+  })
+
+  if (series.length === 0) {
+    series = DEFAULT_SERIES.map((item, index) => ({
+      ...item,
+      label: defaultSeriesLabel(item.id, t),
+      color: defaultColor(index),
+    }))
+  }
+
+  const usedIds = new Set<string>()
+  const usedKeys = new Set<string>()
+
+  series = series.map((item, index) => {
+    let id = item.id
+    let key = item.key
+
+    let idCounter = 2
+    while (usedIds.has(id)) {
+      id = `${item.id}-${idCounter}`
+      idCounter += 1
+    }
+
+    let keyCounter = 2
+    while (usedKeys.has(key)) {
+      key = `${item.key}-${keyCounter}`
+      keyCounter += 1
+    }
+
+    usedIds.add(id)
+    usedKeys.add(key)
+
+    return {
+      ...item,
+      id,
+      key,
+      color: item.color || defaultColor(index),
+      enabled: item.enabled,
+    }
+  })
+
+  const orderSource = Array.isArray(payload.seriesOrder) ? payload.seriesOrder : []
+  const orderIndex = new Map<string, number>()
+  orderSource.forEach((entry, index) => {
+    const normalized = normalizeSeriesId(entry, "")
+    if (normalized) {
+      orderIndex.set(normalized, index)
+    }
+  })
+
+  series.sort((a, b) => {
+    const indexA = orderIndex.get(a.id) ?? orderIndex.get(a.key)
+    const indexB = orderIndex.get(b.id) ?? orderIndex.get(b.key)
+
+    if (indexA !== undefined || indexB !== undefined) {
+      if (indexA === undefined) return 1
+      if (indexB === undefined) return -1
+      if (indexA !== indexB) return indexA - indexB
+    }
+
+    return a.label.localeCompare(b.label)
+  })
+
+  if (!series.some((item) => item.enabled) && series.length > 0) {
+    series[0] = {
+      ...series[0],
+      enabled: true,
+    }
+  }
+
+  return series
+}
+
 const firstNumberFromRow = (row: Record<string, unknown>, keys: string[]): number | undefined => {
   for (const key of keys) {
     if (!key) continue
@@ -85,79 +210,49 @@ const firstNumberFromRow = (row: Record<string, unknown>, keys: string[]): numbe
       return parsed
     }
   }
+
   return undefined
 }
 
-const normalizeSeriesKey = (value: unknown, fallback: string): string => {
-  const raw = typeof value === "string" ? value.trim().toLowerCase() : ""
-  const base = raw || fallback
-  const normalized = base.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
-  return normalized || fallback
-}
+const resolveActiveSeriesKey = (activeSeries: string | undefined, series: ResolvedSeries[]): string => {
+  const enabled = series.filter((item) => item.enabled)
+  const fallback = enabled[0] ?? series[0]
+  if (!fallback) return "desktop"
 
-const uniqueSeriesKey = (alias: string, used: Set<string>): string => {
-  const base = normalizeSeriesKey(alias, "series")
-  let candidate = base
-  let i = 2
-  while (used.has(candidate)) {
-    candidate = `${base}-${i}`
-    i += 1
-  }
-  return candidate
-}
-
-const resolveSeriesConfig = (
-  payload: ProgressPayload,
-  t: (key: string, fallback?: string) => string
-): Record<SeriesAlias, ProgressSeriesConfig> => {
-  const input = payload.series ?? {}
-  const resolved: Record<SeriesAlias, ProgressSeriesConfig> = {
-    desktop: DEFAULT_SERIES.desktop,
-    mobile: DEFAULT_SERIES.mobile,
+  if (!activeSeries) {
+    return fallback.key
   }
 
-  for (const alias of SERIES_ORDER) {
-    const raw = input[alias] ?? {}
-    resolved[alias] = {
-      key: normalizeSeriesKey(raw.key, DEFAULT_SERIES[alias].key),
-      label:
-        raw.label ||
-        (alias === "desktop"
-          ? t("widgets.chart.desktop_label", DEFAULT_SERIES.desktop.label)
-          : t("widgets.chart.mobile_label", DEFAULT_SERIES.mobile.label)),
-      color: raw.color || DEFAULT_SERIES[alias].color,
-      enabled: raw.enabled ?? DEFAULT_SERIES[alias].enabled,
-    }
-  }
+  const normalized = normalizeSeriesId(activeSeries, "")
+  const byId = enabled.find((item) => item.id === normalized)
+  if (byId) return byId.key
 
-  if (!SERIES_ORDER.some((alias) => resolved[alias].enabled)) {
-    resolved.desktop = {
-      ...resolved.desktop,
-      enabled: true,
-    }
-  }
+  const byKey = enabled.find((item) => item.key === normalized)
+  if (byKey) return byKey.key
 
-  const usedKeys = new Set<string>()
-  for (const alias of SERIES_ORDER) {
-    const cfg = resolved[alias]
-    const key = usedKeys.has(cfg.key) ? uniqueSeriesKey(alias, usedKeys) : cfg.key
-    usedKeys.add(key)
-    resolved[alias] = {
-      ...cfg,
-      key,
-    }
-  }
+  const byIdAny = series.find((item) => item.id === normalized)
+  if (byIdAny) return byIdAny.key
 
-  return resolved
+  const byKeyAny = series.find((item) => item.key === normalized)
+  if (byKeyAny) return byKeyAny.key
+
+  return fallback.key
 }
 
 const generateFallbackData = (
   current: number,
   target: number,
-  seriesConfig: Record<SeriesAlias, ProgressSeriesConfig>
+  series: ResolvedSeries[],
+  activeSeriesKey: string
 ): ProgressRow[] => {
   const base = new Date()
   const days = 30
+  const ordered = [...series].sort((a, b) => {
+    const aActive = a.key === activeSeriesKey
+    const bActive = b.key === activeSeriesKey
+    if (aActive !== bActive) return aActive ? -1 : 1
+    return a.label.localeCompare(b.label)
+  })
 
   return Array.from({ length: days }, (_, index) => {
     const date = new Date(base)
@@ -167,22 +262,36 @@ const generateFallbackData = (
     const row: ProgressRow = {
       date: date.toISOString().slice(0, 10),
     }
-    row[seriesConfig.desktop.key] = Math.round(current * ratio)
-    row[seriesConfig.mobile.key] = target
 
-    return {
-      ...row,
-    }
+    ordered.forEach((seriesItem, seriesIndex) => {
+      if (seriesIndex === 0) {
+        row[seriesItem.key] = Math.round(current * ratio)
+      } else if (seriesIndex === 1) {
+        row[seriesItem.key] = target
+      } else {
+        row[seriesItem.key] = 0
+      }
+    })
+
+    return row
   })
 }
 
 const normalizeLineData = (
   payload: ProgressPayload,
-  seriesConfig: Record<SeriesAlias, ProgressSeriesConfig>
+  series: ResolvedSeries[],
+  activeSeriesKey: string
 ): ProgressRow[] => {
   const source = Array.isArray(payload.chartData) ? payload.chartData : []
   const current = toNumber(payload.current)
   const target = toNumber(payload.target)
+
+  const ordered = [...series].sort((a, b) => {
+    const aActive = a.key === activeSeriesKey
+    const bActive = b.key === activeSeriesKey
+    if (aActive !== bActive) return aActive ? -1 : 1
+    return a.label.localeCompare(b.label)
+  })
 
   const normalized = source
     .map((item: unknown) => {
@@ -190,16 +299,28 @@ const normalizeLineData = (
       const date = String(row.date ?? row.month ?? "")
       const normalizedRow: ProgressRow = { date }
 
-      const desktopValue = firstNumberFromRow(row, [
-        seriesConfig.desktop.key,
-        "desktop",
-        "current",
-        "value",
-      ])
-      const mobileValue = firstNumberFromRow(row, [seriesConfig.mobile.key, "mobile", "target"])
+      ordered.forEach((seriesItem, seriesIndex) => {
+        const fallbackKeys = [seriesItem.key, seriesItem.id]
+        if (seriesIndex === 0) {
+          fallbackKeys.push("current", "value", "desktop")
+        } else if (seriesIndex === 1) {
+          fallbackKeys.push("target", "mobile")
+        }
 
-      normalizedRow[seriesConfig.desktop.key] = desktopValue ?? current
-      normalizedRow[seriesConfig.mobile.key] = mobileValue ?? target
+        const value = firstNumberFromRow(row, fallbackKeys)
+        if (value !== undefined) {
+          normalizedRow[seriesItem.key] = value
+          return
+        }
+
+        if (seriesIndex === 0) {
+          normalizedRow[seriesItem.key] = current
+        } else if (seriesIndex === 1) {
+          normalizedRow[seriesItem.key] = target
+        } else {
+          normalizedRow[seriesItem.key] = 0
+        }
+      })
 
       return normalizedRow
     })
@@ -209,44 +330,24 @@ const normalizeLineData = (
     return normalized
   }
 
-  return generateFallbackData(current, target, seriesConfig)
+  return generateFallbackData(current, target, ordered, activeSeriesKey)
 }
 
-const resolveActiveSeriesAlias = (
-  activeSeries: string | undefined,
-  seriesConfig: Record<SeriesAlias, ProgressSeriesConfig>
-): SeriesAlias => {
-  const enabledAliases = SERIES_ORDER.filter((alias) => seriesConfig[alias].enabled)
-  const fallback = enabledAliases[0] ?? "desktop"
-  if (!activeSeries) {
-    return fallback
-  }
-
-  const normalized = activeSeries.trim().toLowerCase()
-  if (SERIES_ORDER.includes(normalized as SeriesAlias)) {
-    const alias = normalized as SeriesAlias
-    if (seriesConfig[alias].enabled) {
-      return alias
-    }
-  }
-
-  for (const alias of enabledAliases) {
-    if (seriesConfig[alias].key === normalized) {
-      return alias
-    }
-  }
-
-  return fallback
+const resolveTotals = (rows: ProgressRow[], series: ResolvedSeries[]): Record<string, number> => {
+  const totals: Record<string, number> = {}
+  series.forEach((item) => {
+    totals[item.id] = rows.reduce((acc, row) => acc + toNumber(row[item.key]), 0)
+  })
+  return totals
 }
 
-const resolveTotals = (
-  rows: ProgressRow[],
-  seriesConfig: Record<SeriesAlias, ProgressSeriesConfig>
-): Record<SeriesAlias, number> => {
-  return {
-    desktop: rows.reduce((acc, row) => acc + toNumber(row[seriesConfig.desktop.key]), 0),
-    mobile: rows.reduce((acc, row) => acc + toNumber(row[seriesConfig.mobile.key]), 0),
-  }
+const resolveActiveSeriesId = (activeSeriesKey: string, series: ResolvedSeries[]): string => {
+  const enabled = series.filter((item) => item.enabled)
+  const byKey = enabled.find((item) => item.key === activeSeriesKey)
+  if (byKey) return byKey.id
+
+  const fallback = enabled[0] ?? series[0]
+  return fallback?.id ?? ""
 }
 
 export function ProgressMetric({ title, payload: rawPayload }: ProgressMetricProps) {
@@ -264,45 +365,64 @@ export function ProgressMetric({ title, payload: rawPayload }: ProgressMetricPro
   )
   const numberFormatter = React.useMemo(() => new Intl.NumberFormat(locale), [locale])
 
-  const seriesConfig = React.useMemo(() => resolveSeriesConfig(payload, t), [payload, t])
-  const chartData = React.useMemo(() => normalizeLineData(payload, seriesConfig), [payload, seriesConfig])
+  const series = React.useMemo(() => resolveSeries(payload, t), [payload, t])
+  const preferredActiveSeriesKey = React.useMemo(
+    () => resolveActiveSeriesKey(payload.activeSeries, series),
+    [payload.activeSeries, series]
+  )
+  const chartData = React.useMemo(
+    () => normalizeLineData(payload, series, preferredActiveSeriesKey),
+    [payload, preferredActiveSeriesKey, series]
+  )
 
-  const availableCharts = React.useMemo(() => {
-    const enabled = SERIES_ORDER.filter((alias) => seriesConfig[alias].enabled)
-    if (enabled.length > 0) return enabled
-    return ["desktop"] as SeriesAlias[]
-  }, [seriesConfig])
+  const availableSeries = React.useMemo(
+    () => series.filter((item) => item.enabled),
+    [series]
+  )
 
-  const [activeChart, setActiveChart] = React.useState<SeriesAlias>(() =>
-    resolveActiveSeriesAlias(payload.activeSeries, seriesConfig)
+  const [activeSeriesId, setActiveSeriesId] = React.useState<string>(() =>
+    resolveActiveSeriesId(preferredActiveSeriesKey, series)
   )
 
   React.useEffect(() => {
-    if (!availableCharts.includes(activeChart)) {
-      setActiveChart(availableCharts[0])
-    }
-  }, [activeChart, availableCharts])
+    const next = resolveActiveSeriesId(preferredActiveSeriesKey, series)
+    setActiveSeriesId((prev) => (prev === next ? prev : next))
+  }, [preferredActiveSeriesKey, series])
 
-  const totals = React.useMemo(() => resolveTotals(chartData, seriesConfig), [chartData, seriesConfig])
+  React.useEffect(() => {
+    if (!availableSeries.some((item) => item.id === activeSeriesId)) {
+      setActiveSeriesId(availableSeries[0]?.id ?? series[0]?.id ?? "")
+    }
+  }, [activeSeriesId, availableSeries, series])
+
+  const activeSeries = React.useMemo(() => {
+    return (
+      availableSeries.find((item) => item.id === activeSeriesId) ||
+      availableSeries[0] ||
+      series[0]
+    )
+  }, [activeSeriesId, availableSeries, series])
+
+  const totals = React.useMemo(() => resolveTotals(chartData, series), [chartData, series])
 
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       views: {
         label: t("widgets.chart.views_label", "Views"),
-      }
+      },
     }
-    for (const alias of SERIES_ORDER) {
-      const series = seriesConfig[alias]
-      config[series.key] = {
-        label: series.label,
-        color: series.color,
+
+    series.forEach((item) => {
+      config[item.key] = {
+        label: item.label,
+        color: item.color,
       }
-    }
+    })
+
     return config
-  }, [seriesConfig, t])
+  }, [series, t])
 
   const subtitle = payload.subtitle || payload.description || ""
-  const activeSeriesKey = seriesConfig[activeChart]?.key ?? seriesConfig.desktop.key
 
   const formatDate = React.useCallback(
     (value: string, mode: "short" | "long"): string => {
@@ -321,16 +441,16 @@ export function ProgressMetric({ title, payload: rawPayload }: ProgressMetricPro
           {subtitle ? <CardDescription>{subtitle}</CardDescription> : null}
         </div>
         <div className="flex">
-          {availableCharts.map((chart) => (
+          {availableSeries.map((seriesItem) => (
             <button
-              key={chart}
-              data-active={activeChart === chart}
+              key={seriesItem.id}
+              data-active={activeSeries?.id === seriesItem.id}
               className="data-[active=true]:bg-muted/50 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-8 sm:py-6"
-              onClick={() => setActiveChart(chart)}
+              onClick={() => setActiveSeriesId(seriesItem.id)}
             >
-              <span className="text-muted-foreground text-xs">{seriesConfig[chart].label}</span>
+              <span className="text-muted-foreground text-xs">{seriesItem.label}</span>
               <span className="text-lg leading-none font-bold sm:text-3xl">
-                {numberFormatter.format(totals[chart])}
+                {numberFormatter.format(totals[seriesItem.id] ?? 0)}
               </span>
             </button>
           ))}
@@ -365,9 +485,9 @@ export function ProgressMetric({ title, payload: rawPayload }: ProgressMetricPro
               }
             />
             <Line
-              dataKey={activeSeriesKey}
+              dataKey={activeSeries?.key || "desktop"}
               type="monotone"
-              stroke={`var(--color-${activeSeriesKey})`}
+              stroke={`var(--color-${activeSeries?.key || "desktop"})`}
               strokeWidth={2}
               dot={false}
             />

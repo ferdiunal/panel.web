@@ -97,10 +97,8 @@ export interface ProgressCardData {
     subtitle?: string;
     description?: string;
     activeSeries?: string;
-    series?: {
-      desktop?: { key?: string; label?: string; color?: string; enabled?: boolean };
-      mobile?: { key?: string; label?: string; color?: string; enabled?: boolean };
-    };
+    seriesOrder?: string[];
+    series?: Record<string, { key?: string; label?: string; color?: string; enabled?: boolean }>;
     chartData?: Array<{ date: string; [seriesKey: string]: string | number }>;
     current?: number;
     target?: number;

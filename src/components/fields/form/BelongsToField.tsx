@@ -52,8 +52,24 @@ export const BelongsToFormField: React.FC<FormFieldProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
+    const dependencyKeys = useMemo(() => {
+      const rawDependsOn = (field as { depends_on?: unknown }).depends_on;
+      if (!Array.isArray(rawDependsOn)) return [] as string[];
+      return rawDependsOn.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    }, [field]);
+
+    // If the field is dependency-driven and currently disabled with no value, do not prefetch.
+    // This prevents unrelated relationship queries before dependency selection.
+    const shouldSkipInitialLoad = dependencyKeys.length > 0 && disabled && !value;
+
     // Load initial options on mount
     useEffect(() => {
+      if (shouldSkipInitialLoad) {
+        setOptions([]);
+        setIsLoading(false);
+        return;
+      }
+
       // If backend provided options, use them
       if (Object.keys(initialOptions).length > 0) {
         // @ts-ignore
@@ -81,11 +97,12 @@ export const BelongsToFormField: React.FC<FormFieldProps> = ({
         };
         loadInitialOptions();
       }
-    }, [searchFn, initialOptions]);
+    }, [searchFn, initialOptions, shouldSkipInitialLoad]);
 
     const handleSearch = useCallback(
       async (query: string) => {
         setSearchQuery(query);
+        if (disabled) return;
         if (!searchFn) return;
 
         if (query.length === 0) {
@@ -123,7 +140,7 @@ export const BelongsToFormField: React.FC<FormFieldProps> = ({
           setIsLoading(false);
         }
       },
-      [searchFn, initialOptions]
+      [searchFn, initialOptions, disabled]
     );
 
     // Seçilen değerin adını input'ta göster - useMemo ile memoize et

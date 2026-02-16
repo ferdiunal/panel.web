@@ -67,6 +67,92 @@ function parseResponsiveModalSize(
         : fallback
 }
 
+function extractSelectScalarValue(rawValue: unknown): string | undefined {
+    if (rawValue === null || rawValue === undefined) return undefined
+
+    if (typeof rawValue === "string") {
+        const trimmed = rawValue.trim()
+        if (!trimmed) return undefined
+
+        if (trimmed.startsWith("{")) {
+            try {
+                const parsed = JSON.parse(trimmed) as Record<string, unknown>
+                return (
+                    extractSelectScalarValue(parsed.value) ??
+                    extractSelectScalarValue(parsed.data) ??
+                    extractSelectScalarValue(parsed.target_type)
+                )
+            } catch {
+                // keep plain string fallback
+            }
+        }
+
+        return trimmed
+    }
+
+    if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+        return String(rawValue)
+    }
+
+    if (typeof rawValue === "object") {
+        const record = rawValue as Record<string, unknown>
+        return (
+            extractSelectScalarValue(record.value) ??
+            extractSelectScalarValue(record.data) ??
+            extractSelectScalarValue(record.target_type) ??
+            extractSelectScalarValue(record.id)
+        )
+    }
+
+    return undefined
+}
+
+function hasMeaningfulValue(value: unknown): boolean {
+    if (value === null || value === undefined) return false
+    if (typeof value === "string") return value.trim().length > 0
+    if (Array.isArray(value)) return value.length > 0
+    return true
+}
+
+function normalizeSelectInitialValue(field: FieldData): string | undefined {
+    const candidate = extractSelectScalarValue(field.data)
+    if (!candidate) return undefined
+
+    const rawOptions = field.props?.options
+    if (!rawOptions) return candidate
+
+    if (Array.isArray(rawOptions)) {
+        const exact = rawOptions.find((opt: any) => String(opt?.value) === candidate)
+        if (exact) return String(exact.value)
+
+        const lowered = candidate.toLowerCase()
+        const byValueInsensitive = rawOptions.find(
+            (opt: any) => String(opt?.value ?? "").toLowerCase() === lowered
+        )
+        if (byValueInsensitive) return String(byValueInsensitive.value)
+
+        const byLabelInsensitive = rawOptions.find(
+            (opt: any) => String(opt?.label ?? "").toLowerCase() === lowered
+        )
+        if (byLabelInsensitive) return String(byLabelInsensitive.value)
+
+        return candidate
+    }
+
+    if (typeof rawOptions === "object") {
+        const optionsMap = rawOptions as Record<string, unknown>
+        if (candidate in optionsMap) return candidate
+
+        const lowered = candidate.toLowerCase()
+        for (const [valueKey, labelValue] of Object.entries(optionsMap)) {
+            if (String(valueKey).toLowerCase() === lowered) return valueKey
+            if (String(labelValue).toLowerCase() === lowered) return valueKey
+        }
+    }
+
+    return candidate
+}
+
 export const loader = async ({ params, request }: LoaderFunctionArgs): Promise<LoaderData | Response> => {
     const resource = params.resource
     if (!resource) {
@@ -453,6 +539,16 @@ export default function ResourceIndexPage() {
                 view.startsWith('belongs-to-field-') ||
                 view.startsWith('has-one-field-')
 
+            const isSelectField =
+                field.type === 'select' ||
+                view === 'select-field' ||
+                view.startsWith('select-field-')
+
+            if (isSelectField) {
+                initial[field.key] = normalizeSelectInitialValue(field) ?? ''
+                return
+            }
+
             if (isManyRelationship) {
                 if (field.data === null || field.data === undefined) {
                     initial[field.key] = []
@@ -481,6 +577,18 @@ export default function ResourceIndexPage() {
                 initial[field.key] = field.data
             }
         })
+
+        // Keep target_type selected in edit form even when backend payload omits it.
+        if (!hasMeaningfulValue(extractSelectScalarValue(initial["target_type"]))) {
+            if (hasMeaningfulValue(initial["product_id"])) {
+                initial["target_type"] = "product"
+            } else if (hasMeaningfulValue(initial["category_id"])) {
+                initial["target_type"] = "category"
+            } else if (hasMeaningfulValue(initial["static_url"])) {
+                initial["target_type"] = "static_url"
+            }
+        }
+
         return initial
     }, [editFields])
 

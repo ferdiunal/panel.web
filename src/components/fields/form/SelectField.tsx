@@ -5,7 +5,7 @@
  * Multiple format support ile
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   Select,
   SelectContent,
@@ -16,6 +16,66 @@ import {
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
 import type { FormFieldProps } from '@/types';
+
+function extractSelectScalarValue(rawValue: unknown): string | undefined {
+  if (rawValue === null || rawValue === undefined) {
+    return undefined;
+  }
+
+  if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim();
+    if (!trimmed) return undefined;
+
+    // Support JSON payloads like: {"data":"static_url"} or {"value":"static_url"}
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+        return (
+          extractSelectScalarValue(parsed.value) ??
+          extractSelectScalarValue(parsed.data) ??
+          extractSelectScalarValue(parsed.target_type)
+        );
+      } catch {
+        // Keep plain string fallback
+      }
+    }
+
+    return trimmed;
+  }
+
+  if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+    return String(rawValue);
+  }
+
+  if (typeof rawValue === 'object') {
+    const record = rawValue as Record<string, unknown>;
+    return (
+      extractSelectScalarValue(record.value) ??
+      extractSelectScalarValue(record.data) ??
+      extractSelectScalarValue(record.target_type) ??
+      extractSelectScalarValue(record.id)
+    );
+  }
+
+  return undefined;
+}
+
+function normalizeSelectValue(rawValue: unknown, options: SelectOption[]): string | undefined {
+  const candidate = extractSelectScalarValue(rawValue);
+  if (!candidate) return undefined;
+
+  const exact = options.find((opt) => opt.value === candidate);
+  if (exact) return exact.value;
+
+  const lowered = candidate.toLowerCase();
+  const byValueInsensitive = options.find((opt) => opt.value.toLowerCase() === lowered);
+  if (byValueInsensitive) return byValueInsensitive.value;
+
+  const byLabelInsensitive = options.find((opt) => opt.label.toLowerCase() === lowered);
+  if (byLabelInsensitive) return byLabelInsensitive.value;
+
+  return candidate;
+}
 
 /**
  * SelectOption Interface
@@ -124,6 +184,24 @@ export const SelectFormField: React.FC<FormFieldProps> = ({
     return [];
   }, [field.props?.options]);
 
+  const fieldDataValue = (field as { data?: unknown }).data;
+
+  const normalizedValueFromField = useMemo(
+    () => normalizeSelectValue(fieldDataValue, normalizedOptions),
+    [fieldDataValue, normalizedOptions]
+  );
+
+  const normalizedValue = useMemo(
+    () => normalizeSelectValue(value, normalizedOptions) ?? normalizedValueFromField,
+    [value, normalizedOptions, normalizedValueFromField]
+  );
+
+  useEffect(() => {
+    const valueFromForm = normalizeSelectValue(value, normalizedOptions);
+    if (valueFromForm || !normalizedValueFromField) return;
+    onChange(normalizedValueFromField);
+  }, [value, normalizedOptions, normalizedValueFromField, onChange]);
+
   return (
     <FieldLayout
       name={name}
@@ -134,7 +212,7 @@ export const SelectFormField: React.FC<FormFieldProps> = ({
       disabled={disabled}
     >
       <Select
-        value={value || undefined}
+        value={normalizedValue}
         onValueChange={onChange}
         disabled={disabled}
       >

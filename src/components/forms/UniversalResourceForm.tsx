@@ -9,7 +9,7 @@
  * - Automatic cleanup
  */
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FormProvider } from 'react-hook-form';
 import type { z } from 'zod';
 import { useFormWithStore } from '@/hooks/useFormWithStore';
@@ -20,6 +20,8 @@ import { FormActions } from './FormActions';
 import type { FieldDefinition } from '@/types/form';
 import { generateFormId } from '@/utils/form-helpers';
 import { cn } from '@/lib/utils';
+
+const EMPTY_INITIAL_DATA: Record<string, any> = {};
 
 export interface UniversalResourceFormProps {
   formId?: string;
@@ -49,7 +51,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
   ignoreResourceField,
   resourceId,
   fields,
-  initialData = {},
+  initialData,
   schema,
   onSubmit,
   onCreateAndContinue,
@@ -59,14 +61,18 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
   container,
   className,
 }) => {
-  // Generate unique form ID if not provided
-  const formId = providedFormId || generateFormId(resourceType, mode, resourceId);
+  // Keep generated formId stable for the component lifetime.
+  // If this changes on each render, dependency updates can land under a stale store key.
+  const [generatedFormId] = useState(() => generateFormId(resourceType, mode, resourceId));
+  const formId = providedFormId || generatedFormId;
+
+  const resolvedInitialData = initialData ?? EMPTY_INITIAL_DATA;
 
   // Initialize form with RHF + Zustand
   const { form, isSubmitting } = useFormWithStore({
     formId,
     schema: schema as any,
-    defaultValues: initialData,
+    defaultValues: resolvedInitialData,
     mode: 'onChange',
   });
 
@@ -77,6 +83,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
     mode,
     resourceId,
     fields,
+    initialFormData: resolvedInitialData,
     enabled: enableDependentFields,
   });
 
@@ -140,10 +147,10 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
 
   // Reset form when initialData changes (for edit mode)
   useEffect(() => {
-    if (mode === 'edit' && initialData && Object.keys(initialData).length > 0) {
-      form.reset(initialData);
+    if (mode === 'edit' && resolvedInitialData && Object.keys(resolvedInitialData).length > 0) {
+      form.reset(resolvedInitialData);
     }
-  }, [initialData, mode, form]);
+  }, [resolvedInitialData, mode, form]);
 
   useEffect(() => {
     if (!enableDependentFields) return;

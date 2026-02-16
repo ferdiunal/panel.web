@@ -34,37 +34,57 @@ export const useFormStateStore = create<FormStateStore>((set) => ({
   formErrors: {},
 
   setFieldUpdates: (formId, updates) =>
-    set((state) => ({
-      fieldUpdates: {
-        ...state.fieldUpdates,
-        [formId]: updates,
-      },
-    })),
+    set((state) => {
+      console.log('[depends][frontend][store] setFieldUpdates', {
+        formId,
+        updateKeys: Object.keys(updates ?? {}),
+        updates,
+      });
+
+      return {
+        fieldUpdates: {
+          ...state.fieldUpdates,
+          [formId]: updates,
+        },
+      };
+    }),
 
   updateSingleField: (formId, fieldKey, update) =>
-    set((state) => ({
-      fieldUpdates: {
-        ...state.fieldUpdates,
-        [formId]: {
-          ...state.fieldUpdates[formId],
-          [fieldKey]: update,
+    set((state) => {
+      console.log('[depends][frontend][store] updateSingleField', {
+        formId,
+        fieldKey,
+        update,
+      });
+
+      return {
+        fieldUpdates: {
+          ...state.fieldUpdates,
+          [formId]: {
+            ...state.fieldUpdates[formId],
+            [fieldKey]: update,
+          },
         },
-      },
-    })),
+      };
+    }),
 
   clearFieldUpdates: (formId) =>
     set((state) => {
+      console.log('[depends][frontend][store] clearFieldUpdates', { formId });
       const { [formId]: _, ...rest } = state.fieldUpdates;
       return { fieldUpdates: rest };
     }),
 
   setDependencyLoading: (formId, loading) =>
-    set((state) => ({
-      dependencyLoading: {
-        ...state.dependencyLoading,
-        [formId]: loading,
-      },
-    })),
+    set((state) => {
+      console.log('[depends][frontend][store] setDependencyLoading', { formId, loading });
+      return {
+        dependencyLoading: {
+          ...state.dependencyLoading,
+          [formId]: loading,
+        },
+      };
+    }),
 
   setSubmitting: (formId, submitting) =>
     set((state) => ({
@@ -90,6 +110,7 @@ export const useFormStateStore = create<FormStateStore>((set) => ({
 
   clearFormState: (formId) =>
     set((state) => {
+      console.log('[depends][frontend][store] clearFormState', { formId });
       const {
         [formId]: _fieldUpdates,
         ...restFieldUpdates

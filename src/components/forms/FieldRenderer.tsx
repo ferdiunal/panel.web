@@ -9,7 +9,7 @@
  * - Props transformation (FieldComponentProps → actual field props)
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useFieldUpdate } from '@/stores/form-state-store';
 import { fieldRegistry } from './FieldRegistry';
@@ -52,8 +52,53 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
       };
     }, [field, fieldUpdate]);
 
+    useEffect(() => {
+      console.log('[depends][frontend][renderer] field-update', {
+        formId,
+        fieldKey: field.key,
+        fieldUpdate: fieldUpdate ?? null,
+        nextState: {
+          visible: enhancedField.visible ?? true,
+          disabled: enhancedField.disabled ?? false,
+          required: enhancedField.required ?? false,
+        },
+      });
+    }, [formId, field.key, fieldUpdate, enhancedField.visible, enhancedField.disabled, enhancedField.required]);
+
+    // Relationship field kontrolü ve searchFn memoization
+    // Bu değerleri return branch'lerinden önce hesaplıyoruz ki hook sırası stabil kalsın.
+    const relationshipViews = [
+      'belongs-to-field',
+      'has-one-field',
+      'has-many-field',
+      'belongs-to-many-field',
+      'morph-to-field',
+      'morph-to-many-field',
+    ];
+    const viewName = enhancedField.view || '';
+    const isRelationshipField =
+      ['belongs-to', 'has-one', 'has-many', 'belongs-to-many', 'morph-to', 'morph-to-many', 'relationship'].includes(enhancedField.type) ||
+      relationshipViews.some((view) => viewName === view || viewName.startsWith(`${view}-`));
+    const relatedResource = enhancedField.props?.related_resource;
+
+    // searchFn'i useCallback ile memoize et - sonsuz render döngüsünü önler
+    // Her render'da yeni fonksiyon oluşturmak yerine, sadece relatedResource değiştiğinde yeni fonksiyon oluştur
+    const searchFn = useCallback(
+      (query: string) => {
+        if (relatedResource) {
+          return searchRelationship(relatedResource, query);
+        }
+        return Promise.resolve([]);
+      },
+      [relatedResource]
+    );
+
     // Skip hidden fields
     if (enhancedField.visible === false) {
+      console.log('[depends][frontend][renderer] field-hidden', {
+        formId,
+        fieldKey: field.key,
+      });
       return null;
     }
 
@@ -81,35 +126,6 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
         </div>
       );
     }
-
-    // Relationship field kontrolü ve searchFn memoization
-    // Bu değerleri Controller dışında hesaplıyoruz çünkü useCallback kullanacağız
-    // Check original type or view for relationship identification
-    const relationshipViews = [
-      'belongs-to-field',
-      'has-one-field',
-      'has-many-field',
-      'belongs-to-many-field',
-      'morph-to-field',
-      'morph-to-many-field',
-    ];
-    const viewName = enhancedField.view || '';
-    const isRelationshipField =
-      ['belongs-to', 'has-one', 'has-many', 'belongs-to-many', 'morph-to', 'morph-to-many', 'relationship'].includes(enhancedField.type) ||
-      relationshipViews.some((view) => viewName === view || viewName.startsWith(`${view}-`));
-    const relatedResource = enhancedField.props?.related_resource;
-
-    // searchFn'i useCallback ile memoize et - sonsuz render döngüsünü önler
-    // Her render'da yeni fonksiyon oluşturmak yerine, sadece relatedResource değiştiğinde yeni fonksiyon oluştur
-    const searchFn = useCallback(
-      (query: string) => {
-        if (relatedResource) {
-          return searchRelationship(relatedResource, query);
-        }
-        return Promise.resolve([]);
-      },
-      [relatedResource]
-    );
 
     return (
       <Controller

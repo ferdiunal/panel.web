@@ -10,7 +10,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { FormProvider } from 'react-hook-form';
+import { FormProvider, type UseFormReturn } from 'react-hook-form';
 import type { z } from 'zod';
 import { useFormWithStore } from '@/hooks/useFormWithStore';
 import { useFormDependencies } from '@/hooks/useFormDependencies';
@@ -22,6 +22,71 @@ import { generateFormId } from '@/utils/form-helpers';
 import { cn } from '@/lib/utils';
 
 const EMPTY_INITIAL_DATA: Record<string, any> = {};
+
+function extractServerValidationErrors(error: unknown): Record<string, string> {
+  const responseData = (error as any)?.response?.data;
+  const rawErrors = responseData?.errors ?? responseData?.details;
+
+  if (!rawErrors || typeof rawErrors !== 'object') {
+    return {};
+  }
+
+  const mapped: Record<string, string> = {};
+  Object.entries(rawErrors as Record<string, unknown>).forEach(([field, value]) => {
+    if (!field) return;
+
+    if (Array.isArray(value) && value.length > 0) {
+      const firstMessage = value.find((item) => typeof item === 'string' && item.trim().length > 0);
+      if (typeof firstMessage === 'string') {
+        mapped[field] = firstMessage;
+      }
+      return;
+    }
+
+    if (typeof value === 'string' && value.trim().length > 0) {
+      mapped[field] = value;
+    }
+  });
+
+  return mapped;
+}
+
+function extractServerErrorMessage(error: unknown): string | undefined {
+  const responseData = (error as any)?.response?.data;
+  const message = responseData?.error ?? responseData?.message;
+  if (typeof message === 'string' && message.trim().length > 0) {
+    return message;
+  }
+  return undefined;
+}
+
+function applyServerValidationErrors(
+  form: UseFormReturn<Record<string, any>>,
+  error: unknown
+): boolean {
+  const fieldErrors = extractServerValidationErrors(error);
+  const entries = Object.entries(fieldErrors);
+
+  if (entries.length === 0) {
+    const message = extractServerErrorMessage(error);
+    if (message) {
+      form.setError('root.server' as any, {
+        type: 'server',
+        message,
+      });
+    }
+    return false;
+  }
+
+  entries.forEach(([field, message]) => {
+    form.setError(field as any, {
+      type: 'server',
+      message,
+    });
+  });
+
+  return true;
+}
 
 export interface UniversalResourceFormProps {
   formId?: string;
@@ -92,13 +157,13 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
     async (data: Record<string, any>) => {
       const store = useFormStateStore.getState();
       store.setSubmitting(formId, true);
+      form.clearErrors();
 
       try {
         await onSubmit(data);
         form.reset(); // Reset form after successful submission
       } catch (error) {
-        console.error('Form submission failed:', error);
-        // Error handling can be enhanced here
+        applyServerValidationErrors(form as UseFormReturn<Record<string, any>>, error);
       } finally {
         store.setSubmitting(formId, false);
       }
@@ -113,17 +178,18 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
 
       const store = useFormStateStore.getState();
       store.setSubmitting(formId, true);
+      form.clearErrors();
 
       try {
         await onCreateAndContinue(data);
         // Don't reset form - we'll transition to edit mode
       } catch (error) {
-        console.error('Form submission failed:', error);
+        applyServerValidationErrors(form as UseFormReturn<Record<string, any>>, error);
       } finally {
         store.setSubmitting(formId, false);
       }
     },
-    [formId, onCreateAndContinue]
+    [form, formId, onCreateAndContinue]
   );
 
   // Handle update and continue submission
@@ -133,16 +199,17 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
 
       const store = useFormStateStore.getState();
       store.setSubmitting(formId, true);
+      form.clearErrors();
 
       try {
         await onUpdateAndContinue(data);
       } catch (error) {
-        console.error('Form submission failed:', error);
+        applyServerValidationErrors(form as UseFormReturn<Record<string, any>>, error);
       } finally {
         store.setSubmitting(formId, false);
       }
     },
-    [formId, onUpdateAndContinue]
+    [form, formId, onUpdateAndContinue]
   );
 
   // Reset form when initialData changes (for edit mode)

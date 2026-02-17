@@ -8,7 +8,7 @@ import { RelationshipTable } from "@/components/RelationshipTable";
  * HasManyDetailField - HasMany field için detail sayfası component'ı
  *
  * Bu component, HasMany ilişkisini detail sayfasında tablo formatında görüntüler.
- * Laravel Nova'nın yaklaşımına uygun olarak ResourceIndex (tablo) kullanır.
+ * Bu yaklaşımda ResourceIndex (tablo) kullanır.
  *
  * # Özellikler
  *

@@ -3,7 +3,7 @@
  * Polymorphic many-to-many relationship display
  * 
  * Bu component, MorphToMany ilişkisini detail sayfasında tablo formatında görüntüler.
- * Laravel Nova'nın yaklaşımına uygun olarak ResourceIndex (tablo) kullanır.
+ * Bu yaklaşımda ResourceIndex (tablo) kullanır.
  * 
  * # Özellikler
  * 

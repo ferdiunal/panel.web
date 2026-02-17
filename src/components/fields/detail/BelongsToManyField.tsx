@@ -8,7 +8,7 @@ import { RelationshipTable } from "@/components/RelationshipTable";
  * BelongsToManyDetailField - BelongsToMany field için detail sayfası component'ı
  *
  * Bu component, BelongsToMany ilişkisini detail sayfasında tablo formatında görüntüler.
- * Laravel Nova'nın yaklaşımına uygun olarak ResourceIndex (tablo) kullanır.
+ * Bu yaklaşımda ResourceIndex (tablo) kullanır.
  *
  * # Özellikler
  *

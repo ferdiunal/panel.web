@@ -114,6 +114,10 @@ function hasMeaningfulValue(value: unknown): boolean {
     return true
 }
 
+function isValidationHttpError(error: unknown): boolean {
+    return (error as any)?.response?.status === 422
+}
+
 function normalizeSelectInitialValue(field: FieldData): string | undefined {
     const candidate = extractSelectScalarValue(field.data)
     if (!candidate) return undefined
@@ -617,7 +621,9 @@ export default function ResourceIndexPage() {
             await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         } catch (error) {
             console.error(error)
-            toast.error("Olusturulurken hata olustu")
+            if (!isValidationHttpError(error)) {
+                toast.error("Olusturulurken hata olustu")
+            }
             throw error
         }
     }
@@ -633,7 +639,9 @@ export default function ResourceIndexPage() {
             await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         } catch (error) {
             console.error(error)
-            toast.error("Olusturulurken hata olustu")
+            if (!isValidationHttpError(error)) {
+                toast.error("Olusturulurken hata olustu")
+            }
             throw error
         }
     }
@@ -653,7 +661,9 @@ export default function ResourceIndexPage() {
             await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         } catch (error) {
             console.error(error)
-            toast.error("Guncellenirken hata olustu")
+            if (!isValidationHttpError(error)) {
+                toast.error("Guncellenirken hata olustu")
+            }
             throw error
         }
     }
@@ -672,7 +682,9 @@ export default function ResourceIndexPage() {
             await queryClient.invalidateQueries({ queryKey: ["resource", resource] })
         } catch (error) {
             console.error(error)
-            toast.error("Guncellenirken hata olustu")
+            if (!isValidationHttpError(error)) {
+                toast.error("Guncellenirken hata olustu")
+            }
             throw error
         }
     }

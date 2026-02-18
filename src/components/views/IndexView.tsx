@@ -54,6 +54,61 @@ export interface IndexViewColumn<T = any> {
   render?: (value: any, resource: T) => React.ReactNode;
 }
 
+function normalizeIncomingColumnFilters(
+  filters?: Record<string, string[]>
+): ColumnFiltersState {
+  if (!filters) {
+    return [];
+  }
+
+  const result: ColumnFiltersState = [];
+  for (const [columnId, values] of Object.entries(filters)) {
+    if (!Array.isArray(values) || values.length === 0) {
+      continue;
+    }
+
+    const sanitizedValues = values
+      .map((value) => String(value))
+      .filter((value) => value.length > 0);
+    if (sanitizedValues.length === 0) {
+      continue;
+    }
+
+    result.push({
+      id: columnId,
+      value: sanitizedValues,
+    });
+  }
+
+  return result;
+}
+
+function normalizeOutgoingColumnFilters(
+  filters: ColumnFiltersState
+): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+
+  for (const filter of filters) {
+    if (!filter?.id) {
+      continue;
+    }
+
+    const value = filter.value;
+    const values = Array.isArray(value) ? value : [value];
+    const sanitizedValues = values
+      .map((item) => String(item))
+      .filter((item) => item.length > 0);
+
+    if (sanitizedValues.length === 0) {
+      continue;
+    }
+
+    result[filter.id] = sanitizedValues;
+  }
+
+  return result;
+}
+
 export type IndexViewRowClickAction = 'edit' | 'detail' | 'none';
 
 // Column Filter Component
@@ -167,6 +222,8 @@ export interface IndexViewProps<T extends Resource = Resource> {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   onSort?: (key: string) => void;
+  columnFilters?: Record<string, string[]>;
+  onColumnFiltersChange?: (filters: Record<string, string[]>) => void;
   onEdit?: (resource: T) => void;
   onDelete?: (resource: T) => void;
   onView?: (resource: T) => void;
@@ -201,6 +258,8 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
       sortBy,
       sortOrder = 'asc',
       onSort,
+      columnFilters: externalColumnFilters,
+      onColumnFiltersChange: onColumnFiltersChangeProp,
       onEdit,
       onDelete,
       onView,
@@ -243,7 +302,9 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
     });
 
     // Column filters state
-    const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+    const [columnFiltersState, setColumnFiltersState] = React.useState<ColumnFiltersState>(() =>
+      normalizeIncomingColumnFilters(externalColumnFilters)
+    );
 
     // Global filter state
     const [globalFilter, setGlobalFilter] = React.useState(searchQuery);
@@ -259,6 +320,14 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
     React.useEffect(() => {
       setGlobalFilter(searchQuery);
     }, [searchQuery]);
+
+    // Sync external column filters state
+    React.useEffect(() => {
+      if (!externalColumnFilters) {
+        return;
+      }
+      setColumnFiltersState(normalizeIncomingColumnFilters(externalColumnFilters));
+    }, [externalColumnFilters]);
 
     React.useEffect(() => {
       setTableData(resources);
@@ -485,7 +554,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
       getRowId: (row) => getResourceId(row),
       state: {
         sorting,
-        columnFilters,
+        columnFilters: columnFiltersState,
         globalFilter,
         rowSelection: selectedIds.reduce((acc, id) => {
           acc[id] = true;
@@ -501,7 +570,15 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
           onSort(newSorting[0].id);
         }
       },
-      onColumnFiltersChange: setColumnFilters,
+      onColumnFiltersChange: (updater) => {
+        const nextFilters =
+          typeof updater === 'function' ? updater(columnFiltersState) : updater;
+        setColumnFiltersState(nextFilters);
+
+        if (onColumnFiltersChangeProp) {
+          onColumnFiltersChangeProp(normalizeOutgoingColumnFilters(nextFilters));
+        }
+      },
       onGlobalFilterChange: (updater) => {
         const newFilter = typeof updater === 'function' ? updater(globalFilter) : updater;
         setGlobalFilter(newFilter);

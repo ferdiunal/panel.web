@@ -1,21 +1,6 @@
-/**
- * RelationshipTable Component
- * 
- * Detail view'da relationship field'lar (HasMany, BelongsToMany, MorphToMany) için
- * tablo gösterimi sağlar. Mevcut IndexView component'ini kullanarak ilişkili kayıtları
- * tablo formatında gösterir.
- * 
- * Özellikler:
- * - Pagination desteği
- * - Sorting desteği
- * - Filtering desteği
- * - Collapsable panel
- * - Attach/Detach butonları (opsiyonel)
- * - View/Edit/Delete action'ları
- */
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { IndexView, type IndexViewColumn } from '@/components/views/IndexView';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -25,10 +10,16 @@ import type { ResourceParams } from '@/lib/resource-params';
 import type { FieldData } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useDebounce } from '@/hooks/useDebounce';
 import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
 import { renderDisplayComponent } from '@/lib/display-components';
 import { formatMoneyFieldValue } from '@/lib/money-display';
+import {
+  buildRelationshipQueryString,
+  parseRelationshipUrlState,
+  serializeColumnFiltersForQuery,
+  serializeColumnFiltersKey,
+  type RelationshipUrlState,
+} from '@/lib/relationship-table-url-state';
 
 export interface RelationshipTableProps {
   /** İlişkili resource tipi (örn: "posts", "comments") */
@@ -85,7 +76,6 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
   viaResource,
   viaResourceId,
   viaRelationship,
-  relationshipType: _relationshipType,
   defaultOpen = true,
   showAttachButton = false,
   perPageOptions = [5, 10, 25],
@@ -96,52 +86,139 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
   onDelete,
   onAttach,
 }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isOpen] = useState(defaultOpen);
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(defaultPerPage);
-  const [sortBy, setSortBy] = useState<string | undefined>();
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Search query için debounce kullan
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const urlState = useMemo(
+    () => parseRelationshipUrlState(location.search, resourceType, defaultPerPage),
+    [defaultPerPage, location.search, resourceType]
+  );
+  const searchDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Search değiştiğinde sayfayı 1'e resetle
+  const updateUrlState = useCallback(
+    (patch: Partial<RelationshipUrlState>) => {
+      const nextState: RelationshipUrlState = {
+        search: patch.search !== undefined ? patch.search : urlState.search,
+        page: patch.page !== undefined ? patch.page : urlState.page,
+        perPage: patch.perPage !== undefined ? patch.perPage : urlState.perPage,
+        sortBy: patch.sortBy !== undefined ? patch.sortBy : urlState.sortBy,
+        sortOrder: patch.sortOrder !== undefined ? patch.sortOrder : urlState.sortOrder,
+        columnFilters:
+          patch.columnFilters !== undefined ? patch.columnFilters : urlState.columnFilters,
+      };
+
+      if (nextState.page < 1) {
+        nextState.page = 1;
+      }
+      if (nextState.perPage < 1) {
+        nextState.perPage = defaultPerPage;
+      }
+
+      const nextQuery = buildRelationshipQueryString(location.search, resourceType, nextState);
+      const currentQuery = location.search.startsWith('?')
+        ? location.search.slice(1)
+        : location.search;
+
+      if (nextQuery === currentQuery) {
+        return;
+      }
+
+      const nextUrl = `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`;
+      navigate(nextUrl, { replace: true });
+    },
+    [
+      defaultPerPage,
+      location.hash,
+      location.pathname,
+      location.search,
+      navigate,
+      resourceType,
+      urlState.columnFilters,
+      urlState.page,
+      urlState.perPage,
+      urlState.search,
+      urlState.sortBy,
+      urlState.sortOrder,
+    ]
+  );
+
   useEffect(() => {
-    setPage(1);
-  }, [debouncedSearchQuery]);
+    return () => {
+      if (searchDebounceTimerRef.current) {
+        clearTimeout(searchDebounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSearchChange = useCallback(
+    (query: string) => {
+      if (searchDebounceTimerRef.current) {
+        clearTimeout(searchDebounceTimerRef.current);
+      }
+
+      searchDebounceTimerRef.current = setTimeout(() => {
+        if (query === urlState.search) {
+          return;
+        }
+        updateUrlState({
+          search: query,
+          page: 1,
+        });
+      }, 300);
+    },
+    [updateUrlState, urlState.search]
+  );
+
+  const filtersKey = useMemo(
+    () => serializeColumnFiltersKey(urlState.columnFilters),
+    [urlState.columnFilters]
+  );
+  const queryFilters = useMemo(
+    () => serializeColumnFiltersForQuery(urlState.columnFilters),
+    [urlState.columnFilters]
+  );
 
   // Fetch relationship data
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['relationship', resourceType, viaResource, viaResourceId, viaRelationship, page, perPage, sortBy, sortOrder, debouncedSearchQuery],
+    queryKey: [
+      'relationship',
+      resourceType,
+      viaResource,
+      viaResourceId,
+      viaRelationship,
+      urlState.page,
+      urlState.perPage,
+      urlState.sortBy,
+      urlState.sortOrder,
+      urlState.search,
+      filtersKey,
+    ],
     queryFn: async () => {
       const params: ResourceParams = {
-        page,
-        per_page: perPage,
+        page: urlState.page,
+        per_page: urlState.perPage,
       };
 
-      if (sortBy) {
+      if (urlState.sortBy) {
         params.sort = {
-          column: sortBy,
-          direction: sortOrder,
+          column: urlState.sortBy,
+          direction: urlState.sortOrder,
         };
       }
 
-      if (debouncedSearchQuery) {
-        params.search = debouncedSearchQuery;
+      if (urlState.search.trim()) {
+        params.search = urlState.search.trim();
       }
 
-      // Relationship endpoint yerine standart index endpoint'ini kullanıyoruz
-      // ve via parametreleri ile filtreleme yapıyoruz.
-      // Panel.go backend'i nested resource endpoint'ini (/resource/:res/:id/:rel) desteklemiyor olabilir.
-      // Bunun yerine /resource/:relatedRes?viaResource=...&viaResourceId=...&viaRelationship=... formatını kullanıyoruz.
-      
-      const filterParams = {
+      const filterParams: Record<string, unknown> = {
         ...params,
         viaResource,
         viaResourceId,
         viaRelationship,
       };
+      if (Object.keys(queryFilters).length > 0) {
+        filterParams.filters = queryFilters;
+      }
 
       const response = await resourceService.fetchResource(
         resourceType,
@@ -249,17 +326,41 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
             return field.data
         }
       }));
-  }, [data?.meta?.headers]);
+  }, [data]);
 
   // Handle sort
-  const handleSort = (key: string) => {
-    if (sortBy === key) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(key);
-      setSortOrder('asc');
-    }
-  };
+  const handleSort = useCallback(
+    (key: string) => {
+      if (urlState.sortBy === key) {
+        updateUrlState({
+          sortBy: key,
+          sortOrder: urlState.sortOrder === 'asc' ? 'desc' : 'asc',
+          page: 1,
+        });
+        return;
+      }
+
+      updateUrlState({
+        sortBy: key,
+        sortOrder: 'asc',
+        page: 1,
+      });
+    },
+    [updateUrlState, urlState.sortBy, urlState.sortOrder]
+  );
+
+  const handleColumnFiltersChange = useCallback(
+    (filters: Record<string, string[]>) => {
+      updateUrlState({
+        columnFilters: filters,
+        page: 1,
+      });
+    },
+    [updateUrlState]
+  );
+
+  const total = Number(data?.meta?.total || 0);
+  const totalPages = Math.max(1, Math.ceil(total / urlState.perPage));
 
   // Panel header
   // const panelTitle = title || `${resourceType} (${data?.meta?.total || 0})`;
@@ -288,11 +389,13 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
           isLoading={isLoading}
           isEmpty={!isLoading && (!data?.data || data.data.length === 0)}
           error={error ? String(error) : null}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
+          searchQuery={urlState.search}
+          onSearchChange={handleSearchChange}
+          sortBy={urlState.sortBy}
+          sortOrder={urlState.sortOrder}
           onSort={handleSort}
+          columnFilters={urlState.columnFilters}
+          onColumnFiltersChange={handleColumnFiltersChange}
           onView={onView}
           onEdit={onEdit}
           onDelete={onDelete}
@@ -300,11 +403,11 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
         />
 
         {/* Pagination */}
-        {data?.meta && data.meta.total > perPage && (
+        {data?.meta && data.meta.total > urlState.perPage && (
           <div className="flex items-center justify-between mt-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">
-                Showing {((page - 1) * perPage) + 1} to {Math.min(page * perPage, data.meta.total)} of {data.meta.total}
+                Showing {((urlState.page - 1) * urlState.perPage) + 1} to {Math.min(urlState.page * urlState.perPage, data.meta.total)} of {data.meta.total}
               </span>
             </div>
 
@@ -312,19 +415,19 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(page - 1)}
-                disabled={page === 1}
+                onClick={() => updateUrlState({ page: urlState.page - 1 })}
+                disabled={urlState.page === 1}
               >
                 Previous
               </Button>
               <span className="text-sm">
-                Page {page} of {Math.ceil(data.meta.total / perPage)}
+                Page {urlState.page} of {totalPages}
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={page >= Math.ceil(data.meta.total / perPage)}
+                onClick={() => updateUrlState({ page: urlState.page + 1 })}
+                disabled={urlState.page >= totalPages}
               >
                 Next
               </Button>
@@ -333,10 +436,12 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Per page:</span>
               <select
-                value={perPage}
+                value={urlState.perPage}
                 onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setPage(1); // Reset to first page
+                  updateUrlState({
+                    perPage: Number(e.target.value),
+                    page: 1,
+                  });
                 }}
                 className="h-8 rounded-md border border-input bg-background px-2 text-sm"
               >

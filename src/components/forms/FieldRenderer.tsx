@@ -15,19 +15,23 @@ import { useFieldUpdate } from '@/stores/form-state-store';
 import { fieldRegistry } from './FieldRegistry';
 import type { FieldDefinition } from '@/types/form';
 import { searchRelationship } from '@/lib/relationship-api';
+import { getFieldSpanClass } from '@/lib/field-span';
+import { cn } from '@/lib/utils';
+import { resolveWithProps } from '@/lib/with-props';
 
 export interface FieldRendererProps {
   formId: string;
   field: FieldDefinition;
   container?: HTMLElement | null;
   parentResourceId?: string | number; // Parent resource ID (edit modunda kullanılır)
+  parentResourceSlug?: string; // Parent resource slug (resourceType)
 }
 
 /**
  * FieldRenderer - Renders a single field with dependency updates
  */
 export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
-  ({ formId, field, container, parentResourceId }) => {
+  ({ formId, field, container, parentResourceId, parentResourceSlug }) => {
     const { control } = useFormContext();
 
     // Subscribe to field updates from dependency resolution
@@ -51,6 +55,12 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
         },
       };
     }, [field, fieldUpdate]);
+
+    const spanClassName = useMemo(() => getFieldSpanClass(enhancedField), [enhancedField]);
+    const resolvedWithProps = useMemo(
+      () => resolveWithProps(enhancedField.props as Record<string, unknown> | undefined),
+      [enhancedField.props]
+    );
 
     useEffect(() => {
       console.log('[depends][frontend][renderer] field-update', {
@@ -128,47 +138,54 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
     }
 
     return (
-      <Controller
-        name={enhancedField.key}
-        control={control}
-        rules={{
-          required: enhancedField.required
-            ? `${enhancedField.label} is required`
-            : false,
-        }}
-        render={({ field: controllerField, fieldState }) => {
-          // Transform props for the actual field component
-          // Backend props'ları ÖNCE spread et, sonra memoized değerler gelsin.
-          // Böylece searchFn gibi memoized fonksiyonlar backend props tarafından
-          // override edilemez ve stabil referanslarını korur.
-          const fieldProps = {
-            // Backend'den gelen field-specific props (options, types, vs.)
-            ...enhancedField.props,
-            // Core props — bunlar backend props'larını override eder
-            field: enhancedField,
-            name: enhancedField.key,
-            label: enhancedField.label,
-            value: controllerField.value ?? '',
-            onChange: controllerField.onChange,
-            onBlur: controllerField.onBlur,
-            error: fieldState.error?.message,
-            disabled: enhancedField.disabled,
-            required: enhancedField.required,
-            placeholder: enhancedField.placeholder,
-            helpText: enhancedField.help_text,
-            type: enhancedField.type,
-            container,
-            // Relationship field'lar için memoized searchFn ve parentResourceId
-            // En sonda olmalı — backend props tarafından override edilmemeli
-            ...(isRelationshipField && relatedResource && {
-              searchFn: searchFn,
-              parentResourceId: parentResourceId,
-            }),
-          };
+      <div
+        className={cn('col-span-1', spanClassName, resolvedWithProps.className)}
+        style={resolvedWithProps.style}
+        {...resolvedWithProps.attributes}
+      >
+        <Controller
+          name={enhancedField.key}
+          control={control}
+          rules={{
+            required: enhancedField.required
+              ? `${enhancedField.label} is required`
+              : false,
+          }}
+          render={({ field: controllerField, fieldState }) => {
+            // Transform props for the actual field component
+            // Backend props'ları ÖNCE spread et, sonra memoized değerler gelsin.
+            // Böylece searchFn gibi memoized fonksiyonlar backend props tarafından
+            // override edilemez ve stabil referanslarını korur.
+            const fieldProps = {
+              // Backend'den gelen field-specific props (options, types, vs.)
+              ...enhancedField.props,
+              // Core props — bunlar backend props'larını override eder
+              field: enhancedField,
+              name: enhancedField.key,
+              label: enhancedField.label,
+              value: controllerField.value ?? '',
+              onChange: controllerField.onChange,
+              onBlur: controllerField.onBlur,
+              error: fieldState.error?.message,
+              disabled: enhancedField.disabled,
+              required: enhancedField.required,
+              placeholder: enhancedField.placeholder,
+              helpText: enhancedField.help_text,
+              type: enhancedField.type,
+              container,
+              // Relationship field'lar için memoized searchFn ve parentResourceId
+              // En sonda olmalı — backend props tarafından override edilmemeli
+              ...(isRelationshipField && relatedResource && {
+                searchFn: searchFn,
+                parentResourceId: parentResourceId,
+                parentResourceSlug: parentResourceSlug,
+              }),
+            };
 
-          return <FieldComponent {...fieldProps} />;
-        }}
-      />
+            return <FieldComponent {...fieldProps} />;
+          }}
+        />
+      </div>
     );
   },
   (prev, next) => {
@@ -178,7 +195,8 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
       prev.field.key === next.field.key &&
       prev.field.type === next.field.type &&
       prev.container === next.container &&
-      prev.parentResourceId === next.parentResourceId
+      prev.parentResourceId === next.parentResourceId &&
+      prev.parentResourceSlug === next.parentResourceSlug
     );
   }
 );

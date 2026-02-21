@@ -392,7 +392,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
               return JSON.stringify(value);
             }
 
-            return String(value || '');
+            return String(value ?? '');
           },
           enableSorting: col.sortable ?? false,
           enableColumnFilter: col.filterable ?? false,

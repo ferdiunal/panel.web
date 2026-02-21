@@ -6,9 +6,10 @@
  */
 
 import React from 'react';
-import { Check, X } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { Badge } from '@/components/ui/badge';
 import type { IndexFieldProps } from '@/types';
 
 /**
@@ -19,7 +20,7 @@ import type { IndexFieldProps } from '@/types';
  *
  * Özellikler:
  * - FieldLayout kullanır (hideLabel=true)
- * - Icon gösterimi (✓/✗)
+ * - Check icon + badge gösterimi
  * - Text alignment desteği
  * - Salt okunur
  *
@@ -57,11 +58,18 @@ export const SwitchIndexField: React.FC<IndexFieldProps> = ({ field, record }) =
       hideLabel={true}
     >
       <div className={cn('flex items-center', alignmentClass)}>
-        {value ? (
-          <Check className="h-4 w-4 text-green-600" />
-        ) : (
-          <X className="h-4 w-4 text-muted-foreground" />
-        )}
+        <Badge
+          variant="outline"
+          className={cn(
+            'gap-1 border',
+            value
+              ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+              : 'border-border bg-muted/60 text-muted-foreground',
+          )}
+        >
+          <Check className="h-3 w-3" />
+          <span>{value ? 'Aktif' : 'Pasif'}</span>
+        </Badge>
       </div>
     </FieldLayout>
   );

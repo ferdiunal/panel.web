@@ -12,7 +12,7 @@ export const PanelDetailField: React.FC<DetailFieldProps> = ({ field, record }) 
   return (
     <FieldLayout
       name={field.key}
-      label={field.name || field.label}
+      label={field.label || field.name}
       helpText={field.help_text}
     >
       <div className="p-4 border rounded-md bg-muted/50">

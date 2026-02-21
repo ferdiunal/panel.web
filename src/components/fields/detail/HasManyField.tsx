@@ -55,7 +55,7 @@ export function HasManyDetailField({ field, record, resourceName }: DetailFieldP
             viaResourceId={recordId}
             viaRelationship={field.key}
             relationshipType="hasMany"
-            title={field.name || field.label}
+            title={field.label || field.name}
             collapsable={true}
             defaultOpen={true}
             perPageOptions={[5, 10, 25]}

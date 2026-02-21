@@ -57,7 +57,7 @@ export const BooleanGroupDetailField: React.FC<DetailFieldProps> = ({ field, rec
   return (
     <FieldLayout
       name={field.key}
-      label={field.name || field.label}
+      label={field.label || field.name}
       helpText={field.help_text}
     >
       <div className="flex flex-wrap gap-2">

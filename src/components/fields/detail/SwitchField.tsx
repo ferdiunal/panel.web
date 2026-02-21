@@ -7,7 +7,8 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Check, X } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
 import type { DetailFieldProps } from '@/types';
 
@@ -43,21 +44,20 @@ export const SwitchDetailField: React.FC<DetailFieldProps> = ({ field, record })
   return (
     <FieldLayout
       name={field.key}
-      label={field.name || field.label}
+      label={field.label || field.name}
       helpText={field.help_text}
     >
-      <Badge variant={value ? 'default' : 'secondary'} className="gap-1">
-        {value ? (
-          <>
-            <Check className="h-3 w-3" />
-            <span>Aktif</span>
-          </>
-        ) : (
-          <>
-            <X className="h-3 w-3" />
-            <span>Pasif</span>
-          </>
+      <Badge
+        variant="outline"
+        className={cn(
+          'gap-1 border',
+          value
+            ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+            : 'border-border bg-muted/60 text-muted-foreground',
         )}
+      >
+        <Check className="h-3 w-3" />
+        <span>{value ? 'Aktif' : 'Pasif'}</span>
       </Badge>
     </FieldLayout>
   );

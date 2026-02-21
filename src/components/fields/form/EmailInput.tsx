@@ -6,9 +6,10 @@
  */
 
 import React from 'react';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareInput } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 /**
@@ -38,6 +39,7 @@ import type { FormFieldProps } from '@/types';
  * ```
  */
 export const EmailFormField: React.FC<FormFieldProps> = ({
+  field,
   name,
   label,
   value,
@@ -48,7 +50,14 @@ export const EmailFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder = 'ornek@email.com',
   helpText,
+  startAddon,
+  endAddon,
 }) => {
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+
   return (
     <FieldLayout
       name={name}
@@ -58,7 +67,7 @@ export const EmailFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <Input
+      <AddonAwareInput
         id={name}
         name={name}
         type="email"
@@ -69,6 +78,8 @@ export const EmailFormField: React.FC<FormFieldProps> = ({
         placeholder={placeholder}
         aria-invalid={!!error}
         aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
         className={cn(
           error && 'border-destructive focus-visible:ring-destructive/20'
         )}

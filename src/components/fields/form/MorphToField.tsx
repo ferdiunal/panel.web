@@ -33,6 +33,8 @@ import {
 import { FieldLayout } from "../FieldLayout"
 import type { FormFieldProps } from "@/types"
 import { QuickCreateModal } from "../QuickCreateModal"
+import { AddonAwareControl } from "./input-group-addon"
+import { resolveFieldInputAddons } from "./input-group-addon-utils"
 
 interface ResourceOption {
   value: string | number
@@ -52,6 +54,9 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
   required = false,
   helpText,
   className,
+  startAddon,
+  endAddon,
+  ...props
 }) => {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -62,6 +67,13 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
 
   // Props extraction
   const resourceSlug = field.props?.resourceSlug as string; // Ensure this is passed or available
+  const parentResourceId = (props.parentResourceId ?? field.props?.parentResourceId) as string | number | undefined;
+  const parentResourceSlug = (props.parentResourceSlug ?? field.props?.parentResourceSlug) as string | undefined;
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  )
+  const hasAddons = !!addons.startAddon || !!addons.endAddon
 
   // Parse value: could be { type, id } object or separate fields
   let selectedType = value?.type || value?.morphToType || ""
@@ -226,59 +238,68 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
             <label className="text-xs font-medium text-muted-foreground">Kaynak</label>
             <div className="flex gap-2">
             <div className="flex-1">
-                <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                    <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="justify-between w-full font-normal"
-                    disabled={!selectedType || disabled}
-                    >
-                    {displayLabel}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                    <Command shouldFilter={false}>
-                    <CommandInput
-                        placeholder="Kaynak ara..."
-                        value={search}
-                        onValueChange={setSearch}
-                    />
-                    <CommandList>
-                        {loading && (
-                        <div className="py-6 text-center text-sm text-muted-foreground flex justify-center items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
-                        </div>
+                <AddonAwareControl
+                  startAddon={addons.startAddon}
+                  endAddon={addons.endAddon}
+                  controlClassName={hasAddons ? "px-1.5" : undefined}
+                >
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger asChild>
+                        <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={open}
+                        className={cn(
+                          "justify-between w-full font-normal",
+                          hasAddons && "h-full border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
                         )}
-                        {!loading && options.length === 0 && (
-                        <CommandEmpty>Kaynak bulunamadı.</CommandEmpty>
-                        )}
-                        {!loading && options.map((option) => (
-                        <CommandItem
-                            key={option.value}
-                            value={String(option.value)}
-                            onSelect={() => handleResourceSelect(option)}
+                        disabled={!selectedType || disabled}
                         >
-                            <Check
-                            className={cn(
-                                "mr-2 h-4 w-4",
-                                String(selectedId) === String(option.value) ? "opacity-100" : "opacity-0"
-                            )}
-                            />
-                            <div className="flex flex-col">
-                            <span>{option.display}</span>
-                            {option.subtitle && (
-                                <span className="text-xs text-muted-foreground">{option.subtitle}</span>
-                            )}
+                        {displayLabel}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                        <Command shouldFilter={false}>
+                        <CommandInput
+                            placeholder="Kaynak ara..."
+                            value={search}
+                            onValueChange={setSearch}
+                        />
+                        <CommandList>
+                            {loading && (
+                            <div className="py-6 text-center text-sm text-muted-foreground flex justify-center items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor...
                             </div>
-                        </CommandItem>
-                        ))}
-                    </CommandList>
-                    </Command>
-                </PopoverContent>
-                </Popover>
+                            )}
+                            {!loading && options.length === 0 && (
+                            <CommandEmpty>Kaynak bulunamadı.</CommandEmpty>
+                            )}
+                            {!loading && options.map((option) => (
+                            <CommandItem
+                                key={option.value}
+                                value={String(option.value)}
+                                onSelect={() => handleResourceSelect(option)}
+                            >
+                                <Check
+                                className={cn(
+                                    "mr-2 h-4 w-4",
+                                    String(selectedId) === String(option.value) ? "opacity-100" : "opacity-0"
+                                )}
+                                />
+                                <div className="flex flex-col">
+                                <span>{option.display}</span>
+                                {option.subtitle && (
+                                    <span className="text-xs text-muted-foreground">{option.subtitle}</span>
+                                )}
+                                </div>
+                            </CommandItem>
+                            ))}
+                        </CommandList>
+                        </Command>
+                    </PopoverContent>
+                  </Popover>
+                </AddonAwareControl>
             </div>
             <Button
                 type="button"
@@ -299,6 +320,8 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
             resourceSlug={types.find((t) => t.value === selectedType || t.slug === selectedType)?.slug || selectedType}
             open={quickCreateOpen}
             onOpenChange={setQuickCreateOpen}
+            parentResourceId={parentResourceId}
+            parentResourceSlug={parentResourceSlug}
             onSuccess={(createdResource) => {
                 // Yeni kaydı options'a ekle
                 const newOption: ResourceOption = {

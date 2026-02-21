@@ -3,16 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { IndexView, type IndexViewColumn } from '@/components/views/IndexView';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { LayoutGrid, Plus, Table } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resourceService } from '@/services/resource';
 import type { ResourceParams } from '@/lib/resource-params';
 import type { FieldData } from '@/types';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
-import { renderDisplayComponent } from '@/lib/display-components';
-import { formatMoneyFieldValue } from '@/lib/money-display';
 import {
   buildRelationshipQueryString,
   parseRelationshipUrlState,
@@ -20,6 +15,9 @@ import {
   serializeColumnFiltersKey,
   type RelationshipUrlState,
 } from '@/lib/relationship-table-url-state';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ResourceGridView } from '@/components/views/ResourceGridView';
+import { renderResourceFieldValue } from '@/lib/resource-field-render';
 
 export interface RelationshipTableProps {
   /** İlişkili resource tipi (örn: "posts", "comments") */
@@ -101,6 +99,7 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
         search: patch.search !== undefined ? patch.search : urlState.search,
         page: patch.page !== undefined ? patch.page : urlState.page,
         perPage: patch.perPage !== undefined ? patch.perPage : urlState.perPage,
+        view: patch.view !== undefined ? patch.view : urlState.view,
         sortBy: patch.sortBy !== undefined ? patch.sortBy : urlState.sortBy,
         sortOrder: patch.sortOrder !== undefined ? patch.sortOrder : urlState.sortOrder,
         columnFilters:
@@ -136,6 +135,7 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
       urlState.columnFilters,
       urlState.page,
       urlState.perPage,
+      urlState.view,
       urlState.search,
       urlState.sortBy,
       urlState.sortOrder,
@@ -191,12 +191,14 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
       urlState.sortBy,
       urlState.sortOrder,
       urlState.search,
+      urlState.view,
       filtersKey,
     ],
     queryFn: async () => {
       const params: ResourceParams = {
         page: urlState.page,
         per_page: urlState.perPage,
+        view: urlState.view,
       };
 
       if (urlState.sortBy) {
@@ -244,86 +246,8 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
         render: (_: any, resource: any) => {
             const field = resource[header.key] as FieldData;
             if (!field) return null;
-
-            if (header.key === "image" || header.view === "image-field") {
-                return (
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage src={field.data} alt={field.name} />
-                        <AvatarFallback>{field.name ? field.name.substring(0, 2).toUpperCase() : "IMG"}</AvatarFallback>
-                    </Avatar>
-                )
-            }
-
-            if (header.view === "badge-field") {
-                return (
-                    <Badge variant={field.props?.variant || 'default'}>
-                        {field.data}
-                    </Badge>
-                )
-            }
-
-            const relationshipContent = renderRelationshipFieldValue(field, resource as Record<string, unknown>);
-            if (relationshipContent !== null) {
-                return relationshipContent;
-            }
-
-            const displayComponent = renderDisplayComponent(field.data);
-            if (displayComponent !== null) {
-                return displayComponent;
-            }
-
-            // Handle objects (like relations)
-            if (typeof field.data === 'object' && field.data !== null) {
-                const data = field.data as any
-
-                // Handle Arrays (BelongsToMany, HasMany)
-                if (Array.isArray(data)) {
-                    return (
-                        <div className="flex flex-wrap gap-1">
-                            {data.map((item: any, i: number) => {
-                                let label: string;
-                                if (item && typeof item === 'object' && 'data' in item) {
-                                    const fieldData = item.data;
-                                    label = typeof fieldData === 'object' 
-                                        ? String(fieldData.name || fieldData.title || fieldData.label || fieldData.id || i)
-                                        : String(fieldData || i);
-                                } else if (typeof item === 'object') {
-                                    label = String(item.name || item.title || item.label || item.id || i);
-                                } else {
-                                    label = String(item);
-                                }
-
-                                return (
-                                    <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground">
-                                        {label}
-                                    </span>
-                                )
-                            })}
-                        </div>
-                    )
-                }
-
-                return data.name || data.email || data.title || data.username || data.id || JSON.stringify(data)
-            }
-
-            // Handle options
-            if (field.props?.options) {
-                if (Array.isArray(field.props.options)) {
-                    const option = field.props.options.find((opt: any) => opt.value === field.data)
-                    if (option) return option.label
-                } else {
-                    const options = field.props.options as Record<string, string>
-                    const valStr = String(field.data)
-                    if (options[valStr]) return options[valStr]
-                }
-            }
-
-            const formattedMoneyValue = formatMoneyFieldValue(field);
-            if (formattedMoneyValue !== null) {
-              return formattedMoneyValue;
-            }
-
-            return field.data
+            const renderedValue = renderResourceFieldValue(field, header, resource);
+            return renderedValue === null || renderedValue === undefined || renderedValue === '' ? '—' : renderedValue;
         }
       }));
   }, [data]);
@@ -349,6 +273,15 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
     [updateUrlState, urlState.sortBy, urlState.sortOrder]
   );
 
+  const handleViewChange = useCallback(
+    (nextView: 'table' | 'grid') => {
+      updateUrlState({
+        view: nextView,
+      });
+    },
+    [updateUrlState]
+  );
+
   const handleColumnFiltersChange = useCallback(
     (filters: Record<string, string[]>) => {
       updateUrlState({
@@ -361,6 +294,9 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
 
   const total = Number(data?.meta?.total || 0);
   const totalPages = Math.max(1, Math.ceil(total / urlState.perPage));
+  const gridEnabled = data?.meta?.grid_enabled !== false;
+  const currentView: 'table' | 'grid' =
+    gridEnabled && urlState.view === 'grid' ? 'grid' : 'table';
 
   // Panel header
   // const panelTitle = title || `${resourceType} (${data?.meta?.total || 0})`;
@@ -369,8 +305,29 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
     <div className={cn('border rounded-lg', className)}>
       {/* Panel Content */}
       <div className="p-4">
-        {showAttachButton && onAttach && (
-          <div className="flex justify-end mb-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          {gridEnabled && (
+            <ToggleGroup
+              type="single"
+              value={currentView}
+              onValueChange={(value) => {
+                if (value === 'table' || value === 'grid') {
+                  handleViewChange(value);
+                }
+              }}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="table" aria-label="Table view">
+                <Table className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="grid" aria-label="Grid view">
+                <LayoutGrid className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
+
+          {showAttachButton && onAttach && (
             <Button
               variant="outline"
               size="sm"
@@ -380,27 +337,42 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
               <Plus className="h-4 w-4 mr-1" />
               Attach
             </Button>
-          </div>
-        )}
+          )}
+        </div>
 
-        <IndexView
-          resources={(data?.data || []) as any[]}
-          columns={columns}
-          isLoading={isLoading}
-          isEmpty={!isLoading && (!data?.data || data.data.length === 0)}
-          error={error ? String(error) : null}
-          searchQuery={urlState.search}
-          onSearchChange={handleSearchChange}
-          sortBy={urlState.sortBy}
-          sortOrder={urlState.sortOrder}
-          onSort={handleSort}
-          columnFilters={urlState.columnFilters}
-          onColumnFiltersChange={handleColumnFiltersChange}
-          onView={onView}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onRetry={() => refetch()}
-        />
+        {currentView === 'grid' ? (
+          <ResourceGridView
+            resources={(data?.data || []) as any[]}
+            headers={data?.meta?.headers || []}
+            recordTitleKey={data?.meta?.record_title_key}
+            isLoading={isLoading}
+            isEmpty={!isLoading && (!data?.data || data.data.length === 0)}
+            searchQuery={urlState.search}
+            onSearchChange={handleSearchChange}
+            onView={onView as any}
+            onEdit={onEdit as any}
+            onDelete={onDelete as any}
+          />
+        ) : (
+          <IndexView
+            resources={(data?.data || []) as any[]}
+            columns={columns}
+            isLoading={isLoading}
+            isEmpty={!isLoading && (!data?.data || data.data.length === 0)}
+            error={error ? String(error) : null}
+            searchQuery={urlState.search}
+            onSearchChange={handleSearchChange}
+            sortBy={urlState.sortBy}
+            sortOrder={urlState.sortOrder}
+            onSort={handleSort}
+            columnFilters={urlState.columnFilters}
+            onColumnFiltersChange={handleColumnFiltersChange}
+            onView={onView}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onRetry={() => refetch()}
+          />
+        )}
 
         {/* Pagination */}
         {data?.meta && data.meta.total > urlState.perPage && (

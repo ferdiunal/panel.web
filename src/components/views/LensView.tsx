@@ -31,17 +31,14 @@ import { resourceService } from '@/services/resource';
 import { WidgetRenderer } from '@/components/widget-renderer';
 import { IndexView, type IndexViewColumn } from '@/components/views/IndexView';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, Table } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import type { LensViewProps } from '@/types/lens';
 import type { ResourceItem, FieldData, Card as CardType } from '@/types';
-import { renderRelationshipFieldValue } from '@/lib/relation-field-links';
-import { renderDisplayComponent } from '@/lib/display-components';
-import { formatTemporalFieldValue } from '@/lib/date-display';
-import { formatMoneyFieldValue } from '@/lib/money-display';
 import { getCardGridSpan } from '@/lib/card-grid';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { renderResourceFieldValue } from '@/lib/resource-field-render';
+import { ResourceGridView } from '@/components/views/ResourceGridView';
 
 /**
  * LensView Component
@@ -64,6 +61,7 @@ export function LensView({
   const search = searchParams.get('search') || '';
   const sortBy = searchParams.get('sort_by') || '';
   const sortOrder = (searchParams.get('sort_order') as 'asc' | 'desc') || 'asc';
+  const requestedView = searchParams.get('view') === 'grid' ? 'grid' : 'table';
 
   /**
    * Lens verilerini getir
@@ -74,7 +72,7 @@ export function LensView({
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['lens', resourceName, lensSlug, page, perPage, search, sortBy, sortOrder],
+    queryKey: ['lens', resourceName, lensSlug, page, perPage, search, sortBy, sortOrder, requestedView],
     queryFn: () =>
       resourceService.getLensData(resourceName, lensSlug, {
         page,
@@ -82,6 +80,7 @@ export function LensView({
         search,
         sort_by: sortBy,
         sort_order: sortOrder,
+        view: requestedView,
       }),
     staleTime: 30000, // 30 saniye
   });
@@ -112,101 +111,8 @@ export function LensView({
         render: (_: any, resource: ResourceItem) => {
           const field: FieldData = resource[key] as FieldData;
           if (!field) return null;
-
-          // Image field rendering
-          if (header.key === 'image' || header.view === 'image-field') {
-            return (
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={field.data} alt={field.name} />
-                <AvatarFallback>
-                  {field.name ? field.name.substring(0, 2).toUpperCase() : 'IMG'}
-                </AvatarFallback>
-              </Avatar>
-            );
-          }
-
-          // Badge field rendering
-          if (header.view === 'badge-field') {
-            return (
-              <Badge variant={field.props?.variant || 'default'}>
-                {field.data}
-              </Badge>
-            );
-          }
-
-          const relationshipContent = renderRelationshipFieldValue(field, resource as Record<string, unknown>);
-          if (relationshipContent !== null) {
-            return relationshipContent;
-          }
-
-          const displayComponent = renderDisplayComponent(field.data);
-          if (displayComponent !== null) {
-            return displayComponent;
-          }
-
-          // Object field rendering (relations)
-          if (typeof field.data === 'object' && field.data !== null) {
-            const data = field.data as any;
-
-            // Array rendering (BelongsToMany, HasMany)
-            if (Array.isArray(data)) {
-              return (
-                <div className="flex flex-wrap gap-1">
-                  {data.map((item: any, i: number) => {
-                    const label =
-                      typeof item === 'object'
-                        ? item.name ||
-                          item.title ||
-                          item.label ||
-                          item.username ||
-                          item.email ||
-                          item.id
-                        : item;
-
-                    return (
-                      <span
-                        key={i}
-                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground"
-                      >
-                        {String(label)}
-                      </span>
-                    );
-                  })}
-                </div>
-              );
-            }
-
-            // Object rendering (BelongsTo, HasOne)
-            return (
-              data.name ||
-              data.email ||
-              data.title ||
-              data.username ||
-              data.id ||
-              JSON.stringify(data)
-            );
-          }
-
-          // Options rendering (select fields)
-          if (field.props?.options) {
-            const options = field.props.options as Record<string, string>;
-            const valStr = String(field.data);
-            if (options[valStr]) {
-              return options[valStr];
-            }
-          }
-
-          const formattedTemporalValue = formatTemporalFieldValue(field);
-          if (formattedTemporalValue !== null) {
-            return formattedTemporalValue;
-          }
-
-          const formattedMoneyValue = formatMoneyFieldValue(field);
-          if (formattedMoneyValue !== null) {
-            return formattedMoneyValue;
-          }
-
-          return field.data;
+          const renderedValue = renderResourceFieldValue(field, header, resource);
+          return renderedValue === null || renderedValue === undefined || renderedValue === '' ? '—' : renderedValue;
         },
       };
     });
@@ -269,6 +175,16 @@ export function LensView({
     setSearchParams(newParams);
   };
 
+  const handleViewChange = (nextView: 'table' | 'grid') => {
+    const newParams = new URLSearchParams(searchParams);
+    if (nextView === 'grid') {
+      newParams.set('view', 'grid');
+    } else {
+      newParams.delete('view');
+    }
+    setSearchParams(newParams);
+  };
+
   // Loading state
   if (isLoading && !lensData) {
     return (
@@ -320,6 +236,8 @@ export function LensView({
 
   const hasNextPage = !!lensData.nextPageUrl;
   const hasPrevPage = !!lensData.prevPageUrl;
+  const gridEnabled = lensData.grid_enabled !== false;
+  const view: 'table' | 'grid' = gridEnabled && requestedView === 'grid' ? 'grid' : 'table';
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-8 pt-0">
@@ -335,22 +253,54 @@ export function LensView({
       )}
 
       {/* Lens Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">{lensData.name}</h1>
+        {gridEnabled && (
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={(value) => {
+              if (value === 'table' || value === 'grid') {
+                handleViewChange(value);
+              }
+            }}
+            variant="outline"
+            size="sm"
+          >
+            <ToggleGroupItem value="table" aria-label="Table view">
+              <Table className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Grid view">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
       </div>
 
-      {/* IndexView with table */}
-      <IndexView
-        resources={lensData.resources as any}
-        columns={columns as any}
-        isLoading={isLoading}
-        isEmpty={lensData.resources.length === 0}
-        searchQuery={search}
-        onSearchChange={searchable ? handleSearchChange : undefined}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onSort={handleSort}
-      />
+      {/* IndexView / GridView */}
+      {view === 'grid' ? (
+        <ResourceGridView
+          resources={lensData.resources as any}
+          headers={lensData.headers || []}
+          recordTitleKey={lensData.record_title_key}
+          isLoading={isLoading}
+          isEmpty={lensData.resources.length === 0}
+          searchQuery={search}
+          onSearchChange={searchable ? handleSearchChange : undefined}
+        />
+      ) : (
+        <IndexView
+          resources={lensData.resources as any}
+          columns={columns as any}
+          isLoading={isLoading}
+          isEmpty={lensData.resources.length === 0}
+          searchQuery={search}
+          onSearchChange={searchable ? handleSearchChange : undefined}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={handleSort}
+        />
+      )}
 
       {/* Pagination */}
       {lensData.resources.length > 0 && (

@@ -11,8 +11,6 @@ import React, { useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { FieldLayout } from '../FieldLayout';
 import type { FormFieldProps } from '@/types';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -33,6 +31,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import {
+  AddonAwareControl,
+  AddonAwareInput,
+  AddonAwareTextarea,
+} from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 
 type MatrixColumnType =
   | 'text'
@@ -231,6 +235,8 @@ export const MatrixFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const config = useMemo<MatrixConfig>(() => {
     const options = field.props?.options;
@@ -243,6 +249,11 @@ export const MatrixFormField: React.FC<FormFieldProps> = ({
     const candidateColumns = field.props?.columns ?? config.columns;
     return resolveColumns(candidateColumns, rows);
   }, [field.props?.columns, config.columns, rows]);
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+  const hasAddons = !!addons.startAddon || !!addons.endAddon;
 
   const allowAddingRows = config.allowAddingRows !== false;
   const allowDeletingRows = config.allowDeletingRows !== false;
@@ -367,7 +378,7 @@ export const MatrixFormField: React.FC<FormFieldProps> = ({
     switch (column.type) {
       case 'number':
         return (
-          <Input
+          <AddonAwareInput
             type="number"
             value={rawValue === undefined || rawValue === null ? '' : String(rawValue)}
             onChange={(event) =>
@@ -376,17 +387,21 @@ export const MatrixFormField: React.FC<FormFieldProps> = ({
             onBlur={onBlur}
             disabled={columnDisabled}
             placeholder={cellPlaceholder}
+            startAddon={addons.startAddon}
+            endAddon={addons.endAddon}
           />
         );
 
       case 'textarea':
         return (
-          <Textarea
+          <AddonAwareTextarea
             value={rawValue === undefined || rawValue === null ? '' : String(rawValue)}
             onChange={(event) => handleCellChange(rowIndex, column, event.target.value)}
             onBlur={onBlur}
             disabled={columnDisabled}
             placeholder={cellPlaceholder}
+            startAddon={addons.startAddon}
+            endAddon={addons.endAddon}
             className="min-h-20"
           />
         );
@@ -399,26 +414,37 @@ export const MatrixFormField: React.FC<FormFieldProps> = ({
             : String(rawValue);
 
         return (
-          <Select
-            value={currentValue}
-            onValueChange={(next) => handleCellChange(rowIndex, column, next)}
-            disabled={columnDisabled}
+          <AddonAwareControl
+            startAddon={addons.startAddon}
+            endAddon={addons.endAddon}
+            controlClassName={hasAddons ? 'px-1.5' : undefined}
           >
-            <SelectTrigger className={cn(error && 'border-destructive focus-visible:ring-destructive/20')}>
-              <SelectValue placeholder={cellPlaceholder || 'Select'} />
-            </SelectTrigger>
-            <SelectContent>
-              {options.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  disabled={Boolean(option.disabled)}
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select
+              value={currentValue}
+              onValueChange={(next) => handleCellChange(rowIndex, column, next)}
+              disabled={columnDisabled}
+            >
+              <SelectTrigger
+                className={cn(
+                  hasAddons && 'h-full w-full border-0 bg-transparent px-0 shadow-none focus-visible:ring-0',
+                  error && 'border-destructive focus-visible:ring-destructive/20'
+                )}
+              >
+                <SelectValue placeholder={cellPlaceholder || 'Select'} />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    disabled={Boolean(option.disabled)}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </AddonAwareControl>
         );
       }
 
@@ -522,13 +548,15 @@ export const MatrixFormField: React.FC<FormFieldProps> = ({
       case 'text':
       default:
         return (
-          <Input
+          <AddonAwareInput
             type="text"
             value={rawValue === undefined || rawValue === null ? '' : String(rawValue)}
             onChange={(event) => handleCellChange(rowIndex, column, event.target.value)}
             onBlur={onBlur}
             disabled={columnDisabled}
             placeholder={cellPlaceholder}
+            startAddon={addons.startAddon}
+            endAddon={addons.endAddon}
           />
         );
     }

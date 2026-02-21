@@ -6,10 +6,11 @@
  */
 
 import React from 'react';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareInput } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 /**
@@ -48,8 +49,14 @@ export const BadgeFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const variant = (field.props?.variant as 'default' | 'secondary' | 'destructive' | 'outline') || 'default';
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
 
   return (
     <FieldLayout
@@ -61,7 +68,7 @@ export const BadgeFormField: React.FC<FormFieldProps> = ({
       disabled={disabled}
     >
       <div className="space-y-2">
-        <Input
+        <AddonAwareInput
           id={name}
           name={name}
           type="text"
@@ -72,6 +79,8 @@ export const BadgeFormField: React.FC<FormFieldProps> = ({
           placeholder={placeholder}
           aria-invalid={!!error}
           aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+          startAddon={addons.startAddon}
+          endAddon={addons.endAddon}
           className={cn(
             error && 'border-destructive focus-visible:ring-destructive/20'
           )}

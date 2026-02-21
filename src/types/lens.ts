@@ -39,8 +39,12 @@ export interface LensResponse {
   softDeletes: boolean;
   /** ID alanı var mı? */
   hasId: boolean;
+  /** Grid görünümü resource seviyesinde aktif mi? */
+  grid_enabled?: boolean;
   /** Lens'e ait header field'ları */
   headers?: FieldData[];
+  /** Kayıt başlığı için kullanılacak field key */
+  record_title_key?: string;
 }
 
 /**
@@ -88,4 +92,6 @@ export interface LensQueryParams {
   sort_order?: 'asc' | 'desc';
   /** Filtreler (opsiyonel) */
   filters?: Record<string, any>;
+  /** Görünüm modu */
+  view?: 'table' | 'grid';
 }

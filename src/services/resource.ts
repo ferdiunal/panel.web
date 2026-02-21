@@ -5,8 +5,6 @@ import type { ResolveDependenciesRequest, ResolveDependenciesResponse } from "@/
 import type { LensData, LensResponse, LensQueryParams } from "@/types/lens";
 import qs from "qs";
 
-const FORM_NULL_SENTINEL = "__PANEL_NULL__";
-
 export interface ResourceFieldResponse {
     fields: FieldData[];
     meta?: Record<string, any>;
@@ -38,6 +36,11 @@ export const resourceService = {
         // Add filters
         if (params.filters && Object.keys(params.filters).length > 0) {
             queryParams[resource].filters = params.filters;
+        }
+
+        // Add view mode
+        if (params.view === "grid") {
+            queryParams[resource].view = "grid";
         }
 
         // Add pagination
@@ -78,6 +81,11 @@ export const resourceService = {
     },
 
     createResource: async (resource: string, data: any) => {
+        if (!shouldUseMultipart(data)) {
+            const response = await api.post(`/resource/${resource}`, data);
+            return response.data;
+        }
+
         const formData = toFormData(data);
         const response = await api.post(`/resource/${resource}`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
@@ -86,6 +94,11 @@ export const resourceService = {
     },
 
     updateResource: async (resource: string, id: string | number, data: any) => {
+        if (!shouldUseMultipart(data)) {
+            const response = await api.put(`/resource/${resource}/${id}`, data);
+            return response.data;
+        }
+
         const formData = toFormData(data);
         // Note: PUT with multipart/form-data can be tricky in some servers/proxies but Go Fiber handles it.
         // Usually POST with _method=PUT is safer for legacy, but we'll try direct PUT.
@@ -164,6 +177,7 @@ export const resourceService = {
         if (params.sort_by) queryParams.sort_by = params.sort_by;
         if (params.sort_order) queryParams.sort_order = params.sort_order;
         if (params.filters) queryParams.filters = params.filters;
+        if (params.view === "grid") queryParams.view = "grid";
 
         const queryString = qs.stringify(queryParams, {
             encode: true,
@@ -193,34 +207,64 @@ export const resourceService = {
 
 function toFormData(data: any): FormData {
     const formData = new FormData();
-    Object.keys(data).forEach((key) => {
-        const value = data[key];
+
+    const appendValue = (key: string, value: any) => {
         if (value === undefined) return;
 
         if (value === null) {
-            formData.append(key, FORM_NULL_SENTINEL);
+            // Multipart cannot represent null directly. Empty string is treated as clear signal for nullable relation/file fields.
+            formData.append(key, "");
             return;
         }
 
-        // If it's a File object (browser), append directly
         if (value instanceof File) {
             formData.append(key, value);
-        } else if (Array.isArray(value)) {
-            // Handle arrays if needed (e.g. key[])
-            value.forEach((v) => {
-                if (v !== undefined && v !== null) {
-                    formData.append(`${key}[]`, v);
-                }
-            });
-        } else if (typeof value === 'object' && !(value instanceof Date)) {
-            // Handle nested objects if necessary, or just JSON stringify
-            // For simple resource forms, usually flat.
-            // If complex, maybe JSON stringify? But multipart usually expects flat keys.
-            // Let's assume flat for now or stringify.
-            formData.append(key, JSON.stringify(value));
-        } else {
-            formData.append(key, String(value));
+            return;
         }
+
+        if (value instanceof Date) {
+            formData.append(key, value.toISOString());
+            return;
+        }
+
+        if (typeof value === "object") {
+            formData.append(key, JSON.stringify(value));
+            return;
+        }
+
+        formData.append(key, String(value));
+    };
+
+    Object.keys(data).forEach((key) => {
+        const value = data[key];
+        if (Array.isArray(value)) {
+            value.forEach((v) => {
+                appendValue(`${key}[]`, v);
+            });
+            return;
+        }
+
+        appendValue(key, value);
     });
     return formData;
+}
+
+function shouldUseMultipart(data: Record<string, any>): boolean {
+    return Object.values(data).some(hasFileValue);
+}
+
+function hasFileValue(value: any): boolean {
+    if (value instanceof File) {
+        return true;
+    }
+
+    if (Array.isArray(value)) {
+        return value.some(hasFileValue);
+    }
+
+    if (value && typeof value === "object" && !(value instanceof Date)) {
+        return Object.values(value).some(hasFileValue);
+    }
+
+    return false;
 }

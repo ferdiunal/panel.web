@@ -3,12 +3,14 @@
  */
 
 import React from 'react';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareTextarea } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 export const PanelFormField: React.FC<FormFieldProps> = ({
+  field,
   name,
   label,
   value,
@@ -19,7 +21,14 @@ export const PanelFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+
   return (
     <FieldLayout
       name={name}
@@ -29,7 +38,7 @@ export const PanelFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <Textarea
+      <AddonAwareTextarea
         id={name}
         name={name}
         value={value || ''}
@@ -38,6 +47,8 @@ export const PanelFormField: React.FC<FormFieldProps> = ({
         disabled={disabled}
         placeholder={placeholder}
         rows={4}
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
         className={cn(
           error && 'border-destructive focus-visible:ring-destructive/20'
         )}

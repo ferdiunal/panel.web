@@ -9,11 +9,12 @@ import React, { useState, useMemo } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Input } from '@/components/ui/input';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareInput } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 /**
@@ -78,11 +79,18 @@ export const DateFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder = 'Tarih seçin',
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Native mode kontrolü
   const useNative = (field.props?.useNative as boolean) || false;
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+  const shouldUseNative = useNative || !!addons.startAddon || !!addons.endAddon;
 
   /**
    * Value'yu normalize et (Date object'e çevir)
@@ -98,7 +106,7 @@ export const DateFormField: React.FC<FormFieldProps> = ({
   }, [value]);
 
   // Native mod
-  if (useNative) {
+  if (shouldUseNative) {
     const dateValue = normalizedValue ? format(normalizedValue, 'yyyy-MM-dd') : '';
 
     const handleNativeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,7 +127,7 @@ export const DateFormField: React.FC<FormFieldProps> = ({
         helpText={helpText}
         disabled={disabled}
       >
-        <Input
+        <AddonAwareInput
           id={name}
           name={name}
           type="date"
@@ -130,6 +138,8 @@ export const DateFormField: React.FC<FormFieldProps> = ({
           placeholder={placeholder}
           aria-invalid={!!error}
           aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+          startAddon={addons.startAddon}
+          endAddon={addons.endAddon}
           className={cn(
             error && 'border-destructive focus-visible:ring-destructive/20'
           )}

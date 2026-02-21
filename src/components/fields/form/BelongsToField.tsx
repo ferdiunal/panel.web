@@ -15,12 +15,21 @@ import {
   ComboboxItem,
   ComboboxEmpty,
 } from '@/components/ui/combobox';
+import { InputGroupAddon, InputGroupText } from '@/components/ui/input-group';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Resource } from '@/types';
 import { QuickCreateModal } from '../QuickCreateModal';
 import { FieldLayout } from '../FieldLayout';
 import type { FormFieldProps } from '@/types';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
+
+function renderAddon(addon: React.ReactNode): React.ReactNode {
+  if (typeof addon === 'string' || typeof addon === 'number') {
+    return <InputGroupText>{addon}</InputGroupText>;
+  }
+  return addon;
+}
 
 const EMPTY_OPTIONS: Record<string, string> = {};
 
@@ -38,6 +47,9 @@ export const BelongsToFormField: React.FC<FormFieldProps> = ({
   helpText,
   container,
   className,
+  startAddon,
+  endAddon,
+  ...props
 }) => {
     // Props extraction from field.props
     const related_resource = field.props?.related_resource as string;
@@ -45,7 +57,12 @@ export const BelongsToFormField: React.FC<FormFieldProps> = ({
     const optionsProp = field.props?.options as Record<string, string>;
     const initialOptions = optionsProp || EMPTY_OPTIONS;
     const tooltip = field.props?.tooltip as string;
-    const parentResourceId = field.props?.parentResourceId as string | number;
+    const parentResourceId = (props.parentResourceId ?? field.props?.parentResourceId) as string | number | undefined;
+    const parentResourceSlug = (props.parentResourceSlug ?? field.props?.parentResourceSlug) as string | undefined;
+    const addons = resolveFieldInputAddons(
+      field.props as Record<string, unknown> | undefined,
+      { startAddon, endAddon }
+    );
 
     const [searchQuery, setSearchQuery] = useState('');
     const [options, setOptions] = useState<Resource[]>([]);
@@ -223,7 +240,18 @@ export const BelongsToFormField: React.FC<FormFieldProps> = ({
                   showClear={!!value}
                   aria-invalid={!!error}
                   aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
-                />
+                >
+                  {addons.startAddon && (
+                    <InputGroupAddon align="inline-start">
+                      {renderAddon(addons.startAddon)}
+                    </InputGroupAddon>
+                  )}
+                  {addons.endAddon && (
+                    <InputGroupAddon align="inline-end">
+                      {renderAddon(addons.endAddon)}
+                    </InputGroupAddon>
+                  )}
+                </ComboboxInput>
                 <ComboboxContent container={container}>
                   {isLoading && (
                     <div className="p-2 text-sm text-muted-foreground text-center">
@@ -266,6 +294,7 @@ export const BelongsToFormField: React.FC<FormFieldProps> = ({
                 open={quickCreateOpen}
                 onOpenChange={setQuickCreateOpen}
                 parentResourceId={parentResourceId}
+                parentResourceSlug={parentResourceSlug}
                 onSuccess={(createdResource) => {
                   // Yeni kaydı options'a ekle
                   // @ts-ignore

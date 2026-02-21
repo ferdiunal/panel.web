@@ -4,9 +4,7 @@ import { resourceService } from "@/services/resource"
 import type { ResourceItem, FieldData, Card as CardType } from "@/types"
 import { WidgetRenderer } from "@/components/widget-renderer"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { LayoutGrid, Plus, Table } from "lucide-react"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import type { ResponsiveModalSize } from "@/components/ui/responsive-modal"
 import { UniversalResourceForm } from "@/components/forms/UniversalResourceForm"
@@ -32,13 +30,12 @@ import { useResourceParams } from "@/hooks/useResourceParams"
 import { ActionButton, ActionModal } from "@/components/actions"
 import { useActionStore } from "@/stores/action-store"
 import { DetailModalWrapper } from "@/components/DetailModalWrapper"
-import { renderRelationshipFieldValue } from "@/lib/relation-field-links"
-import { renderDisplayComponent } from "@/lib/display-components"
-import { formatTemporalFieldValue } from "@/lib/date-display"
-import { formatMoneyFieldValue } from "@/lib/money-display"
 import { extractRecordIdFromItem, extractRecordTitleFromFields, extractRecordTitleFromItem, extractRecordTitleFromMeta, formatRecordReference } from "@/lib/record-reference"
 import type { ResourceFieldResponse } from "@/services/resource"
 import { getCardGridSpan } from "@/lib/card-grid"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { ResourceGridView } from "@/components/views/ResourceGridView"
+import { renderResourceFieldValue } from "@/lib/resource-field-render"
 
 interface LoaderData {
     data: any
@@ -330,6 +327,7 @@ export default function ResourceIndexPage() {
         updateSort,
         updatePage,
         updatePerPage,
+        updateView,
         isSearchPending,
     } = useResourceParams({
         resource: resource || '',
@@ -339,7 +337,7 @@ export default function ResourceIndexPage() {
 
     // Resource Data Query
     const { data: resourceData, isLoading, isError } = useQuery({
-        queryKey: ["resource", resource, params.search, params.sort?.column, params.sort?.direction, params.page, params.per_page],
+        queryKey: ["resource", resource, params.search, params.sort?.column, params.sort?.direction, params.page, params.per_page, params.view],
         queryFn: async () => {
             if (!resource) return null
             return resourceService.fetchResource(resource, params)
@@ -469,6 +467,15 @@ export default function ResourceIndexPage() {
         return "links"
     }, [resourceData?.meta?.pagination?.type])
 
+    const gridEnabled = resourceData?.meta?.grid_enabled !== false
+    const currentView: "table" | "grid" = gridEnabled && params.view === "grid" ? "grid" : "table"
+
+    useEffect(() => {
+        if (!gridEnabled && params.view === "grid") {
+            updateView("table")
+        }
+    }, [gridEnabled, params.view, updateView])
+
     const loadMoreSignature = useMemo(() => {
         return JSON.stringify({
             resource,
@@ -477,8 +484,9 @@ export default function ResourceIndexPage() {
             sortDirection: params.sort?.direction || "",
             filters: params.filters || {},
             perPage: params.per_page,
+            view: currentView,
         })
-    }, [params.filters, params.per_page, params.search, params.sort?.column, params.sort?.direction, resource])
+    }, [currentView, params.filters, params.per_page, params.search, params.sort?.column, params.sort?.direction, resource])
 
     const [loadMorePages, setLoadMorePages] = useState<Record<number, ResourceItem[]>>({})
     const [loadMoreStateSignature, setLoadMoreStateSignature] = useState("")
@@ -773,12 +781,6 @@ export default function ResourceIndexPage() {
         }
     }
 
-    const openDetailFromEditModal = () => {
-        if (!editingItem) return
-        closeEditModal(false)
-        openDetailModal(editingItem)
-    }
-
     const closeDetailModal = (stackIndex: number) => {
         if (stackIndex === 0) {
             setDetailStack([])
@@ -822,87 +824,8 @@ export default function ResourceIndexPage() {
                 render: (_: any, record: ResourceItem) => {
                     const field: FieldData = record[key] as FieldData
                     if (!field) return null
-
-                    if (header.key === "image" || header.view === "image-field") {
-                        return (
-                            <Avatar className="h-8 w-8">
-                                <AvatarImage src={field.data} alt={field.name} />
-                                <AvatarFallback>{field.name ? field.name.substring(0, 2).toUpperCase() : "IMG"}</AvatarFallback>
-                            </Avatar>
-                        )
-                    }
-
-                    if (header.view === "badge-field") {
-                        return (
-                            <Badge variant={field.props?.variant || 'default'}>
-                                {field.data}
-                            </Badge>
-                        )
-                    }
-
-                    const relationshipContent = renderRelationshipFieldValue(field, record as Record<string, unknown>)
-                    if (relationshipContent !== null) {
-                        return relationshipContent
-                    }
-
-                    const displayComponent = renderDisplayComponent(field.data)
-                    if (displayComponent !== null) {
-                        return displayComponent
-                    }
-
-                    if (typeof field.data === 'object' && field.data !== null) {
-                        const data = field.data as any
-                        if (Array.isArray(data)) {
-                            return (
-                                <div className="flex flex-wrap gap-1">
-                                    {data.map((item: any, i: number) => {
-                                        let label: string;
-                                        if (item && typeof item === 'object' && 'data' in item && 'key' in item) {
-                                            const fieldData = item.data;
-                                            if (fieldData && typeof fieldData === 'object') {
-                                                label = String(fieldData.name || fieldData.title || fieldData.label || fieldData.id || i);
-                                            } else {
-                                                label = String(fieldData || i);
-                                            }
-                                        } else if (typeof item === 'object') {
-                                            label = String(item.name || item.title || item.label || item.username || item.email || item.id || i);
-                                        } else {
-                                            label = String(item);
-                                        }
-                                        return (
-                                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground">
-                                                {label}
-                                            </span>
-                                        )
-                                    })}
-                                </div>
-                            )
-                        }
-                        return data.name || data.email || data.title || data.username || data.id || JSON.stringify(data)
-                    }
-
-                    if (field.props?.options) {
-                        if (Array.isArray(field.props.options)) {
-                            const option = field.props.options.find((opt: any) => opt.value === field.data)
-                            if (option) return option.label
-                        } else {
-                            const options = field.props.options as Record<string, string>
-                            const valStr = String(field.data)
-                            if (options[valStr]) return options[valStr]
-                        }
-                    }
-
-                    const formattedTemporalValue = formatTemporalFieldValue(field)
-                    if (formattedTemporalValue !== null) {
-                        return formattedTemporalValue
-                    }
-
-                    const formattedMoneyValue = formatMoneyFieldValue(field)
-                    if (formattedMoneyValue !== null) {
-                        return formattedMoneyValue
-                    }
-
-                    return field.data
+                    const renderedValue = renderResourceFieldValue(field, header, record)
+                    return renderedValue === null || renderedValue === undefined || renderedValue === "" ? "—" : renderedValue
                 },
             }
         })
@@ -998,9 +921,34 @@ export default function ResourceIndexPage() {
             ) : null}
 
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight">{resourceData.meta.title}</h1>
+            <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                    <h1 className="text-2xl font-bold tracking-tight">{resourceData.meta.title}</h1>
+                    {resourceData.meta.description && (
+                        <p className="text-sm text-muted-foreground">{resourceData.meta.description}</p>
+                    )}
+                </div>
                 <div className="flex items-center gap-2">
+                    {gridEnabled && (
+                        <ToggleGroup
+                            type="single"
+                            value={currentView}
+                            onValueChange={(value) => {
+                                if (value === "table" || value === "grid") {
+                                    updateView(value)
+                                }
+                            }}
+                            variant="outline"
+                            size="sm"
+                        >
+                            <ToggleGroupItem value="table" aria-label="Table view">
+                                <Table className="h-4 w-4" />
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="grid" aria-label="Grid view">
+                                <LayoutGrid className="h-4 w-4" />
+                            </ToggleGroupItem>
+                        </ToggleGroup>
+                    )}
                     {lenses.length > 0 && (
                         <LensSelector
                             resourceName={resource || ''}
@@ -1045,33 +993,55 @@ export default function ResourceIndexPage() {
                 </div>
             </div>
 
-            {/* IndexView */}
-            <IndexView
-                resources={displayedResources}
-                columns={columns}
-                isLoading={isLoading || isSearchPending}
-                isEmpty={displayedResources.length === 0}
-                searchQuery={localSearch}
-                onSearchChange={handleSearchChange}
-                sortBy={params.sort?.column}
-                sortOrder={params.sort?.direction || 'asc'}
-                onSort={handleSort}
-                onView={(item) => {
-                    if (item.policy?.view) openDetailModal(item)
-                }}
-                onEdit={(item) => {
-                    if (item.policy?.update) openEditModal(item)
-                }}
-                onDelete={(item) => {
-                    if (item.policy?.delete) openDeleteDialog(item)
-                }}
-                enableSelection={actions.length > 0}
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
-                rowClickAction={rowClickAction}
-                enableRowReorder={!!reorderColumn}
-                onRowReorder={reorderColumn ? handleRowReorder : undefined}
-            />
+            {/* IndexView / GridView */}
+            {currentView === "grid" ? (
+                <ResourceGridView
+                    resources={displayedResources}
+                    headers={resourceData.meta.headers || []}
+                    recordTitleKey={resourceData.meta.record_title_key}
+                    isLoading={isLoading || isSearchPending}
+                    isEmpty={displayedResources.length === 0}
+                    searchQuery={localSearch}
+                    onSearchChange={handleSearchChange}
+                    onView={(item) => {
+                        if (item.policy?.view) openDetailModal(item)
+                    }}
+                    onEdit={(item) => {
+                        if (item.policy?.update) openEditModal(item)
+                    }}
+                    onDelete={(item) => {
+                        if (item.policy?.delete) openDeleteDialog(item)
+                    }}
+                    rowClickAction={rowClickAction}
+                />
+            ) : (
+                <IndexView
+                    resources={displayedResources}
+                    columns={columns}
+                    isLoading={isLoading || isSearchPending}
+                    isEmpty={displayedResources.length === 0}
+                    searchQuery={localSearch}
+                    onSearchChange={handleSearchChange}
+                    sortBy={params.sort?.column}
+                    sortOrder={params.sort?.direction || 'asc'}
+                    onSort={handleSort}
+                    onView={(item) => {
+                        if (item.policy?.view) openDetailModal(item)
+                    }}
+                    onEdit={(item) => {
+                        if (item.policy?.update) openEditModal(item)
+                    }}
+                    onDelete={(item) => {
+                        if (item.policy?.delete) openDeleteDialog(item)
+                    }}
+                    enableSelection={actions.length > 0}
+                    selectedIds={selectedIds}
+                    onSelectionChange={setSelectedIds}
+                    rowClickAction={rowClickAction}
+                    enableRowReorder={!!reorderColumn}
+                    onRowReorder={reorderColumn ? handleRowReorder : undefined}
+                />
+            )}
 
             {resourceData.meta.total > 0 && (
                 <Pagination
@@ -1095,16 +1065,6 @@ export default function ResourceIndexPage() {
                 title={(
                     <div className="flex items-center gap-3 pr-12">
                         <span>{editModalTitle}</span>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={openDetailFromEditModal}
-                            disabled={!editingItem}
-                        >
-                            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                            Detaya Don
-                        </Button>
                     </div>
                 )}
                 description="Asagidaki bilgileri guncelleyiniz."

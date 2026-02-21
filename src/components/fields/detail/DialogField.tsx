@@ -13,7 +13,7 @@ export const DialogDetailField: React.FC<DetailFieldProps> = ({ field, record })
   return (
     <FieldLayout
       name={field.key}
-      label={field.name || field.label}
+      label={field.label || field.name}
       helpText={field.help_text}
     >
       {value ? (

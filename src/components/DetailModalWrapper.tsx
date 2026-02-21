@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { resourceService } from "@/services/resource"
 import { ResponsiveModal } from "@/components/ui/responsive-modal"
+import type { ResponsiveModalSize } from "@/components/ui/responsive-modal"
 import { ResourceDetail } from "@/components/resource-detail"
 import { Button } from "@/components/ui/button"
 import type { ResourceItem, FieldData } from "@/types"
@@ -22,6 +23,28 @@ interface DetailModalWrapperProps {
     onResourceClick: (resource: string, id: string | number) => void
     onEdit?: (item: ResourceItem) => void
     isTopMost: boolean
+}
+
+const RESPONSIVE_MODAL_SIZES: ReadonlySet<ResponsiveModalSize> = new Set([
+    "sm",
+    "md",
+    "lg",
+    "xl",
+    "2xl",
+    "3xl",
+    "4xl",
+    "5xl",
+    "full",
+])
+
+function parseResponsiveModalSize(
+    value: unknown,
+    fallback: ResponsiveModalSize = "md"
+): ResponsiveModalSize {
+    if (typeof value !== "string") return fallback
+    return RESPONSIVE_MODAL_SIZES.has(value as ResponsiveModalSize)
+        ? (value as ResponsiveModalSize)
+        : fallback
 }
 
 export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick, onEdit }: Omit<DetailModalWrapperProps, 'index' | 'isTopMost'>) {
@@ -53,6 +76,14 @@ export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick
         return detailResponse.meta
     }, [detailResponse])
 
+    const detailModalVariant = useMemo<"dialog" | "modal" | "sheet" | "drawer">(() => {
+        const variant = detailMeta?.dialog_type
+        if (variant === "dialog" || variant === "modal" || variant === "sheet" || variant === "drawer") {
+            return variant
+        }
+        return "dialog"
+    }, [detailMeta])
+
     // Check if detail fields have relationships for modal width
     const hasDetailRelationships = useMemo(() => {
         return detailFields.some(field =>
@@ -61,6 +92,11 @@ export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick
             field.view === 'morph-to-many-field'
         )
     }, [detailFields])
+
+    const detailModalSize = useMemo<ResponsiveModalSize>(() => {
+        const fallback = hasDetailRelationships ? "4xl" : "md"
+        return parseResponsiveModalSize(detailMeta?.dialog_size, fallback)
+    }, [detailMeta, hasDetailRelationships])
 
     const detailModalTitle = useMemo(() => {
         const recordTitle =
@@ -97,11 +133,12 @@ export function DetailModalWrapper({ stackItem, isOpen, onClose, onResourceClick
             title={modalTitle}
             description="Kayit detaylari asagidadir."
             open={isOpen}
-            variant="sheet" // Default to sheet for details, or get from meta if available
+            variant={detailModalVariant}
+            size={detailModalSize}
+            sheetSize={detailModalSize}
             onOpenChange={(open) => {
                 if (!open) onClose()
             }}
-            className={hasDetailRelationships ? "data-[side=left]:sm:max-w-4xl data-[side=right]:sm:max-w-4xl w-full" : undefined}
         >
             {isLoading ? (
                 <div className="p-4 text-center">Yükleniyor...</div>

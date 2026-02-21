@@ -16,9 +16,9 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 describe('relationship-table-url-state', () => {
-  it('parses search/sort/page/per_page/filters[in] from resource namespace', () => {
+  it('parses search/sort/page/per_page/view/filters[in] from resource namespace', () => {
     const query =
-      '?tags[search]=abc&tags[sort][name]=desc&tags[page]=3&tags[per_page]=25&tags[filters][status][in]=active,pending&tags[filters][kind][in]=system';
+      '?tags[search]=abc&tags[view]=grid&tags[sort][name]=desc&tags[page]=3&tags[per_page]=25&tags[filters][status][in]=active,pending&tags[filters][kind][in]=system';
 
     const state = parseRelationshipUrlState(query, 'tags', 5);
 
@@ -27,6 +27,7 @@ describe('relationship-table-url-state', () => {
     expect(state.sortOrder).toBe('desc');
     expect(state.page).toBe(3);
     expect(state.perPage).toBe(25);
+    expect(state.view).toBe('grid');
     expect(state.columnFilters).toEqual({
       status: ['active', 'pending'],
       kind: ['system'],
@@ -55,6 +56,7 @@ describe('relationship-table-url-state', () => {
       sortOrder: 'asc',
       page: 2,
       perPage: 10,
+      view: 'grid',
       columnFilters: {
         status: ['active', 'pending'],
       },
@@ -80,6 +82,7 @@ describe('relationship-table-url-state', () => {
     expect(tags.search).toBe('wireless');
     expect(tags.page).toBe('2');
     expect(tags.per_page).toBe('10');
+    expect(tags.view).toBe('grid');
     expect(tagsSort.name).toBe('asc');
     expect(statusFilter.in).toBe('active,pending');
   });

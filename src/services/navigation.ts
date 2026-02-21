@@ -3,6 +3,7 @@ import api from "@/lib/axios";
 export interface NavItem {
     slug: string;
     title: string;
+    description?: string;
     icon: string;
     group: string;
     type: "resource" | "page";

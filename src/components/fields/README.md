@@ -107,6 +107,23 @@ interface IndexFieldProps {
 | **URLInput** | ✅ | ✅ | ✅ | URL girişi + external link |
 | **TextareaField** | ✅ | ✅ | ✅ | Çok satırlı metin |
 
+### InputGroup Addon Desteği (Form)
+
+Form view'daki tüm field bileşenleri `start/end addon` destekler.
+Input/textarea/select/combobox tabanlı alanlarda doğrudan `InputGroup`,
+diğer kompleks alanlarda (relationship chips, file, tabs, dialog vb.) container-level addon uygulanır.
+
+Desteklenen props anahtarları:
+- Baş addon: `startAddon`, `start_component`, `prefix`, `prepend`
+- Son addon: `endAddon`, `end_component`, `suffix`, `append`
+
+Backend örneği:
+```go
+fields.Text("price", "Fiyat").
+  WithProps("prefix", "₺").
+  WithProps("suffix", "/ay")
+```
+
 ### Tarih/Saat Field'ları
 | Field | Form | Detail | Index | Açıklama |
 |-------|------|--------|-------|----------|

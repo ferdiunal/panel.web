@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareControl } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 function extractSelectScalarValue(rawValue: unknown): string | undefined {
@@ -148,6 +150,8 @@ export const SelectFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   /**
    * Options'ı normalize et
@@ -195,6 +199,11 @@ export const SelectFormField: React.FC<FormFieldProps> = ({
     () => normalizeSelectValue(value, normalizedOptions) ?? normalizedValueFromField,
     [value, normalizedOptions, normalizedValueFromField]
   );
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+  const hasAddons = !!addons.startAddon || !!addons.endAddon;
 
   useEffect(() => {
     const valueFromForm = normalizeSelectValue(value, normalizedOptions);
@@ -211,30 +220,37 @@ export const SelectFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <Select
-        value={normalizedValue}
-        onValueChange={onChange}
-        disabled={disabled}
+      <AddonAwareControl
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
+        controlClassName={hasAddons ? 'px-1.5' : undefined}
       >
-        <SelectTrigger
-          id={name}
-          onBlur={onBlur}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
-          className={cn(
-            error && 'border-destructive focus-visible:ring-destructive/20'
-          )}
+        <Select
+          value={normalizedValue}
+          onValueChange={onChange}
+          disabled={disabled}
         >
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {normalizedOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          <SelectTrigger
+            id={name}
+            onBlur={onBlur}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+            className={cn(
+              hasAddons && 'h-full w-full border-0 bg-transparent px-0 shadow-none focus-visible:ring-0',
+              error && 'border-destructive focus-visible:ring-destructive/20'
+            )}
+          >
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {normalizedOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </AddonAwareControl>
     </FieldLayout>
   );
 };

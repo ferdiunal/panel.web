@@ -9,7 +9,7 @@
  * - Automatic cleanup
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FormProvider, type UseFormReturn } from 'react-hook-form';
 import type { z } from 'zod';
 import { useFormWithStore } from '@/hooks/useFormWithStore';
@@ -22,6 +22,178 @@ import { generateFormId } from '@/utils/form-helpers';
 import { cn } from '@/lib/utils';
 
 const EMPTY_INITIAL_DATA: Record<string, any> = {};
+
+function isStackFieldDefinition(field: Pick<FieldDefinition, 'type' | 'view'> | null | undefined): boolean {
+  if (!field) return false;
+  const view = typeof field.view === 'string' ? field.view : '';
+  return field.type === 'stack' || view === 'stack-field' || view.startsWith('stack-field-');
+}
+
+function toFieldDefinition(raw: unknown, fallbackKey: string): FieldDefinition | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const source = raw as Record<string, any>;
+  const key = typeof source.key === 'string' && source.key.trim().length > 0
+    ? source.key
+    : fallbackKey;
+
+  return {
+    ...source,
+    key,
+    name: typeof source.name === 'string' && source.name.trim().length > 0 ? source.name : key,
+    label: typeof source.label === 'string' && source.label.trim().length > 0 ? source.label : key,
+    type: typeof source.type === 'string' && source.type.trim().length > 0 ? source.type : 'text',
+    view: typeof source.view === 'string' && source.view.trim().length > 0 ? source.view : 'text-field',
+    data: source.data ?? null,
+    props: source.props && typeof source.props === 'object' && !Array.isArray(source.props)
+      ? source.props
+      : {},
+    disabled: typeof source.disabled === 'boolean' ? source.disabled : false,
+    filterable: typeof source.filterable === 'boolean' ? source.filterable : false,
+    help_text: typeof source.help_text === 'string' ? source.help_text : '',
+    nullable: typeof source.nullable === 'boolean' ? source.nullable : false,
+    placeholder: typeof source.placeholder === 'string' ? source.placeholder : '',
+    read_only: typeof source.read_only === 'boolean' ? source.read_only : false,
+    required: typeof source.required === 'boolean' ? source.required : false,
+    sortable: typeof source.sortable === 'boolean' ? source.sortable : false,
+    stacked: typeof source.stacked === 'boolean' ? source.stacked : false,
+    text_align: source.text_align === 'center' || source.text_align === 'right' ? source.text_align : 'left',
+  };
+}
+
+function extractRawStackChildren(field: FieldDefinition): unknown[] {
+  const propsChildren = Array.isArray(field.props?.fields) ? field.props.fields : [];
+
+  const dataPayload =
+    field.data && typeof field.data === 'object' && !Array.isArray(field.data)
+      ? (field.data as Record<string, unknown>)
+      : null;
+  const dataProps =
+    dataPayload?.props && typeof dataPayload.props === 'object' && !Array.isArray(dataPayload.props)
+      ? (dataPayload.props as Record<string, unknown>)
+      : null;
+  const dataChildren = Array.isArray(dataProps?.fields) ? dataProps.fields : [];
+
+  return dataChildren.length > 0 ? dataChildren : propsChildren;
+}
+
+function flattenStackFields(fields: FieldDefinition[]): FieldDefinition[] {
+  const flattened: FieldDefinition[] = [];
+
+  fields.forEach((field, fieldIndex) => {
+    if (!isStackFieldDefinition(field)) {
+      flattened.push(field);
+      return;
+    }
+
+    const children = extractRawStackChildren(field)
+      .map((child, childIndex) => toFieldDefinition(child, `${field.key || `stack_${fieldIndex}`}_${childIndex}`))
+      .filter((child): child is FieldDefinition => child !== null);
+
+    if (children.length === 0) {
+      return;
+    }
+
+    flattened.push(...flattenStackFields(children));
+  });
+
+  return flattened;
+}
+
+function extractSelectScalarValue(rawValue: unknown): string | undefined {
+  if (rawValue === null || rawValue === undefined) return undefined;
+
+  if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim();
+    if (!trimmed) return undefined;
+
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+        return (
+          extractSelectScalarValue(parsed.value) ??
+          extractSelectScalarValue(parsed.data) ??
+          extractSelectScalarValue(parsed.target_type)
+        );
+      } catch {
+        // Keep plain string fallback
+      }
+    }
+
+    return trimmed;
+  }
+
+  if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+    return String(rawValue);
+  }
+
+  if (typeof rawValue === 'object') {
+    const record = rawValue as Record<string, unknown>;
+    return (
+      extractSelectScalarValue(record.value) ??
+      extractSelectScalarValue(record.data) ??
+      extractSelectScalarValue(record.target_type) ??
+      extractSelectScalarValue(record.id)
+    );
+  }
+
+  return undefined;
+}
+
+function normalizeInitialFieldValue(field: FieldDefinition): any {
+  const view = field.view || '';
+  const isManyRelationship =
+    view === 'has-many-field' ||
+    view === 'belongs-to-many-field' ||
+    view === 'morph-to-many-field' ||
+    view.startsWith('has-many-field-') ||
+    view.startsWith('belongs-to-many-field-') ||
+    view.startsWith('morph-to-many-field-');
+
+  const isSingleRelationship =
+    view === 'belongs-to-field' ||
+    view === 'has-one-field' ||
+    view === 'morph-to-field' ||
+    view.startsWith('belongs-to-field-') ||
+    view.startsWith('has-one-field-') ||
+    view.startsWith('morph-to-field-');
+
+  const isSelectField =
+    field.type === 'select' ||
+    view === 'select-field' ||
+    view.startsWith('select-field-');
+
+  if (isSelectField) {
+    return extractSelectScalarValue(field.data) ?? '';
+  }
+
+  if (isManyRelationship) {
+    if (!Array.isArray(field.data)) return [];
+
+    return field.data.map((item: any) => {
+      if (item && typeof item === 'object' && 'id' in item) {
+        const idField = item.id;
+        if (idField && typeof idField === 'object' && 'data' in idField) {
+          return String((idField as { data?: unknown }).data);
+        }
+        return String(idField);
+      }
+      return String(item);
+    });
+  }
+
+  if (isSingleRelationship && field.data && typeof field.data === 'object' && 'id' in (field.data as any)) {
+    const idField = (field.data as any).id;
+    if (idField && typeof idField === 'object' && 'data' in idField) {
+      return String(idField.data);
+    }
+    return String(idField);
+  }
+
+  return field.data;
+}
 
 function extractServerValidationErrors(error: unknown): Record<string, string> {
   const responseData = (error as any)?.response?.data;
@@ -126,12 +298,32 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
   container,
   className,
 }) => {
+  const normalizedFields = useMemo(() => flattenStackFields(fields), [fields]);
+
+  const derivedInitialData = useMemo(() => {
+    const initial: Record<string, any> = {};
+
+    normalizedFields.forEach((field) => {
+      if (!field?.key) return;
+      if (Object.prototype.hasOwnProperty.call(initial, field.key)) return;
+      initial[field.key] = normalizeInitialFieldValue(field);
+    });
+
+    return initial;
+  }, [normalizedFields]);
+
   // Keep generated formId stable for the component lifetime.
   // If this changes on each render, dependency updates can land under a stale store key.
   const [generatedFormId] = useState(() => generateFormId(resourceType, mode, resourceId));
   const formId = providedFormId || generatedFormId;
 
-  const resolvedInitialData = initialData ?? EMPTY_INITIAL_DATA;
+  const resolvedInitialData = useMemo(
+    () => ({
+      ...derivedInitialData,
+      ...(initialData ?? EMPTY_INITIAL_DATA),
+    }),
+    [derivedInitialData, initialData]
+  );
 
   // Initialize form with RHF + Zustand
   const { form, isSubmitting } = useFormWithStore({
@@ -147,7 +339,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
     resourceType,
     mode,
     resourceId,
-    fields,
+    fields: normalizedFields,
     initialFormData: resolvedInitialData,
     enabled: enableDependentFields,
   });
@@ -240,10 +432,10 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
         id={formId}
       >
         {/* Form fields */}
-        <div className="space-y-4 pl-1 pr-4 overflow-y-auto max-h-[80vh]">
-          {fields
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-12 pl-1 pr-4 overflow-y-auto max-h-[80vh]">
+          {normalizedFields
             .filter((field) => {
-              if (ignoreResourceField && field.props['related_resource'] === ignoreResourceField) {
+              if (ignoreResourceField && field.props?.['related_resource'] === ignoreResourceField) {
                 return false;
               }
 
@@ -256,6 +448,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
                 field={field}
                 container={container}
                 parentResourceId={resourceId}
+                parentResourceSlug={resourceType}
               />
             ))}
         </div>

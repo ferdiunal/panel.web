@@ -11,11 +11,13 @@ export interface ResourceParams {
         direction: 'asc' | 'desc'
     }
     filters?: Record<string, string>
+    view?: 'table' | 'grid'
     page: number
     per_page: number
 }
 
 export const DEFAULT_RESOURCE_PARAMS: ResourceParams = {
+    view: 'table',
     page: 1,
     per_page: 10,
 }
@@ -78,6 +80,14 @@ export function parseResourceParams(queryString: string, resource: string): Reso
         }
     }
 
+    // Parse view mode
+    if (typeof resourceData.view === 'string') {
+        const normalized = resourceData.view.trim().toLowerCase()
+        params.view = normalized === 'grid' ? 'grid' : 'table'
+    } else {
+        params.view = 'table'
+    }
+
     // Parse page
     if (resourceData.page !== undefined) {
         const pageNum = parseInt(String(resourceData.page), 10)
@@ -134,6 +144,11 @@ export function stringifyResourceParams(
         resourceParams.filters = params.filters
     }
 
+    // Add view if non-default
+    if (params.view && params.view !== 'table') {
+        resourceParams.view = params.view
+    }
+
     // Add page (always include if not default)
     if (params.page && params.page !== DEFAULT_RESOURCE_PARAMS.page) {
         resourceParams.page = params.page
@@ -173,6 +188,7 @@ export function areParamsEqual(a: ResourceParams, b: ResourceParams): boolean {
     if (a.search !== b.search) return false
     if (a.page !== b.page) return false
     if (a.per_page !== b.per_page) return false
+    if ((a.view || 'table') !== (b.view || 'table')) return false
 
     // Compare sort
     if (a.sort?.column !== b.sort?.column) return false
@@ -214,6 +230,10 @@ export function toApiParams(params: ResourceParams, resource: string): Record<st
         Object.entries(params.filters).forEach(([key, value]) => {
             apiParams[`${resource}[filters][${key}]`] = value
         })
+    }
+
+    if (params.view && params.view !== 'table') {
+        apiParams[`${resource}[view]`] = params.view
     }
 
     return apiParams

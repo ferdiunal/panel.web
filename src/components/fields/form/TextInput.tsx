@@ -7,9 +7,10 @@
 
 import React from 'react';
 import InputMask from 'react-input-mask';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareInput } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 /**
@@ -79,11 +80,17 @@ export const TextFormField: React.FC<FormFieldProps> = ({
   placeholder,
   helpText,
   type,
+  startAddon,
+  endAddon,
 }) => {
   // Input mask props (field.props'tan)
   const mask = field.props?.mask as string | undefined;
   const maskChar = (field.props?.maskChar as string) || '_';
   const alwaysShowMask = (field.props?.alwaysShowMask as boolean) || false;
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
 
   // Input için ortak props
   const inputProps = {
@@ -121,15 +128,19 @@ export const TextFormField: React.FC<FormFieldProps> = ({
           disabled={disabled}
         >
           {(inputMaskProps: any) => (
-            <Input
+            <AddonAwareInput
               {...inputMaskProps}
               {...inputProps}
+              startAddon={addons.startAddon}
+              endAddon={addons.endAddon}
             />
           )}
         </InputMask>
       ) : (
-        <Input
+        <AddonAwareInput
           {...inputProps}
+          startAddon={addons.startAddon}
+          endAddon={addons.endAddon}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
           onBlur={onBlur}
         />

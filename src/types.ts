@@ -45,8 +45,11 @@ export interface ResourceResponse {
         per_page: number;
         total: number;
         title: string;
+        description?: string;
+        record_title_key?: string;
+        grid_enabled?: boolean;
         headers: FieldData[];
-        dialog_type: "dialog" | "sheet" | "drawer";
+        dialog_type: "dialog" | "modal" | "sheet" | "drawer";
         dialog_size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "full";
         row_click_action?: "edit" | "detail";
         pagination?: {

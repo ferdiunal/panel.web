@@ -9,6 +9,8 @@ import React from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareControl } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 /**
@@ -37,6 +39,7 @@ import type { FormFieldProps } from '@/types';
  * ```
  */
 export const SwitchFormField: React.FC<FormFieldProps> = ({
+  field,
   name,
   label,
   value,
@@ -45,9 +48,15 @@ export const SwitchFormField: React.FC<FormFieldProps> = ({
   disabled = false,
   required = false,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   // Boolean değere çevir
   const checked = Boolean(value);
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
 
   return (
     <FieldLayout
@@ -58,22 +67,28 @@ export const SwitchFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <div className="flex items-center space-x-2">
-        <Switch
-          id={name}
-          checked={checked}
-          onCheckedChange={(checked) => onChange(checked)}
-          disabled={disabled}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
-        />
-        <Label
-          htmlFor={name}
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          {label}
-        </Label>
-      </div>
+      <AddonAwareControl
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
+        controlClassName={addons.startAddon || addons.endAddon ? 'px-2.5' : undefined}
+      >
+        <div className="flex items-center space-x-2">
+          <Switch
+            id={name}
+            checked={checked}
+            onCheckedChange={(checked) => onChange(checked)}
+            disabled={disabled}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+          />
+          <Label
+            htmlFor={name}
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            {label}
+          </Label>
+        </div>
+      </AddonAwareControl>
     </FieldLayout>
   );
 };

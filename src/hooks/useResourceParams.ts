@@ -34,6 +34,8 @@ interface UseResourceParamsReturn {
     updatePerPage: (perPage: number) => void
     /** Update filters */
     updateFilters: (filters: Record<string, string>) => void
+    /** Update view mode */
+    updateView: (view: 'table' | 'grid') => void
     /** Is search currently debouncing */
     isSearchPending: boolean
     /** Reset all params to default */
@@ -231,6 +233,25 @@ export function useResourceParams({
         }
     }, [params, onParamsChange, updateUrl])
 
+    const updateView = useCallback((view: 'table' | 'grid') => {
+        const normalized: 'table' | 'grid' = view === 'grid' ? 'grid' : 'table'
+        const current = (params.view || 'table')
+        if (current === normalized) return
+
+        const newParams: ResourceParams = {
+            ...params,
+            view: normalized,
+        }
+
+        if (onParamsChange) {
+            onParamsChange(newParams).then(() => {
+                updateUrl({ view: normalized })
+            })
+        } else {
+            updateUrl({ view: normalized })
+        }
+    }, [params, onParamsChange, updateUrl])
+
     // Reset all params
     const resetParams = useCallback(() => {
         setLocalSearchState('')
@@ -269,6 +290,7 @@ export function useResourceParams({
         updatePage,
         updatePerPage,
         updateFilters,
+        updateView,
         isSearchPending,
         resetParams,
     }

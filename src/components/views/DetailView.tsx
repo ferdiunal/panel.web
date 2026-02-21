@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Trash2, Edit2, Loader2 } from 'lucide-react';
 import type { AnyResource, FieldDefinition } from '@/types';
+import { getFieldSpanClass } from '@/lib/field-span';
+import { cn } from '@/lib/utils';
 
 export interface DetailViewProps {
   resourceType: string;
@@ -134,11 +136,11 @@ export const DetailView: React.FC<DetailViewProps> = ({
         side="right"
       >
         {/* Resource attributes */}
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
           {fields.map((field) => {
             const value = (resource.attributes as Record<string, unknown>)[field.name];
             return (
-              <div key={field.name} className="space-y-2">
+              <div key={field.name} className={cn('col-span-1 space-y-2', getFieldSpanClass(field))}>
                 <label className="text-sm font-medium text-muted-foreground">
                   {field.label}
                 </label>

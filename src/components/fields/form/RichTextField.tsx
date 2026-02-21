@@ -3,9 +3,10 @@
  */
 
 import React from 'react';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareTextarea } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 export const RichTextFormField: React.FC<FormFieldProps> = ({
@@ -20,8 +21,14 @@ export const RichTextFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const rows = (field.props?.rows as number) || 8;
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
 
   return (
     <FieldLayout
@@ -32,7 +39,7 @@ export const RichTextFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <Textarea
+      <AddonAwareTextarea
         id={name}
         name={name}
         value={value || ''}
@@ -41,6 +48,8 @@ export const RichTextFormField: React.FC<FormFieldProps> = ({
         disabled={disabled}
         placeholder={placeholder}
         rows={rows}
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
         className={cn(
           error && 'border-destructive focus-visible:ring-destructive/20'
         )}

@@ -6,11 +6,12 @@
  */
 
 import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { InputGroupButton } from '@/components/ui/input-group';
 import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareInput } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 /**
@@ -38,6 +39,7 @@ import type { FormFieldProps } from '@/types';
  * ```
  */
 export const PasswordFormField: React.FC<FormFieldProps> = ({
+  field,
   name,
   label,
   value,
@@ -48,8 +50,39 @@ export const PasswordFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+  const visibilityToggle = (
+    <InputGroupButton
+      type="button"
+      variant="ghost"
+      size="icon-xs"
+      className="text-muted-foreground hover:text-foreground"
+      onClick={() => setShowPassword((prev) => !prev)}
+      disabled={disabled}
+      tabIndex={-1}
+    >
+      {showPassword ? (
+        <EyeOff className="h-4 w-4" />
+      ) : (
+        <Eye className="h-4 w-4" />
+      )}
+    </InputGroupButton>
+  );
+  const mergedEndAddon = addons.endAddon ? (
+    <>
+      {addons.endAddon}
+      {visibilityToggle}
+    </>
+  ) : (
+    visibilityToggle
+  );
 
   return (
     <FieldLayout
@@ -60,38 +93,23 @@ export const PasswordFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <div className="relative">
-        <Input
-          id={name}
-          name={name}
-          type={showPassword ? 'text' : 'password'}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          disabled={disabled}
-          placeholder={placeholder}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
-          className={cn(
-            'pr-10',
-            error && 'border-destructive focus-visible:ring-destructive/20'
-          )}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-          onClick={() => setShowPassword(!showPassword)}
-          disabled={disabled}
-        >
-          {showPassword ? (
-            <EyeOff className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          )}
-        </Button>
-      </div>
+      <AddonAwareInput
+        id={name}
+        name={name}
+        type={showPassword ? 'text' : 'password'}
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        disabled={disabled}
+        placeholder={placeholder}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+        startAddon={addons.startAddon}
+        endAddon={mergedEndAddon}
+        className={cn(
+          error && 'border-destructive focus-visible:ring-destructive/20'
+        )}
+      />
     </FieldLayout>
   );
 };

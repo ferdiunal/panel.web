@@ -9,6 +9,8 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareInput } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 /**
@@ -36,6 +38,7 @@ import type { FormFieldProps } from '@/types';
  * ```
  */
 export const ColorFormField: React.FC<FormFieldProps> = ({
+  field,
   name,
   label,
   value,
@@ -46,7 +49,14 @@ export const ColorFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder = '#000000',
   helpText,
+  startAddon,
+  endAddon,
 }) => {
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+
   return (
     <FieldLayout
       name={name}
@@ -70,13 +80,15 @@ export const ColorFormField: React.FC<FormFieldProps> = ({
             error && 'border-destructive focus-visible:ring-destructive/20'
           )}
         />
-        <Input
+        <AddonAwareInput
           type="text"
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
           disabled={disabled}
           placeholder={placeholder}
+          startAddon={addons.startAddon}
+          endAddon={addons.endAddon}
           className={cn(
             'flex-1',
             error && 'border-destructive focus-visible:ring-destructive/20'

@@ -18,7 +18,7 @@ export const TabsDetailField: React.FC<DetailFieldProps> = ({ field }) => {
   return (
     <FieldLayout
       name={field.key}
-      label={field.name || field.label}
+      label={field.label || field.name}
       helpText={field.help_text}
     >
       <Tabs defaultValue={defaultTab} side={side}>

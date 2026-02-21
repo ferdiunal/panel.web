@@ -26,6 +26,8 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { DialogContent as DialogFormContent } from './DialogContent';
 import { DialogWizard } from './DialogWizard';
 import type { FormFieldProps } from '@/types';
+import { AddonAwareControl } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 
 export const DialogFormField: React.FC<FormFieldProps> = ({
   field,
@@ -37,6 +39,8 @@ export const DialogFormField: React.FC<FormFieldProps> = ({
   required = false,
   helpText,
   className,
+  startAddon,
+  endAddon,
 }) => {
   // Extract specific props from field.props
   const defaultOpen = field.props?.defaultOpen as boolean;
@@ -48,6 +52,10 @@ export const DialogFormField: React.FC<FormFieldProps> = ({
   const dialogTitle = field.props?.dialogTitle as string;
   const dialogDesc = field.props?.dialogDesc as string;
   const dialogSize = field.props?.dialogSize as 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
 
   const [isOpen, setIsOpen] = useState(defaultOpen || false);
   // Desktop için md breakpoint (768px) kullan
@@ -120,15 +128,22 @@ export const DialogFormField: React.FC<FormFieldProps> = ({
               {required && <span className="text-destructive ml-1">*</span>}
             </label>
           )}
-          <Button
-            onClick={() => setIsOpen(true)}
-            variant="outline"
-            disabled={disabled}
-            type="button"
+          <AddonAwareControl
+            startAddon={addons.startAddon}
+            endAddon={addons.endAddon}
+            controlClassName={addons.startAddon || addons.endAddon ? 'px-1.5' : undefined}
           >
-            {triggerIcon && <span className="mr-2">{triggerIcon}</span>}
-            {triggerButton}
-          </Button>
+            <Button
+              onClick={() => setIsOpen(true)}
+              variant="outline"
+              disabled={disabled}
+              type="button"
+              className={addons.startAddon || addons.endAddon ? 'h-full w-full border-0 bg-transparent px-0 shadow-none focus-visible:ring-0' : undefined}
+            >
+              {triggerIcon && <span className="mr-2">{triggerIcon}</span>}
+              {triggerButton}
+            </Button>
+          </AddonAwareControl>
           {helpText && <p className="text-sm text-muted-foreground">{helpText}</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>

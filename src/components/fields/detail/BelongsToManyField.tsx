@@ -56,7 +56,7 @@ export function BelongsToManyDetailField({ field, record, resourceName }: Detail
             viaResourceId={recordId}
             viaRelationship={field.key}
             relationshipType="belongsToMany"
-            title={field.name || field.label}
+            title={field.label || field.name}
             collapsable={true}
             defaultOpen={true}
             showAttachButton={true}

@@ -8,9 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plus, X } from 'lucide-react';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareControl } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 export const MorphToManyFormField: React.FC<FormFieldProps> = ({
+  field,
   name,
   label,
   value,
@@ -19,8 +22,14 @@ export const MorphToManyFormField: React.FC<FormFieldProps> = ({
   disabled = false,
   required = false,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const items = Array.isArray(value) ? value : [];
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
 
   const handleRemove = (index: number) => {
     const newItems = items.filter((_, i) => i !== index);
@@ -36,41 +45,48 @@ export const MorphToManyFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <div className="space-y-2">
-        {items.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {items.map((item: any, index: number) => {
-              const itemLabel = item.name || item.title || item.label || `#${item.id}`;
-              const itemType = item.type || 'Item';
-              
-              return (
-                <Badge key={index} variant="secondary" className="gap-2">
-                  <span className="text-xs text-muted-foreground">{itemType}</span>
-                  <span>{itemLabel}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(index)}
-                    disabled={disabled}
-                    className="ml-1 hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              );
-            })}
-          </div>
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Ekle</span>
-        </Button>
-      </div>
+      <AddonAwareControl
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
+        groupClassName={addons.startAddon || addons.endAddon ? 'h-auto min-h-9' : undefined}
+        controlClassName={addons.startAddon || addons.endAddon ? 'items-start px-2.5 py-2' : undefined}
+      >
+        <div className="space-y-2">
+          {items.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {items.map((item: any, index: number) => {
+                const itemLabel = item.name || item.title || item.label || `#${item.id}`;
+                const itemType = item.type || 'Item';
+                
+                return (
+                  <Badge key={index} variant="secondary" className="gap-2">
+                    <span className="text-xs text-muted-foreground">{itemType}</span>
+                    <span>{itemLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(index)}
+                      disabled={disabled}
+                      className="ml-1 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Ekle</span>
+          </Button>
+        </div>
+      </AddonAwareControl>
     </FieldLayout>
   );
 };

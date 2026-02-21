@@ -36,14 +36,41 @@ export function renderDisplayComponent(value: unknown): ReactNode | null {
     }
     case "stack-field": {
       const children = Array.isArray(value.props?.fields) ? value.props?.fields : [];
+
+      const resolveSpan = (raw: unknown): number => {
+        const fallback = 12;
+        if (typeof raw === "number" && Number.isFinite(raw)) {
+          const normalized = Math.round(raw);
+          return Math.max(1, Math.min(12, normalized));
+        }
+        if (typeof raw === "string") {
+          const parsed = Number.parseInt(raw, 10);
+          if (Number.isFinite(parsed)) {
+            return Math.max(1, Math.min(12, parsed));
+          }
+        }
+        return fallback;
+      };
+
       return (
-        <div className="flex flex-wrap gap-1">
+        <div className="grid grid-cols-12 gap-2">
           {children.map((child: unknown, index: number) => {
             const rendered = renderDisplayComponent(child);
             if (rendered === null) {
               return null;
             }
-            return <span key={index}>{rendered}</span>;
+
+            const childPayload =
+              child && typeof child === "object" && !Array.isArray(child)
+                ? (child as DisplayComponentPayload)
+                : undefined;
+            const span = resolveSpan(childPayload?.props?.span);
+
+            return (
+              <div key={index} className="min-w-0" style={{ gridColumn: `span ${span} / span ${span}` }}>
+                {rendered}
+              </div>
+            );
           })}
         </div>
       );

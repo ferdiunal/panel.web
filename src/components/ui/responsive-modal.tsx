@@ -70,7 +70,7 @@ interface ResponsiveModalProps {
     description?: React.ReactNode
     open?: boolean
     onOpenChange?: (open: boolean) => void
-    variant?: "dialog" | "sheet" | "drawer"
+    variant?: "dialog" | "modal" | "sheet" | "drawer"
     side?: "top" | "bottom" | "left" | "right" // For sheet
     size?: ResponsiveModalSize // Dialog width on desktop
     sheetSize?: ResponsiveModalSize // Sheet width on desktop

@@ -6,6 +6,7 @@ export interface RelationshipUrlState {
   search: string;
   page: number;
   perPage: number;
+  view: 'table' | 'grid';
   sortBy?: string;
   sortOrder: RelationshipSortOrder;
   columnFilters: Record<string, string[]>;
@@ -89,6 +90,7 @@ export function parseRelationshipUrlState(
       search: '',
       page: 1,
       perPage: defaultPerPage,
+      view: 'table',
       sortOrder: 'asc',
       columnFilters: {},
     };
@@ -112,12 +114,14 @@ export function parseRelationshipUrlState(
   const search = typeof resourceState.search === 'string' ? resourceState.search : '';
   const page = parsePositiveInt(resourceState.page, 1);
   const perPage = parsePositiveInt(resourceState.per_page, defaultPerPage);
+  const view = String(resourceState.view || 'table').toLowerCase() === 'grid' ? 'grid' : 'table';
   const columnFilters = parseColumnFilters(resourceState.filters);
 
   return {
     search,
     page,
     perPage,
+    view,
     sortBy,
     sortOrder,
     columnFilters,
@@ -161,6 +165,10 @@ export function buildRelationshipQueryString(
     page: state.page,
     per_page: state.perPage,
   };
+
+  if (state.view === 'grid') {
+    resourceQuery.view = 'grid';
+  }
 
   const trimmedSearch = state.search.trim();
   if (trimmedSearch.length > 0) {

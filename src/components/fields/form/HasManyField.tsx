@@ -24,6 +24,9 @@ import type { Resource } from '@/types';
 import { QuickCreateModal } from '../QuickCreateModal';
 import { FieldLayout } from '../FieldLayout';
 import type { FormFieldProps } from '@/types';
+import { cn } from '@/lib/utils';
+import { AddonAwareControl } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 
 const EMPTY_OPTIONS: Record<string, string> = {};
 
@@ -109,6 +112,8 @@ export const HasManyFormField: React.FC<FormFieldProps> = ({
   helpText,
   container,
   className,
+  startAddon,
+  endAddon,
   ...props
 }) => {
   // Props extraction
@@ -118,7 +123,13 @@ export const HasManyFormField: React.FC<FormFieldProps> = ({
   const initialOptions = optionsProp || EMPTY_OPTIONS;
   const tooltip = field.props?.tooltip as string;
   // Prefer direct prop (from FieldRenderer), fallback to field.props (from backend)
-  const parentResourceId = (props.parentResourceId || field.props?.parentResourceId) as string | number;
+  const parentResourceId = (props.parentResourceId ?? field.props?.parentResourceId) as string | number | undefined;
+  const parentResourceSlug = (props.parentResourceSlug ?? field.props?.parentResourceSlug) as string | undefined;
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+  const hasAddons = !!addons.startAddon || !!addons.endAddon;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [availableOptions, setAvailableOptions] = useState<Option[]>([]);
@@ -274,19 +285,32 @@ export const HasManyFormField: React.FC<FormFieldProps> = ({
               }}
               disabled={disabled}
             >
-              <ComboboxChips ref={anchor} className="w-full max-w-xs">
-                {value.map((val: string) => (
-                  <ComboboxChip key={val} className="mr-1 mb-1">
-                    {getDisplayValue(val)}
-                  </ComboboxChip>
-                ))}
-                <ComboboxChipsInput
-                  placeholder={value.length === 0 ? placeholder : undefined}
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  onBlur={onBlur}
-                />
-              </ComboboxChips>
+              <AddonAwareControl
+                startAddon={addons.startAddon}
+                endAddon={addons.endAddon}
+                groupClassName={hasAddons ? 'h-auto min-h-9 items-start' : undefined}
+                controlClassName={hasAddons ? 'items-start px-1.5 py-1' : undefined}
+              >
+                <ComboboxChips
+                  ref={anchor}
+                  className={cn(
+                    'w-full max-w-xs',
+                    hasAddons && 'min-h-0 border-0 bg-transparent px-0 py-0 focus-within:ring-0'
+                  )}
+                >
+                  {value.map((val: string) => (
+                    <ComboboxChip key={val} className="mr-1 mb-1">
+                      {getDisplayValue(val)}
+                    </ComboboxChip>
+                  ))}
+                  <ComboboxChipsInput
+                    placeholder={value.length === 0 ? placeholder : undefined}
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onBlur={onBlur}
+                  />
+                </ComboboxChips>
+              </AddonAwareControl>
 
               <ComboboxContent anchor={anchor} container={container}>
                 {isLoading ? (
@@ -329,6 +353,7 @@ export const HasManyFormField: React.FC<FormFieldProps> = ({
             open={quickCreateOpen}
             onOpenChange={setQuickCreateOpen}
             parentResourceId={parentResourceId}
+            parentResourceSlug={parentResourceSlug}
             onSuccess={(createdResource) => {
               const newOption: Option = {
                 id: extractId(createdResource),

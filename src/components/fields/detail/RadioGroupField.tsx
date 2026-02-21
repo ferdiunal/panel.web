@@ -81,7 +81,7 @@ export const RadioGroupDetailField: React.FC<DetailFieldProps> = ({ field, recor
   return (
     <FieldLayout
       name={field.key}
-      label={field.name || field.label}
+      label={field.label || field.name}
       helpText={field.help_text}
     >
       {label ? (

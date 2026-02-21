@@ -14,12 +14,21 @@ import {
     ComboboxItem,
     ComboboxList,
 } from '@/components/ui/combobox';
+import { InputGroupAddon, InputGroupText } from '@/components/ui/input-group';
 import { resourceService } from '@/services/resource';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { ResourceParams } from '@/lib/resource-params';
 import { FieldLayout } from '../FieldLayout';
 import type { FormFieldProps } from '@/types';
 import { cn } from '@/lib/utils';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
+
+function renderAddon(addon: React.ReactNode): React.ReactNode {
+  if (typeof addon === 'string' || typeof addon === 'number') {
+    return <InputGroupText>{addon}</InputGroupText>;
+  }
+  return addon;
+}
 
 export const AsyncComboboxFormField: React.FC<FormFieldProps> = ({
   field,
@@ -33,6 +42,8 @@ export const AsyncComboboxFormField: React.FC<FormFieldProps> = ({
   placeholder = 'Ara...',
   helpText,
   container,
+  startAddon,
+  endAddon,
 }) => {
     // Props'tan gelen değerler
     const relatedResource = field.props?.related_resource as string;
@@ -44,6 +55,10 @@ export const AsyncComboboxFormField: React.FC<FormFieldProps> = ({
     const [options, setOptions] = useState<{ value: string; label: string }[]>(initialOptions);
     const [isLoading, setIsLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+    const addons = resolveFieldInputAddons(
+      field.props as Record<string, unknown> | undefined,
+      { startAddon, endAddon }
+    );
 
     // Debounce search input
     const debouncedSearch = useDebounce(inputValue, 300);
@@ -155,7 +170,18 @@ export const AsyncComboboxFormField: React.FC<FormFieldProps> = ({
                         className={cn(
                             error && 'border-destructive focus-visible:ring-destructive/20'
                         )}
-                    />
+                    >
+                        {addons.startAddon && (
+                          <InputGroupAddon align="inline-start">
+                            {renderAddon(addons.startAddon)}
+                          </InputGroupAddon>
+                        )}
+                        {addons.endAddon && (
+                          <InputGroupAddon align="inline-end">
+                            {renderAddon(addons.endAddon)}
+                          </InputGroupAddon>
+                        )}
+                    </ComboboxInput>
                     {isLoading && (
                         <div className="absolute right-2 top-1/2 -translate-y-1/2">
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

@@ -9,6 +9,8 @@ import React from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareControl } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 export interface RadioOption {
@@ -59,6 +61,8 @@ export const RadioGroupFormField: React.FC<FormFieldProps> = ({
   disabled = false,
   required = false,
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const rawOptions = field.props?.options;
   const options: RadioOption[] = Array.isArray(rawOptions)
@@ -68,6 +72,10 @@ export const RadioGroupFormField: React.FC<FormFieldProps> = ({
         disabled: opt.disabled,
       }))
     : [];
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
 
   return (
     <FieldLayout
@@ -78,29 +86,36 @@ export const RadioGroupFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <RadioGroup
-        value={value || ''}
-        onValueChange={onChange}
-        disabled={disabled}
-        aria-invalid={!!error}
-        aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+      <AddonAwareControl
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
+        groupClassName={addons.startAddon || addons.endAddon ? 'h-auto min-h-9' : undefined}
+        controlClassName={addons.startAddon || addons.endAddon ? 'items-start px-2.5 py-2' : undefined}
       >
-        {options.map((option) => (
-          <div key={option.value} className="flex items-center space-x-2">
-            <RadioGroupItem
-              value={option.value}
-              id={`${name}-${option.value}`}
-              disabled={disabled || option.disabled}
-            />
-            <Label
-              htmlFor={`${name}-${option.value}`}
-              className="text-sm font-normal cursor-pointer"
-            >
-              {option.label}
-            </Label>
-          </div>
-        ))}
-      </RadioGroup>
+        <RadioGroup
+          value={value || ''}
+          onValueChange={onChange}
+          disabled={disabled}
+          aria-invalid={!!error}
+          aria-describedby={error ? `${name}-error` : helpText ? `${name}-help` : undefined}
+        >
+          {options.map((option) => (
+            <div key={option.value} className="flex items-center space-x-2">
+              <RadioGroupItem
+                value={option.value}
+                id={`${name}-${option.value}`}
+                disabled={disabled || option.disabled}
+              />
+              <Label
+                htmlFor={`${name}-${option.value}`}
+                className="text-sm font-normal cursor-pointer"
+              >
+                {option.label}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+      </AddonAwareControl>
     </FieldLayout>
   );
 };

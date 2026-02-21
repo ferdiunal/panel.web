@@ -41,7 +41,7 @@ export const TextareaDetailField: React.FC<DetailFieldProps> = ({ field, record 
   return (
     <FieldLayout
       name={field.key}
-      label={field.name || field.label}
+      label={field.label || field.name}
       helpText={field.help_text}
     >
       <p className="text-sm text-foreground whitespace-pre-wrap">

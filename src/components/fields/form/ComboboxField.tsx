@@ -23,6 +23,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { FieldLayout } from '../FieldLayout';
+import { AddonAwareControl } from './input-group-addon';
+import { resolveFieldInputAddons } from './input-group-addon-utils';
 import type { FormFieldProps } from '@/types';
 
 export interface ComboboxOption {
@@ -73,8 +75,15 @@ export const ComboboxFormField: React.FC<FormFieldProps> = ({
   required = false,
   placeholder = 'Seçiniz...',
   helpText,
+  startAddon,
+  endAddon,
 }) => {
   const [open, setOpen] = useState(false);
+  const addons = resolveFieldInputAddons(
+    field.props as Record<string, unknown> | undefined,
+    { startAddon, endAddon }
+  );
+  const hasAddons = !!addons.startAddon || !!addons.endAddon;
 
   // Options'ı normalize et
   const normalizedOptions = useMemo((): ComboboxOption[] => {
@@ -110,52 +119,59 @@ export const ComboboxFormField: React.FC<FormFieldProps> = ({
       helpText={helpText}
       disabled={disabled}
     >
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            disabled={disabled}
-            className={cn(
-              'w-full justify-between',
-              !value && 'text-muted-foreground',
-              error && 'border-destructive focus-visible:ring-destructive/20'
-            )}
-          >
-            {selectedOption ? selectedOption.label : placeholder}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
-          <Command>
-            <CommandInput placeholder="Ara..." />
-            <CommandList>
-              <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
-              <CommandGroup>
-                {normalizedOptions.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={(currentValue) => {
-                      onChange(currentValue === value ? '' : currentValue);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4',
-                        value === option.value ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+      <AddonAwareControl
+        startAddon={addons.startAddon}
+        endAddon={addons.endAddon}
+        controlClassName={hasAddons ? 'px-1.5' : undefined}
+      >
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              disabled={disabled}
+              className={cn(
+                'w-full justify-between',
+                !value && 'text-muted-foreground',
+                hasAddons && 'h-full border-0 bg-transparent px-0 shadow-none focus-visible:ring-0',
+                error && 'border-destructive focus-visible:ring-destructive/20'
+              )}
+            >
+              {selectedOption ? selectedOption.label : placeholder}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-full p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Ara..." />
+              <CommandList>
+                <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
+                <CommandGroup>
+                  {normalizedOptions.map((option) => (
+                    <CommandItem
+                      key={option.value}
+                      value={option.value}
+                      onSelect={(currentValue) => {
+                        onChange(currentValue === value ? '' : currentValue);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          value === option.value ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                      {option.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </AddonAwareControl>
     </FieldLayout>
   );
 };

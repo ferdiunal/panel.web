@@ -88,6 +88,17 @@ function extractHeaderValue(headers: any, name: string): string | null {
     return null;
 }
 
+function setHeaderValue(headers: any, name: string, value: string): void {
+    if (!headers) return;
+
+    if (typeof headers.set === 'function') {
+        headers.set(name, value);
+        return;
+    }
+
+    headers[name] = value;
+}
+
 async function initializeCsrf(authToken: string | null): Promise<string | null> {
     const response = await csrfInitClient.get('/init', {
         headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
@@ -101,18 +112,31 @@ async function initializeCsrf(authToken: string | null): Promise<string | null> 
     return latestCsrfToken;
 }
 
+async function ensureCsrfToken(): Promise<string | null> {
+    const authToken = getAuthToken();
+    return initializeCsrf(authToken);
+}
+
 // Request interceptor: Add auth token
 api.interceptors.request.use(async (config) => {
+    const headers = config.headers ?? {};
+    if (!config.headers) {
+        config.headers = headers;
+    }
+
     // Add auth token if available
     const authToken = getAuthToken();
     if (authToken) {
-        config.headers['Authorization'] = `Bearer ${authToken}`;
+        setHeaderValue(headers, 'Authorization', `Bearer ${authToken}`);
     }
 
-    if (shouldInitializeCsrf(config.method?.toLowerCase(), config.url)) {
+    if (
+        shouldInitializeCsrf(config.method?.toLowerCase(), config.url) &&
+        !extractHeaderValue(headers, CSRF_HEADER_NAME)
+    ) {
         const csrfToken = await initializeCsrf(authToken);
         if (csrfToken) {
-            config.headers[CSRF_HEADER_NAME] = csrfToken;
+            setHeaderValue(headers, CSRF_HEADER_NAME, csrfToken);
         }
     }
 
@@ -142,4 +166,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { getAuthToken, setAuthToken, clearAuthToken };
+export { getAuthToken, setAuthToken, clearAuthToken, ensureCsrfToken };

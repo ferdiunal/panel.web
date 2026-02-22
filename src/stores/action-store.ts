@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import api from '@/lib/axios';
+import api, { ensureCsrfToken } from '@/lib/axios';
 import { toast } from 'sonner';
 import { queryClient } from '@/lib/query-client';
 
@@ -100,10 +100,21 @@ export const useActionStore = create<ActionStoreState>((set, get) => ({
   executeAction: async (resource, actionSlug, ids, fields) => {
     set({ loading: true });
     try {
-      const response = await api.post(`/resource/${resource}/actions/${actionSlug}`, {
-        ids,
-        fields,
-      });
+      const csrfToken = await ensureCsrfToken();
+      const response = await api.post(
+        `/resource/${resource}/actions/${actionSlug}`,
+        {
+          ids,
+          fields,
+        },
+        csrfToken
+          ? {
+              headers: {
+                'X-CSRF-Token': csrfToken,
+              },
+            }
+          : undefined
+      );
 
       toast.success(response.data.message || 'Action executed successfully');
 

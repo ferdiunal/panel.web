@@ -27,7 +27,7 @@ interface UseResourceParamsReturn {
     /** Update local search input */
     setLocalSearch: (value: string) => void
     /** Update sort column/direction */
-    updateSort: (column: string) => void
+    updateSort: (column: string, direction?: 'asc' | 'desc') => void
     /** Update page */
     updatePage: (page: number) => void
     /** Update per_page */
@@ -156,11 +156,13 @@ export function useResourceParams({
     }, [params, debounceMs, onParamsChange, updateUrl])
 
     // Update sort (immediate, no debounce)
-    const updateSort = useCallback((column: string) => {
+    const updateSort = useCallback((column: string, direction?: 'asc' | 'desc') => {
         const currentSort = params.sort
         let newDirection: 'asc' | 'desc' = 'asc'
 
-        if (currentSort?.column === column) {
+        if (direction) {
+            newDirection = direction
+        } else if (currentSort?.column === column) {
             newDirection = currentSort.direction === 'asc' ? 'desc' : 'asc'
         }
 

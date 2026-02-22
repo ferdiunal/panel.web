@@ -109,7 +109,7 @@ export function BelongsToDetailField({ field, record, onResourceClick }: DetailF
         const fetchRelatedData = async () => {
             setLoading(true);
             try {
-                const res = await axios.get(`/api/resource/${relatedResource}/${relatedId}`);
+                const res = await axios.get(`/resource/${relatedResource}/${relatedId}`);
                 const item = res.data.data;
 
                 // Display label'ı al

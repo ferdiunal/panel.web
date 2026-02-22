@@ -4,23 +4,9 @@
  */
 
 import { create } from 'zustand';
-import axios from 'axios';
+import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { queryClient } from '@/lib/query-client';
-
-/**
- * Cookie'den CSRF token'ı alır
- * @param name - Cookie adı (varsayılan: 'csrf_token')
- * @returns CSRF token değeri veya null
- */
-function getCsrfToken(name: string = 'csrf_token'): string | null {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return parts.pop()?.split(';').shift() || null;
-  }
-  return null;
-}
 
 export interface ActionField {
   key: string;
@@ -114,19 +100,10 @@ export const useActionStore = create<ActionStoreState>((set, get) => ({
   executeAction: async (resource, actionSlug, ids, fields) => {
     set({ loading: true });
     try {
-      // CSRF token'ı cookie'den al
-      const csrfToken = getCsrfToken();
-
-      // CSRF token header'ı ile birlikte istek gönder
-      const response = await axios.post(
-        `/api/resource/${resource}/actions/${actionSlug}`,
-        { ids, fields },
-        {
-          headers: {
-            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-          },
-        }
-      );
+      const response = await api.post(`/resource/${resource}/actions/${actionSlug}`, {
+        ids,
+        fields,
+      });
 
       toast.success(response.data.message || 'Action executed successfully');
 

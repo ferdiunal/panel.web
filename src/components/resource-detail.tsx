@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { getFieldSpan, getFieldSpanClass } from "@/lib/field-span"
 import { resolveWithProps } from "@/lib/with-props"
+import { resolveFieldInputAddons } from "@/components/fields/form/input-group-addon-utils"
+import { FieldLayoutAddonProvider } from "@/components/fields/FieldLayout"
 
 // Detail Field Components
 import { TextDetailField } from "@/components/fields/detail/TextInput"
@@ -171,6 +173,9 @@ export function ResourceDetail({ resourceName, resourceId, fields, onClose, onRe
 
     const renderDetailField = (field: FieldData) => {
         const normalizedView = normalizeFieldView(field.view)
+        const addons = resolveFieldInputAddons(
+            field.props as Record<string, unknown> | undefined
+        )
 
         // Common props for all detail fields
         const props = {
@@ -299,7 +304,15 @@ export function ResourceDetail({ resourceName, resourceId, fields, onClose, onRe
                 break
         }
 
-        return wrapDetailFieldWithProps(field, content)
+        const wrappedWithAddons = (addons.startAddon || addons.endAddon)
+            ? (
+                <FieldLayoutAddonProvider addons={addons}>
+                    {content}
+                </FieldLayoutAddonProvider>
+            )
+            : content
+
+        return wrapDetailFieldWithProps(field, wrappedWithAddons)
     }
 
     return (

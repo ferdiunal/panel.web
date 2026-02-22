@@ -1,6 +1,5 @@
 import React, { type ReactNode } from "react";
 import { Check } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { FieldData, ResourceItem } from "@/types";
 import { renderRelationshipFieldValue } from "@/lib/relation-field-links";
@@ -10,6 +9,8 @@ import { formatMoneyFieldValue } from "@/lib/money-display";
 import { resolveImageFieldPropsFromFields } from "@/lib/image-field-props";
 import { resolveWithPropsFromFields } from "@/lib/with-props";
 import { cn } from "@/lib/utils";
+import { AddonAwareControl } from "@/components/fields/form/input-group-addon";
+import { resolveFieldInputAddons } from "@/components/fields/form/input-group-addon-utils";
 
 function coerceBooleanValue(value: unknown): boolean {
   if (value === null || value === undefined) return false;
@@ -158,13 +159,60 @@ function applyWithPropsToRenderedNode(
   );
 }
 
+function applyInputAddonsToRenderedNode(
+  node: ReactNode,
+  header?: Pick<FieldData, "props"> | null,
+  field?: Pick<FieldData, "props"> | null
+): ReactNode {
+  if (node === null || node === undefined || node === "") {
+    return node;
+  }
+
+  const fieldProps =
+    field?.props && typeof field.props === "object" && !Array.isArray(field.props)
+      ? (field.props as Record<string, unknown>)
+      : undefined;
+  const headerProps =
+    header?.props && typeof header.props === "object" && !Array.isArray(header.props)
+      ? (header.props as Record<string, unknown>)
+      : undefined;
+
+  const fieldAddons = resolveFieldInputAddons(fieldProps);
+  const addons = resolveFieldInputAddons(headerProps, fieldAddons);
+
+  if (!addons.startAddon && !addons.endAddon) {
+    return node;
+  }
+
+  const normalizedNode =
+    typeof node === "string" || typeof node === "number" || typeof node === "boolean"
+      ? <span>{String(node)}</span>
+      : node;
+
+  return (
+    <AddonAwareControl
+      startAddon={addons.startAddon}
+      endAddon={addons.endAddon}
+      groupClassName="h-auto min-h-8 items-stretch rounded-md"
+      controlClassName="min-h-8 px-2 py-1"
+    >
+      {normalizedNode}
+    </AddonAwareControl>
+  );
+}
+
 export function renderResourceFieldValue(
   field: FieldData | undefined,
   header?: FieldData,
   record?: ResourceItem | Record<string, unknown>
 ): ReactNode {
   if (!field) return null;
-  const withFieldProps = (node: ReactNode) => applyWithPropsToRenderedNode(node, header, field);
+  const withFieldProps = (node: ReactNode) =>
+    applyInputAddonsToRenderedNode(
+      applyWithPropsToRenderedNode(node, header, field),
+      header,
+      field
+    );
 
   const isBooleanField =
     (header?.view || "").startsWith("switch-field") ||
@@ -191,12 +239,12 @@ export function renderResourceFieldValue(
 
   if (isImageField(header) || isImageField(field)) {
     const imageProps = resolveImageFieldPropsFromFields(header as FieldData | undefined, field);
-    return withFieldProps(
-      <Avatar className="h-8 w-8">
-        <AvatarImage
+    return <div className="size-8 rounded-full overflow-hidden border bg-muted flex-shrink-0">
+      {withFieldProps(
+        <img
           src={typeof field.data === "string" ? field.data : ""}
           alt={imageProps.alt || field.name}
-          className={imageProps.className}
+          className={cn(imageProps.className, "size-8 object-cover")}
           style={imageProps.style}
           loading={imageProps.loading}
           decoding={imageProps.decoding}
@@ -206,10 +254,25 @@ export function renderResourceFieldValue(
           height={imageProps.height}
           sizes={imageProps.sizes}
           srcSet={imageProps.srcSet}
-        />
-        <AvatarFallback>{field.name ? field.name.substring(0, 2).toUpperCase() : "IMG"}</AvatarFallback>
-      </Avatar>
-    );
+        />)}
+    </div>
+    // <Avatar className="h-8 w-8 demo">
+    //   <AvatarImage
+    // src={typeof field.data === "string" ? field.data : ""}
+    // alt={imageProps.alt || field.name}
+    // className={imageProps.className}
+    // style={imageProps.style}
+    // loading={imageProps.loading}
+    // decoding={imageProps.decoding}
+    // referrerPolicy={imageProps.referrerPolicy}
+    // crossOrigin={imageProps.crossOrigin}
+    // width={imageProps.width}
+    // height={imageProps.height}
+    // sizes={imageProps.sizes}
+    // srcSet={imageProps.srcSet}
+    //   />
+    //   <AvatarFallback>{field.name ? field.name.substring(0, 2).toUpperCase() : "IMG"}</AvatarFallback>
+    // </Avatar>
   }
 
   if (isBadgeField(header) || isBadgeField(field)) {

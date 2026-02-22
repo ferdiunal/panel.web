@@ -43,6 +43,200 @@ interface ResourceOption {
   subtitle?: string
 }
 
+type MorphTypeOption = { label: string; value: string; slug: string }
+
+function normalizeMorphIdentifier(value?: string): string {
+  if (!value) return ""
+  const base = value
+    .trim()
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean)
+    .pop()
+
+  if (!base) return ""
+
+  return base
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+}
+
+function buildMorphIdentifierCandidates(value?: string): Set<string> {
+  const candidates = new Set<string>()
+  const normalized = normalizeMorphIdentifier(value)
+  if (!normalized) return candidates
+
+  candidates.add(normalized)
+  candidates.add(normalized.replace(/-/g, "_"))
+  candidates.add(normalized.replace(/_/g, "-"))
+  if (normalized.endsWith("s")) {
+    const singular = normalized.slice(0, -1)
+    if (singular) candidates.add(singular)
+  } else {
+    candidates.add(`${normalized}s`)
+  }
+  if (normalized.endsWith("ies")) {
+    const singularY = `${normalized.slice(0, -3)}y`
+    if (singularY.length > 1) candidates.add(singularY)
+  } else if (normalized.endsWith("y")) {
+    candidates.add(`${normalized.slice(0, -1)}ies`)
+  }
+  if (normalized.endsWith("es")) {
+    const singularEs = normalized.slice(0, -2)
+    if (singularEs.length > 1) candidates.add(singularEs)
+  }
+
+  return candidates
+}
+
+function resolveTypeOption(
+  options: MorphTypeOption[],
+  rawType?: string
+): MorphTypeOption | undefined {
+  if (!rawType) return undefined
+  const typeCandidates = buildMorphIdentifierCandidates(rawType)
+  if (typeCandidates.size === 0) return undefined
+
+  return options.find((option) => {
+    const optionCandidates = new Set<string>()
+    for (const candidate of [option.value, option.slug, option.label]) {
+      for (const normalized of buildMorphIdentifierCandidates(candidate)) {
+        optionCandidates.add(normalized)
+      }
+    }
+
+    for (const candidate of typeCandidates) {
+      if (optionCandidates.has(candidate)) return true
+    }
+
+    return false
+  })
+}
+
+function extractIdValue(input: unknown): string | number | undefined {
+  if (input === null || input === undefined) return undefined
+
+  if (typeof input === "string") {
+    const trimmed = input.trim()
+    if (!trimmed) return undefined
+
+    if (trimmed.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>
+        return (
+          extractIdValue(parsed.id) ||
+          extractIdValue(parsed.morphToId) ||
+          extractIdValue(parsed.morph_id) ||
+          extractIdValue(parsed.commentable_id) ||
+          extractIdValue(parsed.value) ||
+          extractIdValue(parsed.data)
+        )
+      } catch {
+        // Keep plain string fallback
+      }
+    }
+
+    return trimmed
+  }
+  if (typeof input === "number") {
+    return Number.isNaN(input) ? undefined : input
+  }
+
+  if (typeof input !== "object") return undefined
+  const record = input as Record<string, unknown>
+
+  const nestedData = record.data
+  if (nestedData !== undefined && nestedData !== input) {
+    const nestedId = extractIdValue(nestedData)
+    if (nestedId !== undefined) return nestedId
+  }
+
+  const idCandidates = [
+    record.id,
+    record.morphToId,
+    record.morph_id,
+    record.commentable_id,
+    record.related_id,
+    record.value,
+  ]
+
+  for (const candidate of idCandidates) {
+    const parsed = extractIdValue(candidate)
+    if (parsed !== undefined) return parsed
+  }
+
+  return undefined
+}
+
+function extractTypeValue(input: unknown): string | undefined {
+  if (input === null || input === undefined) return undefined
+
+  if (typeof input === "string") {
+    const trimmed = input.trim()
+    if (!trimmed) return undefined
+
+    if (trimmed.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>
+        return (
+          extractTypeValue(parsed.type) ||
+          extractTypeValue(parsed.morphToType) ||
+          extractTypeValue(parsed.morph_type) ||
+          extractTypeValue(parsed.commentable_type) ||
+          extractTypeValue(parsed.target_type) ||
+          extractTypeValue(parsed.resource) ||
+          extractTypeValue(parsed.resource_slug) ||
+          extractTypeValue(parsed.resourceSlug) ||
+          extractTypeValue(parsed.related_resource) ||
+          extractTypeValue(parsed.slug) ||
+          extractTypeValue(parsed.value) ||
+          extractTypeValue(parsed.data)
+        )
+      } catch {
+        // Keep plain string fallback
+      }
+    }
+
+    return trimmed
+  }
+
+  if (typeof input !== "object") return undefined
+  const record = input as Record<string, unknown>
+
+  const nestedData = record.data
+  if (nestedData !== undefined && nestedData !== input) {
+    const nestedType = extractTypeValue(nestedData)
+    if (nestedType) return nestedType
+  }
+
+  const typeCandidates = [
+    record.type,
+    record.morphToType,
+    record.morph_type,
+    record.commentable_type,
+    record.model_type,
+    record.target_type,
+    record.resource,
+    record.resource_slug,
+    record.resourceSlug,
+    record.related_resource,
+    record.slug,
+    record.value,
+  ]
+
+  for (const candidate of typeCandidates) {
+    const parsed = extractTypeValue(candidate)
+    if (parsed) return parsed
+  }
+
+  return undefined
+}
+
 export const MorphToFormField: React.FC<FormFieldProps> = ({
   field,
   name,
@@ -75,21 +269,46 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
   )
   const hasAddons = !!addons.startAddon || !!addons.endAddon
 
-  // Parse value: could be { type, id } object or separate fields
-  let selectedType = value?.type || value?.morphToType || ""
-  let selectedId = value?.id || value?.morphToId || ""
-
-  // Check if value is nested (e.g. value.data)
-  if (!selectedType && !selectedId && value?.data) {
-    selectedType = value.data.type || value.data.morphToType
-    selectedId = value.data.id || value.data.morphToId
-  }
-
   // types dizisini memoize et — field.props?.types referansı her render'da değişebilir
   const types = useMemo(
-    () => (field.props?.types as Array<{ label: string, value: string, slug: string }>) || [],
+    () => (field.props?.types as MorphTypeOption[]) || [],
     [field.props?.types]
   )
+
+  const rawType = useMemo(() => {
+    return (
+      extractTypeValue(value) ||
+      extractTypeValue(field.props?.morph_type)
+    )
+  }, [value, field.props?.morph_type])
+
+  const selectedId = useMemo(() => {
+    return (
+      extractIdValue(value) ||
+      extractIdValue(field.props?.morph_id) ||
+      ""
+    )
+  }, [value, field.props?.morph_id])
+
+  const matchedTypeOption = useMemo(
+    () => resolveTypeOption(types, rawType),
+    [types, rawType]
+  )
+
+  const selectedType = useMemo(() => {
+    if (matchedTypeOption?.value) return matchedTypeOption.value
+    if (rawType && types.some((t) => t.value === rawType)) return rawType
+    if (!rawType && selectedId && types.length === 1) return types[0].value
+    return ""
+  }, [matchedTypeOption, rawType, selectedId, types])
+
+  // If backend sends only ID in edit payload, infer type safely and write back to form state.
+  useEffect(() => {
+    if (!selectedId || selectedType) return
+    if (types.length !== 1) return
+
+    onChange({ type: types[0].value, id: selectedId })
+  }, [selectedId, selectedType, types, onChange])
 
   // Fetch options using the new morphable endpoint
   const fetchMorphableOptions = useCallback(async (typeValue: string, searchQuery: string = "", currentId?: string | number) => {
@@ -97,7 +316,7 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
 
     setLoading(true)
     try {
-      const response = await axios.get(`/api/resource/${resourceSlug}/morphable/${field.key}`, {
+      const response = await axios.get(`/resource/${resourceSlug}/morphable/${field.key}`, {
         params: {
           type: typeValue,
           search: searchQuery,
@@ -112,9 +331,9 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
       console.error("Failed to fetch morphable resources", error)
       // Fallback to direct resource endpoint
       try {
-        const typeDef = types.find((t) => t.value === typeValue || t.slug === typeValue)
+        const typeDef = resolveTypeOption(types, typeValue)
         if (typeDef) {
-          const fallbackResponse = await axios.get(`/api/resource/${typeDef.slug}`, {
+          const fallbackResponse = await axios.get(`/resource/${typeDef.slug}`, {
             params: {
               search: searchQuery,
               per_page: 15,
@@ -143,7 +362,7 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
   useEffect(() => {
     if (!selectedType || !selectedId || initialLabel) return
 
-    const typeDef = types.find((t) => t.value === selectedType || t.slug === selectedType)
+    const typeDef = resolveTypeOption(types, selectedType)
     if (!typeDef) return
 
     // If we have the object in value (e.g. eager loaded), use it
@@ -155,7 +374,7 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
     // Fetch the initial resource to get its label
     const fetchInitial = async () => {
       try {
-        const response = await axios.get(`/api/resource/${typeDef.slug}/${selectedId}`)
+        const response = await axios.get(`/resource/${typeDef.slug}/${selectedId}`)
         const item = response.data.data
 
         const displays = (field.props?.displays as Record<string, string>) || {}
@@ -180,16 +399,29 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
     fetchInitial()
   }, [selectedType, selectedId, types, value, initialLabel, field.props])
 
-  // Fetch options when popover opens or search changes
+  // Load default options when type changes.
+  // Requirement: fetch should happen on type selection, not on combobox focus/open.
   useEffect(() => {
-    if (!open || !selectedType) return
+    if (!selectedType) {
+      setOptions([])
+      return
+    }
+
+    void fetchMorphableOptions(selectedType, "")
+  }, [fetchMorphableOptions, selectedType])
+
+  // Run server-side search only when user types in the search input.
+  useEffect(() => {
+    if (!selectedType) return
+    const normalizedSearch = search.trim()
+    if (!normalizedSearch) return
 
     const timer = setTimeout(() => {
-      fetchMorphableOptions(selectedType, search, selectedId)
+      fetchMorphableOptions(selectedType, normalizedSearch, selectedId)
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [search, selectedType, open, fetchMorphableOptions, selectedId])
+  }, [search, selectedType, fetchMorphableOptions, selectedId])
 
   const handleTypeChange = (newType: string) => {
     onChange({ type: newType, id: null })

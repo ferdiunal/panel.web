@@ -66,13 +66,7 @@ export const MemoizedComboboxField = React.memo(ComboboxFormField, (prev, next) 
   );
 });
 
-export const MemoizedMorphToField = React.memo(MorphToFormField, (prev, next) => {
-  return (
-    prev.value === next.value &&
-    prev.field.props?.resourceTypes === next.field.props?.resourceTypes &&
-    prev.disabled === next.disabled
-  );
-});
+export const MemoizedMorphToField = React.memo(MorphToFormField);
 
 export const MemoizedRichTextField = React.memo(RichTextFormField, (prev, next) => {
   return (

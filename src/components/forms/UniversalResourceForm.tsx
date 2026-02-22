@@ -144,6 +144,10 @@ function extractSelectScalarValue(rawValue: unknown): string | undefined {
 
 function normalizeInitialFieldValue(field: FieldDefinition): any {
   const view = field.view || '';
+  const isMorphToRelationship =
+    view === 'morph-to-field' ||
+    view.startsWith('morph-to-field-');
+
   const isManyRelationship =
     view === 'has-many-field' ||
     view === 'belongs-to-many-field' ||
@@ -155,10 +159,8 @@ function normalizeInitialFieldValue(field: FieldDefinition): any {
   const isSingleRelationship =
     view === 'belongs-to-field' ||
     view === 'has-one-field' ||
-    view === 'morph-to-field' ||
     view.startsWith('belongs-to-field-') ||
-    view.startsWith('has-one-field-') ||
-    view.startsWith('morph-to-field-');
+    view.startsWith('has-one-field-');
 
   const isSelectField =
     field.type === 'select' ||
@@ -182,6 +184,11 @@ function normalizeInitialFieldValue(field: FieldDefinition): any {
       }
       return String(item);
     });
+  }
+
+  // MorphTo needs both type + id in edit state.
+  if (isMorphToRelationship) {
+    return field.data;
   }
 
   if (isSingleRelationship && field.data && typeof field.data === 'object' && 'id' in (field.data as any)) {

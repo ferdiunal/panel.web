@@ -50,6 +50,7 @@ export interface IndexViewColumn<T = any> {
   key: string;
   label: string;
   sortable?: boolean;
+  sortKey?: string;
   filterable?: boolean;
   render?: (value: any, resource: T) => React.ReactNode;
 }
@@ -221,7 +222,7 @@ export interface IndexViewProps<T extends Resource = Resource> {
   onSearchChange?: (query: string) => void;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  onSort?: (key: string) => void;
+  onSort?: (key: string, direction: 'asc' | 'desc') => void;
   columnFilters?: Record<string, string[]>;
   onColumnFiltersChange?: (filters: Record<string, string[]>) => void;
   onEdit?: (resource: T) => void;
@@ -294,9 +295,32 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
       ((rowClickAction === 'edit' && !!onEdit) || (rowClickAction === 'detail' && !!onView));
 
     // Sorting state
+    const resolveColumnIdForSort = React.useCallback(
+      (incomingSortBy?: string): string | null => {
+        if (!incomingSortBy) return null;
+        const match = columns.find((column) => {
+          if (column.sortKey && column.sortKey === incomingSortBy) return true;
+          return column.key === incomingSortBy;
+        });
+        return match?.key ?? null;
+      },
+      [columns]
+    );
+
+    const resolveSortKeyForColumnId = React.useCallback(
+      (columnId?: string): string | null => {
+        if (!columnId) return null;
+        const match = columns.find((column) => column.key === columnId);
+        if (!match) return null;
+        return match.sortKey || match.key;
+      },
+      [columns]
+    );
+
     const [sorting, setSorting] = React.useState<SortingState>(() => {
-      if (sortBy) {
-        return [{ id: sortBy, desc: sortOrder === 'desc' }];
+      const initialColumnId = resolveColumnIdForSort(sortBy);
+      if (initialColumnId) {
+        return [{ id: initialColumnId, desc: sortOrder === 'desc' }];
       }
       return [];
     });
@@ -311,10 +335,14 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
 
     // Sync external sorting state
     React.useEffect(() => {
-      if (sortBy) {
-        setSorting([{ id: sortBy, desc: sortOrder === 'desc' }]);
+      const nextColumnId = resolveColumnIdForSort(sortBy);
+      if (!nextColumnId) {
+        setSorting([]);
+        return;
       }
-    }, [sortBy, sortOrder]);
+
+      setSorting([{ id: nextColumnId, desc: sortOrder === 'desc' }]);
+    }, [resolveColumnIdForSort, sortBy, sortOrder]);
 
     // Sync external search state
     React.useEffect(() => {
@@ -332,6 +360,11 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
     React.useEffect(() => {
       setTableData(resources);
     }, [resources]);
+
+    const effectiveTableData = React.useMemo(
+      () => (enableRowReorder ? tableData : resources),
+      [enableRowReorder, resources, tableData]
+    );
 
     // Convert IndexViewColumn to TanStack Table ColumnDef
     const tanstackColumns = useMemo<ColumnDef<any>[]>(() => {
@@ -545,7 +578,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
 
     // Create table instance
     const table = useReactTable({
-      data: tableData,
+      data: effectiveTableData,
       columns: tanstackColumns,
       getCoreRowModel: getCoreRowModel(),
       getSortedRowModel: getSortedRowModel(),
@@ -567,7 +600,10 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
 
         // Notify parent component
         if (onSort && newSorting.length > 0) {
-          onSort(newSorting[0].id);
+          const sortColumn = resolveSortKeyForColumnId(newSorting[0].id);
+          if (sortColumn) {
+            onSort(sortColumn, newSorting[0].desc ? 'desc' : 'asc');
+          }
         }
       },
       onColumnFiltersChange: (updater) => {
@@ -601,6 +637,8 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
         onSelectionChange(newSelectedIds);
       },
       enableSorting: true,
+      manualSorting: Boolean(onSort),
+      enableSortingRemoval: false,
       enableColumnFilters: true,
       enableGlobalFilter: true,
       enableRowSelection: enableSelection,

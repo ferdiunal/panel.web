@@ -5,6 +5,11 @@ import type { FieldData } from "@/types";
 
 type UnknownRecord = Record<string, unknown>;
 type IdValue = string | number;
+type MorphTypeOption = {
+  label?: string;
+  value?: string;
+  slug?: string;
+};
 
 const RELATIONSHIP_VIEW_PREFIXES = [
   "belongs-to-field",
@@ -152,6 +157,86 @@ function relationViewMatches(field: FieldData, prefix: string): boolean {
   return view === prefix || view.startsWith(`${prefix}-`);
 }
 
+function normalizeMorphIdentifier(value?: string): string {
+  if (!value) return "";
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean)
+    .pop();
+
+  if (!normalized) return "";
+  return normalized.replace(/\s+/g, "_");
+}
+
+function buildMorphIdentifierCandidates(value?: string): Set<string> {
+  const result = new Set<string>();
+  const normalized = normalizeMorphIdentifier(value);
+  if (!normalized) return result;
+
+  result.add(normalized);
+  result.add(normalized.replace(/-/g, "_"));
+  result.add(normalized.replace(/_/g, "-"));
+  if (normalized.endsWith("s")) {
+    result.add(normalized.slice(0, -1));
+  } else {
+    result.add(`${normalized}s`);
+  }
+
+  return result;
+}
+
+function normalizeMorphTypes(rawTypes: unknown): MorphTypeOption[] {
+  if (Array.isArray(rawTypes)) {
+    return rawTypes
+      .filter((entry) => typeof entry === "object" && entry !== null)
+      .map((entry) => {
+        const record = entry as UnknownRecord;
+        return {
+          label: asString(record.label),
+          value: asString(record.value),
+          slug: asString(record.slug),
+        };
+      });
+  }
+
+  if (typeof rawTypes === "object" && rawTypes !== null) {
+    return Object.entries(rawTypes as UnknownRecord).map(([valueKey, slugValue]) => ({
+      value: valueKey,
+      slug: asString(slugValue),
+      label: asString(slugValue),
+    }));
+  }
+
+  return [];
+}
+
+function resolveMorphTypeOption(options: MorphTypeOption[], morphType?: string): MorphTypeOption | undefined {
+  if (!morphType || options.length === 0) return undefined;
+
+  const typeCandidates = buildMorphIdentifierCandidates(morphType);
+  if (typeCandidates.size === 0) return undefined;
+
+  return options.find((option) => {
+    const optionCandidates = new Set<string>();
+    for (const candidate of [option.value, option.slug, option.label]) {
+      for (const normalized of buildMorphIdentifierCandidates(candidate)) {
+        optionCandidates.add(normalized);
+      }
+    }
+
+    for (const candidate of typeCandidates) {
+      if (optionCandidates.has(candidate)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+}
+
 function isManyRelationshipField(field: FieldData): boolean {
   return (
     relationViewMatches(field, "has-many-field") ||
@@ -198,7 +283,10 @@ function renderManyRelationLink(resource: string, id: IdValue, label: string, ke
   );
 }
 
-function resolveMorphTypeAndId(field: FieldData, record: UnknownRecord): { morphType?: string; morphId?: IdValue } {
+function resolveMorphTypeAndId(
+  field: FieldData,
+  record: UnknownRecord
+): { morphType?: string; morphId?: IdValue; morphResource?: string } {
   const typeKey = `${field.key}_type`;
   const idKey = `${field.key}_id`;
 
@@ -214,6 +302,9 @@ function resolveMorphTypeAndId(field: FieldData, record: UnknownRecord): { morph
   let morphId =
     extractId(record[idKey]) ||
     extractId(recordAttributes?.[idKey]);
+  let morphResource =
+    asString(record[`${field.key}_resource`]) ||
+    asString(recordAttributes?.[`${field.key}_resource`]);
 
   const fromFieldData = unwrapFieldData(field.data);
   if (typeof fromFieldData === "object" && fromFieldData !== null) {
@@ -231,6 +322,13 @@ function resolveMorphTypeAndId(field: FieldData, record: UnknownRecord): { morph
       extractId(dataRecord.morphToId) ||
       extractId(dataRecord.commentable_id) ||
       extractId(dataRecord.morph_id);
+    morphResource =
+      morphResource ||
+      asString(dataRecord.resource) ||
+      asString(dataRecord.resource_slug) ||
+      asString(dataRecord.resourceSlug) ||
+      asString(dataRecord.slug) ||
+      asString(dataRecord.related_resource);
   }
 
   const nestedValue = record[field.key];
@@ -247,9 +345,16 @@ function resolveMorphTypeAndId(field: FieldData, record: UnknownRecord): { morph
       extractId(nestedRecord.id) ||
       extractId(nestedRecord.commentable_id) ||
       extractId(nestedRecord.morph_id);
+    morphResource =
+      morphResource ||
+      asString(nestedRecord.resource) ||
+      asString(nestedRecord.resource_slug) ||
+      asString(nestedRecord.resourceSlug) ||
+      asString(nestedRecord.slug) ||
+      asString(nestedRecord.related_resource);
   }
 
-  return { morphType, morphId };
+  return { morphType, morphId, morphResource };
 }
 
 export function isRelationshipField(field: FieldData): boolean {
@@ -298,22 +403,21 @@ export function renderRelationshipFieldValue(field: FieldData, record: UnknownRe
   }
 
   if (isMorphToField(field)) {
-    const { morphType, morphId } = resolveMorphTypeAndId(field, record);
+    const { morphType, morphId, morphResource } = resolveMorphTypeAndId(field, record);
     if (!morphType && morphId === undefined) {
       return renderEmpty();
     }
 
-    const types = Array.isArray(field.props?.types)
-      ? (field.props.types as Array<UnknownRecord>)
-      : [];
+    const morphTypeOptions = normalizeMorphTypes(field.props?.types);
+    const typeDef = resolveMorphTypeOption(morphTypeOptions, morphType);
 
-    const typeDef = types.find((entry) => {
-      const value = asString(entry.value);
-      const slug = asString(entry.slug);
-      return value === morphType || slug === morphType;
-    });
-
-    const morphResource = asString(typeDef?.slug) || relatedResource;
+    const resolvedResource =
+      asString(typeDef?.slug) ||
+      morphResource ||
+      (morphType && normalizeMorphIdentifier(morphType).endsWith("s")
+        ? normalizeMorphIdentifier(morphType)
+        : undefined) ||
+      relatedResource;
     const typeLabel = asString(typeDef?.label) || morphType;
     const displayLabel = extractLabel(field.data) || (morphId !== undefined ? `#${morphId}` : "—");
 
@@ -324,8 +428,8 @@ export function renderRelationshipFieldValue(field: FieldData, record: UnknownRe
             {typeLabel}
           </Badge>
         ) : null}
-        {morphResource && morphId !== undefined ? (
-          renderSingleRelationLink(morphResource, morphId, displayLabel)
+        {resolvedResource && morphId !== undefined ? (
+          renderSingleRelationLink(resolvedResource, morphId, displayLabel)
         ) : (
           <span className="text-sm">{displayLabel}</span>
         )}

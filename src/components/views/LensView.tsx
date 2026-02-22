@@ -40,6 +40,31 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { renderResourceFieldValue } from '@/lib/resource-field-render';
 import { ResourceGridView } from '@/components/views/ResourceGridView';
 
+function resolveHeaderSortKey(header: FieldData): string {
+  const rawProps = header.props;
+  if (!rawProps || typeof rawProps !== 'object' || Array.isArray(rawProps)) {
+    return header.key;
+  }
+
+  const props = rawProps as Record<string, unknown>;
+  const candidates = [
+    props.sortable_uri_key,
+    props.sortableUriKey,
+    props.sort_key,
+    props.sortKey,
+    props.sort_column,
+    props.sortColumn,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return header.key;
+}
+
 /**
  * LensView Component
  *
@@ -108,6 +133,7 @@ export function LensView({
         key,
         label: header.label || header.name || key,
         sortable: header.sortable,
+        sortKey: resolveHeaderSortKey(header),
         render: (_: any, resource: ResourceItem) => {
           const field: FieldData = resource[key] as FieldData;
           if (!field) return null;
@@ -137,20 +163,10 @@ export function LensView({
    * Sort değişikliğini handle et
    * URL state'i güncelle
    */
-  const handleSort = (key: string) => {
+  const handleSort = (key: string, direction: 'asc' | 'desc') => {
     const newParams = new URLSearchParams(searchParams);
-    const currentSortBy = searchParams.get('sort_by');
-    const currentSortOrder = searchParams.get('sort_order');
-
-    if (currentSortBy === key) {
-      // Toggle sort order
-      newParams.set('sort_order', currentSortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // New sort column
-      newParams.set('sort_by', key);
-      newParams.set('sort_order', 'asc');
-    }
-
+    newParams.set('sort_by', key);
+    newParams.set('sort_order', direction);
     setSearchParams(newParams);
   };
 

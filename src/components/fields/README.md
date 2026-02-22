@@ -107,11 +107,12 @@ interface IndexFieldProps {
 | **URLInput** | ✅ | ✅ | ✅ | URL girişi + external link |
 | **TextareaField** | ✅ | ✅ | ✅ | Çok satırlı metin |
 
-### InputGroup Addon Desteği (Form)
+### InputGroup Addon Desteği (Form + Detail + Index)
 
-Form view'daki tüm field bileşenleri `start/end addon` destekler.
-Input/textarea/select/combobox tabanlı alanlarda doğrudan `InputGroup`,
-diğer kompleks alanlarda (relationship chips, file, tabs, dialog vb.) container-level addon uygulanır.
+`start/end addon` desteği Form, Detail ve Index görünümlerinde çalışır.
+Form view'da input/textarea/select/combobox tabanlı alanlarda doğrudan `InputGroup`,
+kompleks alanlarda (relationship chips, file, tabs, dialog vb.) container-level addon uygulanır.
+Detail ve Index view'da field değeri addon ile birlikte render edilir.
 
 Desteklenen props anahtarları:
 - Baş addon: `startAddon`, `start_component`, `prefix`, `prepend`

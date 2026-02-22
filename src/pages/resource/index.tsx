@@ -154,6 +154,31 @@ function normalizeSelectInitialValue(field: FieldData): string | undefined {
     return candidate
 }
 
+function resolveHeaderSortKey(header: FieldData): string {
+    const rawProps = header.props
+    if (!rawProps || typeof rawProps !== "object" || Array.isArray(rawProps)) {
+        return header.key
+    }
+
+    const props = rawProps as Record<string, unknown>
+    const candidates = [
+        props.sortable_uri_key,
+        props.sortableUriKey,
+        props.sort_key,
+        props.sortKey,
+        props.sort_column,
+        props.sortColumn,
+    ]
+
+    for (const candidate of candidates) {
+        if (typeof candidate === "string" && candidate.trim().length > 0) {
+            return candidate.trim()
+        }
+    }
+
+    return header.key
+}
+
 export const loader = async ({ params, request }: LoaderFunctionArgs): Promise<LoaderData | Response> => {
     const resource = params.resource
     if (!resource) {
@@ -337,7 +362,8 @@ export default function ResourceIndexPage() {
 
     // Resource Data Query
     const { data: resourceData, isLoading, isError } = useQuery({
-        queryKey: ["resource", resource, params.search, params.sort?.column, params.sort?.direction, params.page, params.per_page, params.view],
+        // Include location.key to avoid reusing stale data when navigating back to a previously used sort/filter state.
+        queryKey: ["resource", resource, location.key, params.search, params.sort?.column, params.sort?.direction, params.page, params.per_page, params.view, JSON.stringify(params.filters || {})],
         queryFn: async () => {
             if (!resource) return null
             return resourceService.fetchResource(resource, params)
@@ -353,8 +379,8 @@ export default function ResourceIndexPage() {
         setLocalSearch(query)
     }, [setLocalSearch])
 
-    const handleSort = useCallback((key: string) => {
-        updateSort(key)
+    const handleSort = useCallback((key: string, direction: 'asc' | 'desc') => {
+        updateSort(key, direction)
     }, [updateSort])
 
     // Create Fields Query
@@ -821,6 +847,7 @@ export default function ResourceIndexPage() {
                 key,
                 label: header.label || header.name || key,
                 sortable: header.sortable,
+                sortKey: resolveHeaderSortKey(header),
                 render: (_: any, record: ResourceItem) => {
                     const field: FieldData = record[key] as FieldData
                     if (!field) return null

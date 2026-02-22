@@ -87,4 +87,30 @@ describe("renderResourceFieldValue", () => {
     expect((element as HTMLElement).style.textTransform).toBe("uppercase");
     expect((element as HTMLElement).style.color).toBe("rgb(255, 0, 0)");
   });
+
+  it("renders start/end addons for index/grid values", () => {
+    const header = makeField({
+      key: "vat_rate",
+      view: "number-field-index",
+      props: {
+        startAddon: "%",
+        endAddon: "KDV",
+      },
+    });
+
+    const field = makeField({
+      key: "vat_rate",
+      view: "number-field-index",
+      type: "number",
+      data: 20,
+      props: {},
+    });
+
+    const rendered = renderResourceFieldValue(field, header, { vat_rate: field });
+    render(<div>{rendered}</div>);
+
+    expect(screen.getByText("%")).not.toBeNull();
+    expect(screen.getByText("20")).not.toBeNull();
+    expect(screen.getByText("KDV")).not.toBeNull();
+  });
 });

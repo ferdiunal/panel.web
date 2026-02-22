@@ -19,6 +19,31 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ResourceGridView } from '@/components/views/ResourceGridView';
 import { renderResourceFieldValue } from '@/lib/resource-field-render';
 
+function resolveHeaderSortKey(header: FieldData): string {
+  const rawProps = header.props;
+  if (!rawProps || typeof rawProps !== 'object' || Array.isArray(rawProps)) {
+    return header.key;
+  }
+
+  const props = rawProps as Record<string, unknown>;
+  const candidates = [
+    props.sortable_uri_key,
+    props.sortableUriKey,
+    props.sort_key,
+    props.sortKey,
+    props.sort_column,
+    props.sortColumn,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return header.key;
+}
+
 export interface RelationshipTableProps {
   /** İlişkili resource tipi (örn: "posts", "comments") */
   resourceType: string;
@@ -74,6 +99,8 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
   viaResource,
   viaResourceId,
   viaRelationship,
+  relationshipType,
+  title,
   defaultOpen = true,
   showAttachButton = false,
   perPageOptions = [5, 10, 25],
@@ -177,6 +204,11 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
     () => serializeColumnFiltersForQuery(urlState.columnFilters),
     [urlState.columnFilters]
   );
+  const isTableOnlyRelationship =
+    relationshipType === 'hasMany' ||
+    relationshipType === 'belongsToMany' ||
+    relationshipType === 'morphToMany';
+  const requestedView: 'table' | 'grid' = isTableOnlyRelationship ? 'table' : urlState.view;
 
   // Fetch relationship data
   const { data, isLoading, error, refetch } = useQuery({
@@ -191,14 +223,14 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
       urlState.sortBy,
       urlState.sortOrder,
       urlState.search,
-      urlState.view,
+      requestedView,
       filtersKey,
     ],
     queryFn: async () => {
       const params: ResourceParams = {
         page: urlState.page,
         per_page: urlState.perPage,
-        view: urlState.view,
+        view: requestedView,
       };
 
       if (urlState.sortBy) {
@@ -242,6 +274,7 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
         key: header.key,
         label: header.label || header.name,
         sortable: header.sortable ?? false,
+        sortKey: resolveHeaderSortKey(header),
         filterable: header.filterable ?? false,
         render: (_: any, resource: any) => {
             const field = resource[header.key] as FieldData;
@@ -254,23 +287,14 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
 
   // Handle sort
   const handleSort = useCallback(
-    (key: string) => {
-      if (urlState.sortBy === key) {
-        updateUrlState({
-          sortBy: key,
-          sortOrder: urlState.sortOrder === 'asc' ? 'desc' : 'asc',
-          page: 1,
-        });
-        return;
-      }
-
+    (key: string, direction: 'asc' | 'desc') => {
       updateUrlState({
         sortBy: key,
-        sortOrder: 'asc',
+        sortOrder: direction,
         page: 1,
       });
     },
-    [updateUrlState, urlState.sortBy, urlState.sortOrder]
+    [updateUrlState]
   );
 
   const handleViewChange = useCallback(
@@ -294,9 +318,13 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
 
   const total = Number(data?.meta?.total || 0);
   const totalPages = Math.max(1, Math.ceil(total / urlState.perPage));
-  const gridEnabled = data?.meta?.grid_enabled !== false;
+  const gridEnabled = !isTableOnlyRelationship && data?.meta?.grid_enabled !== false;
   const currentView: 'table' | 'grid' =
-    gridEnabled && urlState.view === 'grid' ? 'grid' : 'table';
+    gridEnabled && requestedView === 'grid' ? 'grid' : 'table';
+  const titleText = (title || '').trim();
+  const attachButtonVisible = Boolean(showAttachButton && onAttach);
+  const hasHeaderControls = gridEnabled || attachButtonVisible;
+  const hasHeaderContent = titleText.length > 0 || hasHeaderControls;
 
   // Panel header
   // const panelTitle = title || `${resourceType} (${data?.meta?.total || 0})`;
@@ -305,40 +333,53 @@ export const RelationshipTable: React.FC<RelationshipTableProps> = ({
     <div className={cn('border rounded-lg', className)}>
       {/* Panel Content */}
       <div className="p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          {gridEnabled && (
-            <ToggleGroup
-              type="single"
-              value={currentView}
-              onValueChange={(value) => {
-                if (value === 'table' || value === 'grid') {
-                  handleViewChange(value);
-                }
-              }}
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="table" aria-label="Table view">
-                <Table className="h-4 w-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem value="grid" aria-label="Grid view">
-                <LayoutGrid className="h-4 w-4" />
-              </ToggleGroupItem>
-            </ToggleGroup>
-          )}
+        {hasHeaderContent && (
+          <div
+            className={cn(
+              'mb-4 flex items-center gap-3',
+              hasHeaderControls ? 'justify-between' : 'justify-start'
+            )}
+          >
+            {titleText && <p className="text-sm font-medium text-foreground">{titleText}</p>}
 
-          {showAttachButton && onAttach && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onAttach}
-              className="h-8"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Attach
-            </Button>
-          )}
-        </div>
+            {hasHeaderControls && (
+              <div className="ml-auto flex items-center gap-3">
+                {gridEnabled && (
+                  <ToggleGroup
+                    type="single"
+                    value={currentView}
+                    onValueChange={(value) => {
+                      if (value === 'table' || value === 'grid') {
+                        handleViewChange(value);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ToggleGroupItem value="table" aria-label="Table view">
+                      <Table className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="grid" aria-label="Grid view">
+                      <LayoutGrid className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                )}
+
+                {attachButtonVisible && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onAttach}
+                    className="h-8"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Attach
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {currentView === 'grid' ? (
           <ResourceGridView

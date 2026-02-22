@@ -129,7 +129,7 @@ describe('IndexView Component', () => {
       const nameHeader = screen.getByText('Name');
       fireEvent.click(nameHeader);
 
-      expect(onSort).toHaveBeenCalledWith('name');
+      expect(onSort).toHaveBeenCalledWith('name', 'asc');
     });
 
     it('should display sort indicator for active sort column', () => {

@@ -14,6 +14,27 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { AddonAwareControl } from './form/input-group-addon';
+
+interface FieldLayoutAddonContextValue {
+  startAddon?: React.ReactNode;
+  endAddon?: React.ReactNode;
+}
+
+const FieldLayoutAddonContext = React.createContext<FieldLayoutAddonContextValue | null>(null);
+
+interface FieldLayoutAddonProviderProps {
+  addons: FieldLayoutAddonContextValue;
+  children: React.ReactNode;
+}
+
+export function FieldLayoutAddonProvider({ addons, children }: FieldLayoutAddonProviderProps) {
+  return (
+    <FieldLayoutAddonContext.Provider value={addons}>
+      {children}
+    </FieldLayoutAddonContext.Provider>
+  );
+}
 
 export interface FieldLayoutProps {
   /** Field adı (HTML name attribute) */
@@ -34,6 +55,10 @@ export interface FieldLayoutProps {
   className?: string;
   /** Label'ı gizle */
   hideLabel?: boolean;
+  /** Field içeriğinin başında gösterilecek addon */
+  startAddon?: React.ReactNode;
+  /** Field içeriğinin sonunda gösterilecek addon */
+  endAddon?: React.ReactNode;
 }
 
 /**
@@ -52,7 +77,14 @@ export const FieldLayout: React.FC<FieldLayoutProps> = ({
   children,
   className,
   hideLabel = false,
+  startAddon,
+  endAddon,
 }) => {
+  const contextAddons = React.useContext(FieldLayoutAddonContext);
+  const resolvedStartAddon = startAddon ?? contextAddons?.startAddon;
+  const resolvedEndAddon = endAddon ?? contextAddons?.endAddon;
+  const hasAddons = !!(resolvedStartAddon || resolvedEndAddon);
+
   return (
     <div className={cn('space-y-2', className)}>
       {/* Label */}
@@ -75,7 +107,20 @@ export const FieldLayout: React.FC<FieldLayoutProps> = ({
       )}
 
       {/* Field Content */}
-      <div className="relative">{children}</div>
+      <div className="relative">
+        {hasAddons ? (
+          <AddonAwareControl
+            startAddon={resolvedStartAddon}
+            endAddon={resolvedEndAddon}
+            groupClassName="h-auto min-h-9 items-stretch rounded-md"
+            controlClassName="min-h-9 px-2.5 py-1.5"
+          >
+            {children}
+          </AddonAwareControl>
+        ) : (
+          children
+        )}
+      </div>
 
       {/* Error Message */}
       {error && (
@@ -111,7 +156,14 @@ export const FieldLayoutInline: React.FC<FieldLayoutProps> = ({
   children,
   className,
   hideLabel = false,
+  startAddon,
+  endAddon,
 }) => {
+  const contextAddons = React.useContext(FieldLayoutAddonContext);
+  const resolvedStartAddon = startAddon ?? contextAddons?.startAddon;
+  const resolvedEndAddon = endAddon ?? contextAddons?.endAddon;
+  const hasAddons = !!(resolvedStartAddon || resolvedEndAddon);
+
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex items-start gap-4">
@@ -136,7 +188,20 @@ export const FieldLayoutInline: React.FC<FieldLayoutProps> = ({
 
         {/* Field Content */}
         <div className="flex-1 space-y-2">
-          <div className="relative">{children}</div>
+          <div className="relative">
+            {hasAddons ? (
+              <AddonAwareControl
+                startAddon={resolvedStartAddon}
+                endAddon={resolvedEndAddon}
+                groupClassName="h-auto min-h-9 items-stretch rounded-md"
+                controlClassName="min-h-9 px-2.5 py-1.5"
+              >
+                {children}
+              </AddonAwareControl>
+            ) : (
+              children
+            )}
+          </div>
 
           {/* Error Message */}
           {error && (

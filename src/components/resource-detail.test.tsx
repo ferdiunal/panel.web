@@ -112,4 +112,34 @@ describe("ResourceDetail stack field rendering", () => {
 
     expect(screen.getAllByText("Aktif").length).toBeGreaterThan(1)
   })
+
+  it("renders start/end addons in detail fields", () => {
+    const fields: FieldData[] = [
+      makeField({
+        key: "vat_rate",
+        view: "number-field",
+        type: "number",
+        label: "KDV",
+        name: "KDV",
+        data: 20,
+        props: {
+          startAddon: "%",
+          endAddon: "oran",
+        },
+      }),
+    ]
+
+    render(
+      <ResourceDetail
+        resourceName="products"
+        resourceId={1}
+        fields={fields}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText("%")).not.toBeNull()
+    expect(screen.getByText("20")).not.toBeNull()
+    expect(screen.getByText("oran")).not.toBeNull()
+  })
 })

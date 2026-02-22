@@ -237,6 +237,12 @@ function extractTypeValue(input: unknown): string | undefined {
   return undefined
 }
 
+function hasIdValue(input: string | number | undefined): boolean {
+  if (input === null || input === undefined) return false
+  if (typeof input === "string") return input.trim().length > 0
+  return true
+}
+
 export const MorphToFormField: React.FC<FormFieldProps> = ({
   field,
   name,
@@ -274,21 +280,29 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
     () => (field.props?.types as MorphTypeOption[]) || [],
     [field.props?.types]
   )
+  const fieldData = (field as { data?: unknown }).data
 
-  const rawType = useMemo(() => {
+  const fallbackType = useMemo(() => {
     return (
-      extractTypeValue(value) ||
+      extractTypeValue(fieldData) ||
       extractTypeValue(field.props?.morph_type)
     )
-  }, [value, field.props?.morph_type])
+  }, [fieldData, field.props?.morph_type])
+
+  const fallbackId = useMemo(() => {
+    return (
+      extractIdValue(fieldData) ??
+      extractIdValue(field.props?.morph_id)
+    )
+  }, [fieldData, field.props?.morph_id])
+
+  const rawType = useMemo(() => {
+    return extractTypeValue(value) || fallbackType
+  }, [value, fallbackType])
 
   const selectedId = useMemo(() => {
-    return (
-      extractIdValue(value) ||
-      extractIdValue(field.props?.morph_id) ||
-      ""
-    )
-  }, [value, field.props?.morph_id])
+    return extractIdValue(value) ?? fallbackId ?? ""
+  }, [value, fallbackId])
 
   const matchedTypeOption = useMemo(
     () => resolveTypeOption(types, rawType),
@@ -298,9 +312,22 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
   const selectedType = useMemo(() => {
     if (matchedTypeOption?.value) return matchedTypeOption.value
     if (rawType && types.some((t) => t.value === rawType)) return rawType
-    if (!rawType && selectedId && types.length === 1) return types[0].value
+    if (!rawType && hasIdValue(selectedId) && types.length === 1) return types[0].value
     return ""
   }, [matchedTypeOption, rawType, selectedId, types])
+
+  // Ensure edit forms keep backend value in RHF state even if controller starts empty.
+  useEffect(() => {
+    const valueType = extractTypeValue(value)
+    const valueId = extractIdValue(value)
+    if (valueType || hasIdValue(valueId)) return
+    if (!fallbackType && !hasIdValue(fallbackId)) return
+
+    onChange({
+      type: fallbackType ?? null,
+      id: fallbackId ?? null,
+    })
+  }, [value, fallbackType, fallbackId, onChange])
 
   // If backend sends only ID in edit payload, infer type safely and write back to form state.
   useEffect(() => {
@@ -437,7 +464,7 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
   }
 
   const selectedOption = options.find((o) => String(o.value) === String(selectedId))
-  const displayLabel = selectedOption?.display || initialLabel || (selectedId ? `#${selectedId}` : "Kaynak seç...")
+  const displayLabel = selectedOption?.display || initialLabel || (hasIdValue(selectedId) ? `#${selectedId}` : "Kaynak seç...")
 
   return (
     <FieldLayout

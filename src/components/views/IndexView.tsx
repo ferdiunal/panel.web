@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash, Filter, Database, Search } from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon, MoreHorizontal, Eye, Pencil, Trash, Filter, Database, Search, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Resource } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -370,6 +370,47 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
     const tanstackColumns = useMemo<ColumnDef<any>[]>(() => {
       const cols: ColumnDef<any>[] = [];
 
+      // Reorder handle column
+      if (enableRowReorder) {
+        cols.push({
+          id: 'reorder',
+          header: () => <span className="sr-only">{t('indexView.reorder', 'Reorder')}</span>,
+          cell: ({ row }) => {
+            const canDrag = !isLoading && !isReordering;
+
+            return (
+              <span
+                data-row-drag-handle="true"
+                data-prevent-row-click="true"
+                role="button"
+                aria-label={t('indexView.dragToReorder', 'Drag to reorder')}
+                title={t('indexView.dragToReorder', 'Drag to reorder')}
+                draggable={canDrag}
+                onDragStart={(event) => {
+                  if (!enableRowReorder || !canDrag) return;
+                  setDraggingRowId(row.id);
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', row.id);
+                }}
+                onDragEnd={() => {
+                  setDraggingRowId(null);
+                  setDragOverRowId(null);
+                }}
+                className={cn(
+                  'inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground',
+                  canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-50'
+                )}
+              >
+                <GripVertical className="h-4 w-4" />
+              </span>
+            );
+          },
+          enableSorting: false,
+          enableColumnFilter: false,
+          size: 44,
+        });
+      }
+
       // Selection column
       if (enableSelection) {
         cols.push({
@@ -489,7 +530,7 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
       }
 
       return cols;
-    }, [columns, enableSelection, showActions, onView, onEdit, onDelete, t]);
+    }, [columns, enableRowReorder, enableSelection, isLoading, isReordering, showActions, onView, onEdit, onDelete, t]);
 
     const handleRowClick = React.useCallback(
       (event: React.MouseEvent<HTMLTableRowElement>, resource: any) => {
@@ -514,16 +555,6 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
       [onEdit, onView, rowClickAction]
     );
 
-    const handleRowDragStart = React.useCallback(
-      (event: React.DragEvent<HTMLTableRowElement>, rowId: string) => {
-        if (!enableRowReorder || isReordering) return;
-        setDraggingRowId(rowId);
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', rowId);
-      },
-      [enableRowReorder, isReordering]
-    );
-
     const handleRowDragOver = React.useCallback(
       (event: React.DragEvent<HTMLTableRowElement>, rowId: string) => {
         if (!enableRowReorder || isReordering || !draggingRowId) return;
@@ -533,11 +564,6 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
       },
       [draggingRowId, enableRowReorder, isReordering]
     );
-
-    const handleRowDragEnd = React.useCallback(() => {
-      setDraggingRowId(null);
-      setDragOverRowId(null);
-    }, []);
 
     const handleRowDrop = React.useCallback(
       async (event: React.DragEvent<HTMLTableRowElement>, targetRowId: string) => {
@@ -770,11 +796,8 @@ export const IndexView = React.forwardRef<HTMLDivElement, IndexViewProps<any>>(
                   table.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
-                      draggable={enableRowReorder && !isLoading && !isReordering}
-                      onDragStart={(event) => handleRowDragStart(event, row.id)}
                       onDragOver={(event) => handleRowDragOver(event, row.id)}
                       onDrop={(event) => void handleRowDrop(event, row.id)}
-                      onDragEnd={handleRowDragEnd}
                       onClick={(event) => {
                         if (canTriggerRowClick) {
                           handleRowClick(event, row.original);

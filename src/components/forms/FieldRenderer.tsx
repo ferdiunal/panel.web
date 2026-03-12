@@ -18,6 +18,7 @@ import { searchRelationship } from '@/lib/relationship-api';
 import { getFieldSpanClass } from '@/lib/field-span';
 import { cn } from '@/lib/utils';
 import { resolveWithProps } from '@/lib/with-props';
+import { Loader2 } from 'lucide-react';
 
 export interface FieldRendererProps {
   formId: string;
@@ -25,13 +26,14 @@ export interface FieldRendererProps {
   container?: HTMLElement | null;
   parentResourceId?: string | number; // Parent resource ID (edit modunda kullanılır)
   parentResourceSlug?: string; // Parent resource slug (resourceType)
+  isResolving?: boolean; // Dependency resolution loading state
 }
 
 /**
  * FieldRenderer - Renders a single field with dependency updates
  */
 export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
-  ({ formId, field, container, parentResourceId, parentResourceSlug }) => {
+  ({ formId, field, container, parentResourceId, parentResourceSlug, isResolving = false }) => {
     const { control } = useFormContext();
 
     // Subscribe to field updates from dependency resolution
@@ -139,10 +141,16 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
 
     return (
       <div
-        className={cn('col-span-1', spanClassName, resolvedWithProps.className)}
+        className={cn('col-span-1 relative', spanClassName, resolvedWithProps.className)}
         style={resolvedWithProps.style}
         {...resolvedWithProps.attributes}
       >
+        {/* Loading indicator for dependency resolution */}
+        {isResolving && (
+          <div className="absolute right-2 top-2 z-10">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        )}
         <Controller
           name={enhancedField.key}
           control={control}
@@ -196,7 +204,8 @@ export const FieldRenderer: React.FC<FieldRendererProps> = React.memo(
       prev.field.type === next.field.type &&
       prev.container === next.container &&
       prev.parentResourceId === next.parentResourceId &&
-      prev.parentResourceSlug === next.parentResourceSlug
+      prev.parentResourceSlug === next.parentResourceSlug &&
+      prev.isResolving === next.isResolving
     );
   }
 );

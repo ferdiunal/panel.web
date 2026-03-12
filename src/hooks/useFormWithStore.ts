@@ -32,13 +32,14 @@ export interface UseFormWithStoreReturn {
 export function useFormWithStore(
   options: UseFormWithStoreOptions
 ): UseFormWithStoreReturn {
-  const { formId, schema, defaultValues, mode = 'onChange' } = options;
+  const { formId, schema, defaultValues, mode = 'onTouched' } = options;
 
   // Initialize React Hook Form
   const form = useForm({
     resolver: schema ? (zodResolver(schema as any) as any) : undefined,
     defaultValues: defaultValues as any,
     mode,
+    reValidateMode: 'onChange', // Submit sonrası real-time validation
   });
 
   // Subscribe to submission state from store

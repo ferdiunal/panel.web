@@ -21,6 +21,7 @@ import { GlobalLoader } from "@/components/global-loader"
 import { ErrorPage } from "@/pages/error"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ResourceErrorBoundary, RootErrorBoundary } from "@/components/error-boundaries"
+import { DialogStackProvider } from "@/components/ui/dialog-context"
 
 // Protected Route Wrapper Component
 const ProtectedRoute = () => {
@@ -350,9 +351,11 @@ const router = createBrowserRouter([
 export default function App() {
     return (
         <ThemeProvider defaultTheme="system" storageKey="panel-ui-theme">
-            <QueryClientProvider client={queryClient}>
-                <RouterProvider router={router} />
-            </QueryClientProvider>
+            <DialogStackProvider>
+                <QueryClientProvider client={queryClient}>
+                    <RouterProvider router={router} />
+                </QueryClientProvider>
+            </DialogStackProvider>
         </ThemeProvider>
     )
 }

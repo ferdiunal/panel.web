@@ -6,6 +6,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
+import { useDialogStack } from "./dialog-context"
 
 function Dialog({
   ...props
@@ -35,10 +36,14 @@ function DialogOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  const { level } = useDialogStack()
+  const zIndex = 50 + level * 10
+
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      className={cn("data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 isolate z-50", className)}
+      className={cn("data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/10 duration-150 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 isolate", className)}
+      style={{ zIndex }}
       {...props}
     />
   )
@@ -52,15 +57,24 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const { level, incrementLevel, decrementLevel } = useDialogStack()
+  const zIndex = 50 + level * 10
+
+  React.useEffect(() => {
+    incrementLevel()
+    return () => decrementLevel()
+  }, [incrementLevel, decrementLevel])
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%-2rem)] gap-4 rounded-xl p-6 text-sm ring-1 duration-100 sm:max-w-md fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+          "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%-2rem)] gap-4 rounded-xl p-6 text-sm ring-1 duration-200 sm:max-w-md fixed top-1/2 left-1/2 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
           className
         )}
+        style={{ zIndex }}
         {...props}
       >
         {children}

@@ -178,7 +178,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                     <SheetContent
                         side={side}
                         className={cn(
-                            "transition-all duration-200 ease-in-out",
+                            "transition-all duration-300 ease-in-out",
                             isFullscreen
                                 ? "data-[side=left]:sm:max-w-none data-[side=right]:sm:max-w-none data-[side=left]:w-screen data-[side=right]:w-screen data-[side=left]:sm:h-full data-[side=right]:sm:h-full"
                                 : SHEET_SIZE_CLASSES[sheetSize],
@@ -207,7 +207,7 @@ export const ResponsiveModal = React.forwardRef<HTMLDivElement, ResponsiveModalP
                 {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
                 <DialogContent
                     className={cn(
-                        "transition-all duration-200 ease-in-out flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden",
+                        "transition-all duration-300 ease-in-out flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden",
                         isFullscreen
                             ? "sm:w-screen sm:h-screen sm:max-w-none sm:max-h-[100dvh] rounded-none"
                             : cn("max-w-[calc(100%-2rem)]", DIALOG_SIZE_CLASSES[size]),

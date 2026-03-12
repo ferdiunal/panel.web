@@ -456,6 +456,7 @@ export const UniversalResourceForm: React.FC<UniversalResourceFormProps> = ({
                 container={container}
                 parentResourceId={resourceId}
                 parentResourceSlug={resourceType}
+                isResolving={isResolving}
               />
             ))}
         </div>

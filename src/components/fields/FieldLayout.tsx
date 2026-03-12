@@ -125,7 +125,7 @@ export const FieldLayout: React.FC<FieldLayoutProps> = ({
       {/* Error Message */}
       {error && (
         <p
-          className="text-sm font-medium text-destructive"
+          className="text-sm font-medium text-destructive animate-in fade-in-0 slide-in-from-top-1 duration-200"
           role="alert"
           aria-live="polite"
         >
@@ -206,7 +206,7 @@ export const FieldLayoutInline: React.FC<FieldLayoutProps> = ({
           {/* Error Message */}
           {error && (
             <p
-              className="text-sm font-medium text-destructive"
+              className="text-sm font-medium text-destructive animate-in fade-in-0 slide-in-from-top-1 duration-200"
               role="alert"
               aria-live="polite"
             >

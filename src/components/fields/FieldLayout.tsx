@@ -86,7 +86,7 @@ export const FieldLayout: React.FC<FieldLayoutProps> = ({
   const hasAddons = !!(resolvedStartAddon || resolvedEndAddon);
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-3', className)}>
       {/* Label */}
       {!hideLabel && label && (
         <Label
@@ -165,7 +165,7 @@ export const FieldLayoutInline: React.FC<FieldLayoutProps> = ({
   const hasAddons = !!(resolvedStartAddon || resolvedEndAddon);
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-3', className)}>
       <div className="flex items-start gap-4">
         {/* Label */}
         {!hideLabel && label && (
@@ -187,7 +187,7 @@ export const FieldLayoutInline: React.FC<FieldLayoutProps> = ({
         )}
 
         {/* Field Content */}
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-3">
           <div className="relative">
             {hasAddons ? (
               <AddonAwareControl

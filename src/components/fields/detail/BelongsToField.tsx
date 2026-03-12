@@ -5,6 +5,7 @@ import { Loader2, ExternalLink } from "lucide-react";
 import { FieldLayout } from "../FieldLayout";
 import type { DetailFieldProps } from "@/types"; // DetailFieldProps kullan
 import { RelationshipHoverCard } from "../RelationshipHoverCard";
+import { useQuery } from "@tanstack/react-query";
 
 /**
  * BelongsToDetailField - BelongsTo field için detail sayfası component'ı
@@ -51,7 +52,6 @@ import { RelationshipHoverCard } from "../RelationshipHoverCard";
 export function BelongsToDetailField({ field, record, onResourceClick }: DetailFieldProps) {
     const [displayLabel, setDisplayLabel] = useState<string>("");
     const [relatedData, setRelatedData] = useState<Record<string, any> | null>(null);
-    const [loading, setLoading] = useState(false);
 
     // İlişkili kayıt ID'sini al
     const relatedId = record[field.key]?.data || record[field.key];
@@ -65,7 +65,23 @@ export function BelongsToDetailField({ field, record, onResourceClick }: DetailF
     // Hover card config'ini al
     const hoverCardConfig = field.props?.hover_card as any;
 
-    // İlişkili kayıt verilerini fetch et veya options'dan al
+    // Options ve eager loading kontrolü
+    const hasOptions = !!field.props?.options;
+    const nestedData = record[field.key.replace('_id', '')];
+    const hasEagerData = nestedData && typeof nestedData === 'object';
+
+    // React Query: İlişkili kayıt verilerini fetch et
+    const { data: fetchedData, isLoading } = useQuery({
+        queryKey: ['resource', relatedResource, relatedId],
+        queryFn: async () => {
+            const res = await axios.get(`/resource/${relatedResource}/${relatedId}`);
+            return res.data.data;
+        },
+        enabled: !!relatedId && !!relatedResource && !hasOptions && !hasEagerData,
+        staleTime: 5 * 60 * 1000, // 5 dakika cache
+    });
+
+    // Data processing
     useEffect(() => {
         if (!relatedId || !relatedResource) {
             setDisplayLabel("");
@@ -73,21 +89,17 @@ export function BelongsToDetailField({ field, record, onResourceClick }: DetailF
             return;
         }
 
-        // 1. Önce props.options kontrol et (En hızlı yöntem)
-        // Backend bazen options içinde { "16": "Test Şirket" } gibi veriyi gönderiyor
+        // 1. Önce props.options kontrol et
         if (field.props?.options) {
             const options = field.props.options as Record<string, string> | Array<{label: string, value: any}>;
-            
-            // Array format: [{label: 'Test', value: 16}]
+
             if (Array.isArray(options)) {
                 const option = options.find(opt => String(opt.value) === String(relatedId));
                 if (option) {
                     setDisplayLabel(option.label);
                     return;
                 }
-            } 
-            // Object format: { "16": "Test" }
-            else {
+            } else {
                 const label = options[String(relatedId)];
                 if (label) {
                     setDisplayLabel(label);
@@ -96,46 +108,28 @@ export function BelongsToDetailField({ field, record, onResourceClick }: DetailF
             }
         }
 
-        // 2. Eğer record'da ilişkili veri zaten varsa (eager loading), onu kullan
-        const nestedData = record[field.key.replace('_id', '')];
-        if (nestedData && typeof nestedData === 'object') {
+        // 2. Eğer eager loading varsa, onu kullan
+        if (hasEagerData) {
             const label = nestedData[displayKey]?.data || nestedData[displayKey] || `#${relatedId}`;
             setDisplayLabel(label);
             setRelatedData(nestedData);
             return;
         }
 
-        // 3. Hiçbiri yoksa API'den fetch et
-        const fetchRelatedData = async () => {
-            setLoading(true);
-            try {
-                const res = await axios.get(`/resource/${relatedResource}/${relatedId}`);
-                const item = res.data.data;
-
-                // Display label'ı al
-                const label = item?.[displayKey]?.data || item?.[displayKey] || `#${relatedId}`;
-                setDisplayLabel(label);
-
-                // Hover card için tüm veriyi sakla
-                setRelatedData(item);
-            } catch (e) {
-                console.error('Failed to fetch related data:', e);
-                setDisplayLabel(`#${relatedId}`);
-                setRelatedData(null);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchRelatedData();
-    }, [relatedId, relatedResource, displayKey, field.key, record, field.props?.options]);
+        // 3. Fetch edilen veriyi kullan
+        if (fetchedData) {
+            const label = fetchedData?.[displayKey]?.data || fetchedData?.[displayKey] || `#${relatedId}`;
+            setDisplayLabel(label);
+            setRelatedData(fetchedData);
+        } else if (!isLoading) {
+            setDisplayLabel(`#${relatedId}`);
+        }
+    }, [relatedId, relatedResource, displayKey, field.props?.options, hasEagerData, nestedData, fetchedData, isLoading]);
 
     const finalLabel = displayLabel || (relatedId ? `#${relatedId}` : '');
 
     // Link element'i oluştur
-    // Detay sayfası olmadığı için listeleme sayfasına yönlendirip query param ile modalı açıyoruz
-    // Veya onResourceClick varsa onu kullanıyoruz (modal içinde modal açmak yerine content değiştirme)
-    const linkElement = loading ? (
+    const linkElement = isLoading ? (
         <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             <span className="text-muted-foreground">Yükleniyor...</span>
@@ -164,7 +158,7 @@ export function BelongsToDetailField({ field, record, onResourceClick }: DetailF
     );
 
     // Hover card ile wrap et (eğer aktifse ve veri varsa)
-    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData && !loading ? (
+    const content = hoverCardConfig && hoverCardConfig.enabled && relatedData && !isLoading ? (
         <RelationshipHoverCard config={hoverCardConfig} data={relatedData}>
             {linkElement}
         </RelationshipHoverCard>

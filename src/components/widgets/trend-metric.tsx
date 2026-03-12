@@ -2,7 +2,13 @@
 
 import * as React from "react"
 import { TrendingUp } from "lucide-react"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+
+// Lazy load Recharts components
+const Area = React.lazy(() => import("recharts").then(m => ({ default: m.Area })))
+const AreaChart = React.lazy(() => import("recharts").then(m => ({ default: m.AreaChart })))
+const CartesianGrid = React.lazy(() => import("recharts").then(m => ({ default: m.CartesianGrid })))
+const XAxis = React.lazy(() => import("recharts").then(m => ({ default: m.XAxis })))
+const YAxis = React.lazy(() => import("recharts").then(m => ({ default: m.YAxis })))
 
 import {
   Card,
@@ -18,6 +24,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useTranslation } from "@/hooks/useTranslation"
 import { getBrowserLocale, normalizeDateValue } from "@/lib/date-display"
 import { type Card as CardType } from "@/types"
@@ -179,53 +186,55 @@ export function TrendMetric({ card }: { card: CardType }) {
         {subtitle ? <CardDescription>{subtitle}</CardDescription> : null}
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
-          <AreaChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              left: -20,
-              right: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(value) => formatDate(String(value), "short")}
-            />
-            <YAxis tickLine={false} axisLine={false} tickMargin={8} tickCount={3} />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) => formatDate(String(value), "long")}
-                  formatter={(value) => numberFormatter.format(Number(value) || 0)}
+        <React.Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
+          <ChartContainer config={chartConfig}>
+            <AreaChart
+              accessibilityLayer
+              data={chartData}
+              margin={{
+                left: -20,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(value) => formatDate(String(value), "short")}
+              />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} tickCount={3} />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) => formatDate(String(value), "long")}
+                    formatter={(value) => numberFormatter.format(Number(value) || 0)}
+                  />
+                }
+              />
+              {hasMobileSeries ? (
+                <Area
+                  dataKey="mobile"
+                  type="natural"
+                  fill="var(--color-mobile)"
+                  fillOpacity={0.4}
+                  stroke="var(--color-mobile)"
+                  stackId="a"
                 />
-              }
-            />
-            {hasMobileSeries ? (
+              ) : null}
               <Area
-                dataKey="mobile"
+                dataKey="desktop"
                 type="natural"
-                fill="var(--color-mobile)"
+                fill="var(--color-desktop)"
                 fillOpacity={0.4}
-                stroke="var(--color-mobile)"
+                stroke="var(--color-desktop)"
                 stackId="a"
               />
-            ) : null}
-            <Area
-              dataKey="desktop"
-              type="natural"
-              fill="var(--color-desktop)"
-              fillOpacity={0.4}
-              stroke="var(--color-desktop)"
-              stackId="a"
-            />
-          </AreaChart>
-        </ChartContainer>
+            </AreaChart>
+          </ChartContainer>
+        </React.Suspense>
       </CardContent>
       <CardFooter>
         <div className="flex w-full items-start gap-2 text-sm">

@@ -1,5 +1,10 @@
 import * as React from 'react';
-import { Label, Pie, PieChart, Sector } from 'recharts';
+
+// Lazy load Recharts components
+const Label = React.lazy(() => import('recharts').then(m => ({ default: m.Label })));
+const Pie = React.lazy(() => import('recharts').then(m => ({ default: m.Pie })));
+const PieChart = React.lazy(() => import('recharts').then(m => ({ default: m.PieChart })));
+const Sector = React.lazy(() => import('recharts').then(m => ({ default: m.Sector })));
 
 import {
   Card,
@@ -22,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PartitionMetricProps {
   title: string;
@@ -207,12 +213,13 @@ export function PartitionMetric({ title, payload }: PartitionMetricProps) {
         </Select>
       </CardHeader>
       <CardContent className="flex flex-1 justify-center pb-0">
-        <ChartContainer
-          id={id}
-          config={chartConfig}
-          className="mx-auto aspect-square w-full max-w-[300px]"
-        >
-          <PieChart>
+        <React.Suspense fallback={<Skeleton className="h-[300px] w-[300px] rounded-full mx-auto" />}>
+          <ChartContainer
+            id={id}
+            config={chartConfig}
+            className="mx-auto aspect-square w-full max-w-[300px]"
+          >
+            <PieChart>
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent hideLabel />}
@@ -268,6 +275,7 @@ export function PartitionMetric({ title, payload }: PartitionMetricProps) {
             </PieComponent>
           </PieChart>
         </ChartContainer>
+        </React.Suspense>
       </CardContent>
     </Card>
   );

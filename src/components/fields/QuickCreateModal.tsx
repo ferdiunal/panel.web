@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { FieldDefinition } from '@/types/form';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useQuery } from '@tanstack/react-query';
 
 interface QuickCreateModalProps {
   resourceSlug: string;
@@ -175,7 +176,6 @@ export function QuickCreateModal({
 }: QuickCreateModalProps) {
   const location = useLocation()
   const { t } = useTranslation()
-  const [loading, setLoading] = useState(false);
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [resourceTitle, setResourceTitle] = useState('');
   const [parentFieldAssignments, setParentFieldAssignments] = useState<Record<string, unknown>>({});
@@ -199,63 +199,67 @@ export function QuickCreateModal({
     return resourceTitle || resourceSlug
   }, [resourceSlug, resourceTitle, t])
 
-  // Create endpoint'inden field'ları fetch et
-  useEffect(() => {
-    console.log([open, resourceSlug])
-    if (!open || !resourceSlug) return;
-
-    const fetchFields = async () => {
-      setLoading(true);
-      try {
-        const queryParams = new URLSearchParams();
-        if (currentResource) {
-          queryParams.set('viaResource', currentResource);
-        }
-
-        const createUrl = queryParams.toString()
-          ? `/resource/${resourceSlug}/create?${queryParams.toString()}`
-          : `/resource/${resourceSlug}/create`;
-
-        const response = await axios.get(createUrl);
-        const data = response.data.data || response.data;
-        const availableFields = Array.isArray(data.fields) ? data.fields : [];
-
-        console.log('QuickCreate - API Response:', data);
-
-        // Resource title'ı al (API dönerse fallback olarak kullanılır)
-        setResourceTitle(data.title || data?.meta?.title || '');
-
-        // Parent resource context'e göre otomatik ilişki alanlarını hazırla
-        const resolvedAssignments = resolveParentFieldAssignments(
-          availableFields,
-          currentResource,
-          effectiveParentResourceId as string | number | undefined
-        );
-        setParentFieldAssignments(resolvedAssignments);
-        if (Object.keys(resolvedAssignments).length > 0) {
-          console.log('QuickCreate - Parent Field Assignments:', resolvedAssignments);
-        }
-
-        // Field'ları al ve sadece form'da gösterilecek olanları filtrele
-        const formFields = availableFields.filter((field: any) => {
-          // ID, timestamps ve hidden field'ları gösterme
-          const excludedKeys = ['id', 'created_at', 'updated_at', 'deleted_at'];
-          return !excludedKeys.includes(field.key) && field.view !== 'hidden-field';
-        });
-
-        console.log('QuickCreate - Filtered Fields:', formFields);
-        setFields(formFields);
-      } catch (error) {
-        console.error('Failed to fetch create fields:', error);
-        toast.error('Form yüklenemedi');
-        onOpenChange(false);
-      } finally {
-        setLoading(false);
+  // React Query: Create endpoint'inden field'ları fetch et
+  const { data: createData, isLoading, error } = useQuery({
+    queryKey: ['resource', resourceSlug, 'create', currentResource],
+    queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      if (currentResource) {
+        queryParams.set('viaResource', currentResource);
       }
-    };
 
-    fetchFields();
-  }, [open, resourceSlug, onOpenChange, currentResource, effectiveParentResourceId]);
+      const createUrl = queryParams.toString()
+        ? `/resource/${resourceSlug}/create?${queryParams.toString()}`
+        : `/resource/${resourceSlug}/create`;
+
+      const response = await axios.get(createUrl);
+      return response.data.data || response.data;
+    },
+    enabled: open && !!resourceSlug,
+    staleTime: 5 * 60 * 1000, // 5 dakika cache
+  });
+
+  // Error handling
+  useEffect(() => {
+    if (error) {
+      console.error('Failed to fetch create fields:', error);
+      toast.error('Form yüklenemedi');
+      onOpenChange(false);
+    }
+  }, [error, onOpenChange]);
+
+  // Data processing
+  useEffect(() => {
+    if (createData) {
+      const availableFields = Array.isArray(createData.fields) ? createData.fields : [];
+
+      console.log('QuickCreate - API Response:', createData);
+
+      // Resource title'ı al (API dönerse fallback olarak kullanılır)
+      setResourceTitle(createData.title || createData?.meta?.title || '');
+
+      // Parent resource context'e göre otomatik ilişki alanlarını hazırla
+      const resolvedAssignments = resolveParentFieldAssignments(
+        availableFields,
+        currentResource,
+        effectiveParentResourceId as string | number | undefined
+      );
+      setParentFieldAssignments(resolvedAssignments);
+      if (Object.keys(resolvedAssignments).length > 0) {
+        console.log('QuickCreate - Parent Field Assignments:', resolvedAssignments);
+      }
+
+      // Field'ları al ve sadece form'da gösterilecek olanları filtrele
+      const formFields = availableFields.filter((field: any) => {
+        // ID, timestamps ve hidden field'ları gösterme
+        const excludedKeys = ['id', 'created_at', 'updated_at', 'deleted_at'];
+        return !excludedKeys.includes(field.key) && field.view !== 'hidden-field';
+      });
+
+      console.log('QuickCreate - Filtered Fields:', formFields);
+      setFields(formFields);
+    }
+  }, [createData, currentResource, effectiveParentResourceId]);
 
   // Form submit handler
   const handleSubmit = async (data: Record<string, any>) => {
@@ -298,7 +302,7 @@ export function QuickCreateModal({
         description="Hızlı kayıt oluşturma formu"
         ref={setContainer}
       >
-        {loading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>

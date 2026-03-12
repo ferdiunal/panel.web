@@ -4,6 +4,7 @@ import axios from "@/lib/axios";
 import type { FieldData } from "@/types";
 import { RelationshipHoverCard } from "../RelationshipHoverCard";
 import { FieldLayout } from "../FieldLayout";
+import { useQuery } from "@tanstack/react-query";
 
 /**
  * BelongsToIndexFieldProps - BelongsTo field için index sayfası props
@@ -53,7 +54,6 @@ interface BelongsToIndexFieldProps {
 export function BelongsToIndexField({ field, record }: BelongsToIndexFieldProps) {
     const [displayLabel, setDisplayLabel] = useState<string>("");
     const [relatedData, setRelatedData] = useState<Record<string, any> | null>(null);
-    const [loading, setLoading] = useState(false);
 
     // İlişkili kayıt ID'sini al
     const relatedId = record[field.key]?.data || record[field.key];
@@ -67,7 +67,22 @@ export function BelongsToIndexField({ field, record }: BelongsToIndexFieldProps)
     // Hover card config'ini al
     const hoverCardConfig = field.props?.hover_card as any;
 
-    // İlişkili kayıt verilerini fetch et
+    // Eager loading kontrolü
+    const nestedData = record[field.key.replace('_id', '')];
+    const hasEagerData = nestedData && typeof nestedData === 'object';
+
+    // React Query: İlişkili kayıt verilerini fetch et
+    const { data: fetchedData, isLoading } = useQuery({
+        queryKey: ['resource', relatedResource, relatedId],
+        queryFn: async () => {
+            const res = await axios.get(`/resource/${relatedResource}/${relatedId}`);
+            return res.data.data;
+        },
+        enabled: !!relatedId && !!relatedResource && !hasEagerData,
+        staleTime: 5 * 60 * 1000, // 5 dakika cache
+    });
+
+    // Data processing
     useEffect(() => {
         if (!relatedId || !relatedResource) {
             setDisplayLabel("");
@@ -75,39 +90,23 @@ export function BelongsToIndexField({ field, record }: BelongsToIndexFieldProps)
             return;
         }
 
-        // Eğer record'da ilişkili veri zaten varsa (eager loading), onu kullan
-        const nestedData = record[field.key.replace('_id', '')];
-        if (nestedData && typeof nestedData === 'object') {
+        // Eğer eager loading varsa, onu kullan
+        if (hasEagerData) {
             const label = nestedData[displayKey]?.data || nestedData[displayKey] || `#${relatedId}`;
             setDisplayLabel(label);
             setRelatedData(nestedData);
             return;
         }
 
-        // API'den fetch et
-        const fetchRelatedData = async () => {
-            setLoading(true);
-            try {
-                const res = await axios.get(`/resource/${relatedResource}/${relatedId}`);
-                const item = res.data.data;
-
-                // Display label'ı al
-                const label = item?.[displayKey]?.data || item?.[displayKey] || `#${relatedId}`;
-                setDisplayLabel(label);
-
-                // Hover card için tüm veriyi sakla
-                setRelatedData(item);
-            } catch (e) {
-                console.error('Failed to fetch related data:', e);
-                setDisplayLabel(`#${relatedId}`);
-                setRelatedData(null);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchRelatedData();
-    }, [relatedId, relatedResource, displayKey, field.key, record]);
+        // Fetch edilen veriyi kullan
+        if (fetchedData) {
+            const label = fetchedData?.[displayKey]?.data || fetchedData?.[displayKey] || `#${relatedId}`;
+            setDisplayLabel(label);
+            setRelatedData(fetchedData);
+        } else if (!isLoading) {
+            setDisplayLabel(`#${relatedId}`);
+        }
+    }, [relatedId, relatedResource, displayKey, hasEagerData, nestedData, fetchedData, isLoading]);
 
     const finalLabel = displayLabel || (relatedId ? `#${relatedId}` : '');
 
@@ -118,7 +117,7 @@ export function BelongsToIndexField({ field, record }: BelongsToIndexFieldProps)
             className="text-sm text-primary hover:underline"
             onClick={(e) => e.stopPropagation()}
         >
-            {loading ? '...' : finalLabel}
+            {isLoading ? '...' : finalLabel}
         </Link>
     ) : (
         <span className="text-muted-foreground text-sm">—</span>

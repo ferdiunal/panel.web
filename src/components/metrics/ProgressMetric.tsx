@@ -1,5 +1,10 @@
 import * as React from "react"
-import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
+
+// Lazy load Recharts components
+const CartesianGrid = React.lazy(() => import("recharts").then(m => ({ default: m.CartesianGrid })))
+const Line = React.lazy(() => import("recharts").then(m => ({ default: m.Line })))
+const LineChart = React.lazy(() => import("recharts").then(m => ({ default: m.LineChart })))
+const XAxis = React.lazy(() => import("recharts").then(m => ({ default: m.XAxis })))
 
 import {
   Card,
@@ -14,6 +19,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useTranslation } from "@/hooks/useTranslation"
 import { getBrowserLocale, normalizeDateValue } from "@/lib/date-display"
 
@@ -457,42 +463,44 @@ export function ProgressMetric({ title, payload: rawPayload }: ProgressMetricPro
         </div>
       </CardHeader>
       <CardContent className="px-2 sm:p-6">
-        <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
-          <LineChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              left: 12,
-              right: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value) => formatDate(String(value), "short")}
-            />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  className="w-[150px]"
-                  labelFormatter={(value) => formatDate(String(value), "long")}
-                  formatter={(value) => numberFormatter.format(Number(value) || 0)}
-                />
-              }
-            />
-            <Line
-              dataKey={activeSeries?.key || "desktop"}
-              type="monotone"
-              stroke={`var(--color-${activeSeries?.key || "desktop"})`}
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ChartContainer>
+        <React.Suspense fallback={<Skeleton className="h-[250px] w-full" />}>
+          <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+            <LineChart
+              accessibilityLayer
+              data={chartData}
+              margin={{
+                left: 12,
+                right: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tickFormatter={(value) => formatDate(String(value), "short")}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    className="w-[150px]"
+                    labelFormatter={(value) => formatDate(String(value), "long")}
+                    formatter={(value) => numberFormatter.format(Number(value) || 0)}
+                  />
+                }
+              />
+              <Line
+                dataKey={activeSeries?.key || "desktop"}
+                type="monotone"
+                stroke={`var(--color-${activeSeries?.key || "desktop"})`}
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ChartContainer>
+        </React.Suspense>
       </CardContent>
     </Card>
   )

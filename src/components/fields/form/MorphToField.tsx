@@ -5,7 +5,7 @@
  * Polymorphic relationship desteği ile
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useId } from "react"
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react"
 import axios from "@/lib/axios"
 
@@ -264,6 +264,7 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
   const [search, setSearch] = useState("")
   const [initialLabel, setInitialLabel] = useState<string>("")
   const [quickCreateOpen, setQuickCreateOpen] = useState(false)
+  const listboxId = useId()
 
   // Props extraction
   const resourceSlug = field.props?.resourceSlug as string; // Ensure this is passed or available
@@ -507,6 +508,7 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
                         <Button
                         variant="outline"
                         role="combobox"
+                        aria-controls={listboxId}
                         aria-expanded={open}
                         className={cn(
                           "justify-between w-full font-normal",
@@ -519,7 +521,7 @@ export const MorphToFormField: React.FC<FormFieldProps> = ({
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0" align="start">
-                        <Command shouldFilter={false}>
+                        <Command id={listboxId} shouldFilter={false}>
                         <CommandInput
                             placeholder="Kaynak ara..."
                             value={search}

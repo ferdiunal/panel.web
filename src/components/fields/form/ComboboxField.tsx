@@ -5,7 +5,7 @@
  * Searchable select
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useId } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -79,6 +79,7 @@ export const ComboboxFormField: React.FC<FormFieldProps> = ({
   endAddon,
 }) => {
   const [open, setOpen] = useState(false);
+  const listboxId = useId();
   const addons = resolveFieldInputAddons(
     field.props as Record<string, unknown> | undefined,
     { startAddon, endAddon }
@@ -129,6 +130,7 @@ export const ComboboxFormField: React.FC<FormFieldProps> = ({
             <Button
               variant="outline"
               role="combobox"
+              aria-controls={listboxId}
               aria-expanded={open}
               disabled={disabled}
               className={cn(
@@ -143,7 +145,7 @@ export const ComboboxFormField: React.FC<FormFieldProps> = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-full p-0" align="start">
-            <Command>
+            <Command id={listboxId}>
               <CommandInput placeholder="Ara..." />
               <CommandList>
                 <CommandEmpty>Sonuç bulunamadı.</CommandEmpty>
